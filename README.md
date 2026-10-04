@@ -15,7 +15,11 @@ App personal de seguimiento de entrenamiento (PWA). HTML + CSS + JavaScript puro
 | `js/gym.js` | Pestañas Entrenar e Historial |
 | `js/progreso.js` | Pestaña Progreso (gráficas) |
 | `js/catalogo.js` | Pestañas Ejercicios y Mesociclos |
-| `js/seed.js` | Rutina inicial (solo se usa la primera vez) |
+| `js/plan.js` | Tu plan de 6 meses en datos: mesociclos, running y flexibilidad |
+| `js/running.js` | Bloque Running: semana, registrar y progreso |
+| `js/flex.js` | Bloque Flexibilidad: checklist diaria y progreso |
+| `js/graficos.js` | Estilo común de las gráficas |
+| `js/iconos.js` | Iconos SVG propios |
 | `js/app.js` | Arranque, login y navegación |
 | `sw.js` | Service worker: permite abrir la app sin internet |
 | `manifest.json` + `icons/` | Nombre e icono al instalarla en el móvil |
@@ -23,7 +27,7 @@ App personal de seguimiento de entrenamiento (PWA). HTML + CSS + JavaScript puro
 ## Bloques
 
 - [x] Gimnasio
-- [ ] Running
-- [ ] Flexibilidad
+- [x] Running (manual; Strava cuando haya reloj)
+- [x] Flexibilidad
 - [ ] Bici
 - [ ] Nutrición

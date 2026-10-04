@@ -9,10 +9,17 @@ import { esErrorDeRed } from './utils.js';
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Copia en memoria de tus datos
-export const state = { ejercicios: [], mesociclos: [], sesiones: [], series: [] };
+export const state = {
+  ejercicios: [], mesociclos: [], sesiones: [], series: [], rutinas: [],
+  carreras: [], flex_dias: [], ajustes: null,
+  faltaMigracion: false,    // true si aún no has ejecutado schema_v2.sql
+};
+export let uid = null;      // tu id de usuario (lo necesitan algunas escrituras)
 
-const CLAVE_CACHE = 'st_cache_v1';   // copia local para poder abrir la app sin internet
-const CLAVE_COLA = 'st_cola_v1';     // sesiones guardadas sin internet, pendientes de subir
+const TABLAS = ['ejercicios', 'mesociclos', 'sesiones', 'series', 'rutinas', 'carreras', 'flex_dias', 'ajustes'];
+const NUEVAS = new Set(['rutinas', 'carreras', 'flex_dias', 'ajustes']);
+const CLAVE_CACHE = 'st_cache_v2';   // copia local para poder abrir la app sin internet
+const CLAVE_COLA = 'st_cola_v1';     // sesiones de gimnasio guardadas sin internet
 
 // Ejecuta una consulta y lanza el error si lo hay (así podemos usar try/catch)
 export async function ejecutar(consulta) {
@@ -26,9 +33,16 @@ async function leerTabla(tabla) {
   const TAM = 1000;
   let desde = 0, filas = [];
   while (true) {
-    const data = await ejecutar(
-      supabase.from(tabla).select('*').order('id').range(desde, desde + TAM - 1)
-    );
+    const { data, error } = await supabase.from(tabla).select('*')
+      .order(tabla === 'ajustes' ? 'user_id' : 'id').range(desde, desde + TAM - 1);
+    if (error) {
+      // Tabla que aún no existe → falta ejecutar la migración v2
+      if (NUEVAS.has(tabla) && /does not exist|PGRST205|42P01|schema cache/i.test(`${error.code} ${error.message}`)) {
+        state.faltaMigracion = true;
+        return [];
+      }
+      throw error;
+    }
     filas = filas.concat(data);
     if (data.length < TAM) return filas;
     desde += TAM;
@@ -37,12 +51,16 @@ async function leerTabla(tabla) {
 
 // ---------- Cargar datos ----------
 export async function cargarTodo() {
+  const { data } = await supabase.auth.getSession();
+  uid = data.session?.user?.id ?? uid;
+
   if (navigator.onLine) {
     try {
-      const [ejercicios, mesociclos, sesiones, series] = await Promise.all(
-        ['ejercicios', 'mesociclos', 'sesiones', 'series'].map(leerTabla)
-      );
-      Object.assign(state, { ejercicios, mesociclos, sesiones, series });
+      state.faltaMigracion = false;
+      const filas = await Promise.all(TABLAS.map(leerTabla));
+      TABLAS.forEach((t, i) => (state[t] = filas[i]));
+      state.ajustes = filas[TABLAS.indexOf('ajustes')][0] || null;
+      ordenar();
       try { localStorage.setItem(CLAVE_CACHE, JSON.stringify(state)); } catch {}
       aplicarColaAlEstado();
       return;
@@ -51,6 +69,12 @@ export async function cargarTodo() {
     }
   }
   cargarLocal();
+}
+
+function ordenar() {
+  state.series.sort((a, b) => a.id - b.id);
+  state.sesiones.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
+  state.carreras.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
 }
 
 function cargarLocal() {
@@ -65,7 +89,7 @@ export function limpiarLocal() {
   localStorage.removeItem(CLAVE_CACHE);
 }
 
-// ---------- Cola de sesiones sin conexión ----------
+// ---------- Cola de sesiones de gimnasio sin conexión ----------
 export function pendientes() {
   try { return JSON.parse(localStorage.getItem(CLAVE_COLA) || '[]'); } catch { return []; }
 }
@@ -89,7 +113,7 @@ function aplicarColaAlEstado() {
   }
 }
 
-// ---------- Guardar una sesión ----------
+// ---------- Guardar una sesión de gimnasio ----------
 // p = { fecha, dia, notas, mesociclo_id, series: [{ejercicio_id, numero_serie, drop_idx, reps, kg, tecnica}] }
 // Si series está vacío, la sesión se borra.
 async function guardarEnSupabase(p) {

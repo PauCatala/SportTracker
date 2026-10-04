@@ -80,6 +80,25 @@ export function metricas(sets, porLado) {
   return { e1rm, maxKg, volumen, reps };
 }
 
+// ---------- Tiempos y ritmos (running) ----------
+// "4:20" → 260 s · "1:02:30" → 3750 s · "92" → 92 s (o minutos si sinDosPuntos = 'min')
+export function parseTiempo(txt, sinDosPuntos = 'seg') {
+  const t = String(txt ?? '').trim().replace(',', '.');
+  if (!t) return NaN;
+  if (!t.includes(':')) return Number(t) * (sinDosPuntos === 'min' ? 60 : 1);
+  const partes = t.split(':').map(Number);
+  if (partes.some(isNaN)) return NaN;
+  return partes.reduce((total, p) => total * 60 + p, 0);
+}
+export function fmtTiempo(seg) {
+  if (seg == null || isNaN(seg)) return '–';
+  seg = Math.round(seg);
+  const h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+export const fmtRitmo = segPorKm => (segPorKm > 0 && isFinite(segPorKm) ? fmtTiempo(segPorKm) : '–');
+export const diasEntre = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
+
 // ---------- Mensajes y errores ----------
 export function aviso(msg, tipo = 'ok') {
   const el = document.getElementById('aviso');

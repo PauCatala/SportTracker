@@ -1,6 +1,6 @@
 // Preguntas que la app hace a tus datos (ya descargados en "state").
 import { state } from './db.js';
-import { agruparSeries } from './utils.js';
+import { agruparSeries, diasEntre } from './utils.js';
 
 const compararTexto = (a, b) => (a || '').localeCompare(b || '', 'es', { numeric: true });
 
@@ -10,13 +10,7 @@ export const ordenEjercicios = (a, b) =>
 
 export const ejercicioPorId = id => state.ejercicios.find(e => e.id === Number(id));
 
-export function diasRutina() {
-  return [...new Set(state.ejercicios.filter(e => e.activo).map(e => e.dia || 'Sin día'))].sort(compararTexto);
-}
-
-export function ejerciciosDelDia(dia) {
-  return state.ejercicios.filter(e => e.activo && (e.dia || 'Sin día') === dia).sort(ordenEjercicios);
-}
+/* ---------- Mesociclos y rutinas ---------- */
 
 // Mesociclo al que pertenece una fecha (el más reciente que la contenga)
 export function mesocicloDe(fecha) {
@@ -24,6 +18,28 @@ export function mesocicloDe(fecha) {
     .filter(m => m.fecha_inicio <= fecha && (!m.fecha_fin || fecha <= m.fecha_fin))
     .sort((a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio))[0] || null;
 }
+
+// Semana dentro del mesociclo (1, 2, 3, 4...)
+export const semanaDeMeso = (meso, fecha) => Math.floor(diasEntre(meso.fecha_inicio, fecha) / 7) + 1;
+export const semanasDeMeso = meso => meso.fecha_fin ? Math.ceil((diasEntre(meso.fecha_inicio, meso.fecha_fin) + 1) / 7) : null;
+
+export const rutinaDe = (mesoId, dia) =>
+  state.rutinas.filter(r => r.mesociclo_id === mesoId && r.dia === dia).sort((a, b) => a.orden - b.orden);
+
+// Días disponibles para entrenar en una fecha: los de la rutina del mesociclo,
+// o si no hay rutina, los días que tengas puestos en los ejercicios
+export function diasPara(fecha) {
+  const meso = mesocicloDe(fecha);
+  const deRutina = meso ? [...new Set(state.rutinas.filter(r => r.mesociclo_id === meso.id).map(r => r.dia))] : [];
+  const dias = deRutina.length ? deRutina
+    : [...new Set(state.ejercicios.filter(e => e.activo).map(e => e.dia || 'Sin día'))];
+  return dias.sort(compararTexto);
+}
+
+export const ejerciciosDelDia = dia =>
+  state.ejercicios.filter(e => e.activo && (e.dia || 'Sin día') === dia).sort(ordenEjercicios);
+
+/* ---------- Sesiones y series ---------- */
 
 export const sesionDe = (fecha, dia) => state.sesiones.find(s => s.fecha === fecha && s.dia === dia) || null;
 
@@ -47,4 +63,12 @@ export function historialEjercicio(ejId) {
 // La última vez que hiciste el ejercicio ANTES de esa fecha → tu mínimo a superar
 export function ultimaVez(ejId, fecha) {
   return historialEjercicio(ejId).filter(h => h.sesion.fecha < fecha).at(-1) || null;
+}
+
+/* ---------- Plan general (running, flexibilidad) ---------- */
+
+// Semana del plan para una fecha (1 = la primera). null si no hay fecha de inicio
+export function semanaPlan(fecha) {
+  const inicio = state.ajustes?.inicio_plan;
+  return inicio ? Math.floor(diasEntre(inicio, fecha) / 7) + 1 : null;
 }

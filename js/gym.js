@@ -1,16 +1,22 @@
 // Bloque GIMNASIO: pestañas "Entrenar" e "Historial".
 import { state, supabase, ejecutar, guardarSesion, cargarTodo } from './db.js';
 import {
-  diasRutina, ejerciciosDelDia, ejercicioPorId, mesocicloDe, sesionDe, seriesDe,
-  ultimaVez, ordenEjercicios,
+  diasPara, ejerciciosDelDia, ejercicioPorId, mesocicloDe, semanaDeMeso, semanasDeMeso, rutinaDe,
+  sesionDe, seriesDe, ultimaVez, ordenEjercicios,
 } from './consultas.js';
 import {
-  hoyISO, sumarDias, lunesDe, sumarMeses, finDeMes, parseISO, fmtCorta, fmtKg, fmtEntero,
-  esc, num, capitalizar, agruparSeries, textoSet, metricas, aviso, mensajeError, requiereConexion,
+  hoyISO, sumarDias, lunesDe, sumarMeses, finDeMes, parseISO, fmtCorta, fmtKg, fmtEntero, capitalizar,
+  esc, num, agruparSeries, textoSet, metricas, aviso, mensajeError, requiereConexion,
 } from './utils.js';
-import { D1, D2, cargarRutinaInicial } from './seed.js';
+import { SEMANAS_MESO, diaSugerido, planCargado } from './plan.js';
+import { icono } from './iconos.js';
 
-const navegar = vista => window.dispatchEvent(new CustomEvent('navegar', { detail: vista }));
+export const navegar = (vista, bloque = 'gym') =>
+  window.dispatchEvent(new CustomEvent('navegar', { detail: { bloque, vista } }));
+
+const nombreCorto = dia => dia.split(' · ')[0];
+const restoNombre = dia => dia.split(' · ').slice(1).join(' · ');
+const rango = (min, max) => (min && max && min !== max ? `${min}–${max}` : `${min || max || ''}`);
 
 /* =====================================================================
    ENTRENAR
@@ -23,23 +29,32 @@ export const abrirSesion = (fecha, dia) => (form = nuevoForm(fecha, dia));
 
 const vacia = () => ({ reps: '', kg: '', tecnica: '' });
 
+// Contexto del día: mesociclo, semana y prescripción de cada ejercicio
+function contexto(fecha, dia) {
+  const meso = mesocicloDe(fecha);
+  const semana = meso ? semanaDeMeso(meso, fecha) : null;
+  const descarga = !!(meso?.numero && semana === 4);
+  const rutina = meso ? rutinaDe(meso.id, dia) : [];
+  const presc = new Map(rutina.map(r => [r.ejercicio_id, { ...r, series: descarga ? Math.max(1, r.series - 1) : r.series }]));
+  return { meso, semana, descarga, rutina, presc };
+}
+
 function nuevoForm(fecha, dia) {
   const f = { fecha, dia, notas: '', orden: [], ej: {}, sucio: false };
+  const { rutina, presc } = contexto(fecha, dia);
   const ses = sesionDe(fecha, dia);
-  const delDia = ejerciciosDelDia(dia).map(e => e.id);
+  const base = rutina.length ? rutina.map(r => r.ejercicio_id) : ejerciciosDelDia(dia).map(e => e.id);
   const enSesion = ses ? [...new Set(seriesDe(ses.id).map(s => s.ejercicio_id))] : [];
-  f.orden = [...delDia, ...enSesion.filter(id => !delDia.includes(id))];
+  f.orden = [...base, ...enSesion.filter(id => !base.includes(id))];
   if (ses) f.notas = ses.notas || '';
 
   for (const id of f.orden) {
     const sets = ses ? agruparSeries(seriesDe(ses.id, id)) : [];
     if (sets.length) {
-      // sesión ya guardada → cargamos lo que apuntaste
       f.ej[id] = sets.map(partes => partes.map(p => ({ reps: p.reps, kg: p.kg, tecnica: p.tecnica || '' })));
     } else {
-      // sesión nueva → tantas series vacías como la última vez
-      const u = ultimaVez(id, fecha);
-      f.ej[id] = Array.from({ length: u ? u.sets.length : 3 }, () => [vacia()]);
+      const n = presc.get(id)?.series ?? ultimaVez(id, fecha)?.sets.length ?? 3;
+      f.ej[id] = Array.from({ length: n }, () => [vacia()]);
     }
   }
   return f;
@@ -56,48 +71,100 @@ function comparar(p, prev) {
 }
 
 export function renderRegistrar(cont) {
-  if (!state.ejercicios.length) return renderBienvenida(cont);
-  const dias = diasRutina();
-  if (!dias.length) {
-    cont.innerHTML = `<p class="vacio">No tienes ejercicios activos. Actívalos o crea alguno en <b>Ejercicios</b>.</p>`;
+  if (!state.ejercicios.length) {
+    cont.innerHTML = `
+      ${bannerMigracion()}
+      <div class="vacio">
+        <h3>Empieza por tu plan</h3>
+        <p>Carga los 6 mesociclos de tu plan y cada día verás qué ejercicios tocan, con sus series y repeticiones.</p>
+        <button class="btn primario" id="ir-plan">Cargar el plan de 6 meses</button>
+      </div>`;
+    cont.onclick = ev => ev.target.closest('#ir-plan') && navegar('mesociclos');
     return;
   }
-  if (!form) form = nuevoForm(hoyISO(), dias[0]);
+  if (!form) {
+    const hoy = hoyISO();
+    const dias = diasPara(hoy);
+    form = nuevoForm(hoy, planCargado() ? diaSugerido(hoy, dias) : dias[0]);
+  }
   pintarRegistrar(cont);
 }
 
+export function bannerMigracion() {
+  return state.faltaMigracion ? `
+    <div class="banner">${icono('rayo')}<div><b>Falta actualizar tu base de datos.</b>
+    Ejecuta <b>schema_v2.sql</b> en Supabase (SQL Editor) para activar rutinas por mesociclo, running y flexibilidad.</div></div>` : '';
+}
+
+function heroGym(ctx) {
+  const { meso, semana } = ctx;
+  if (!meso) return `
+    <section class="hero">
+      <p class="hero-sup">Sin mesociclo</p>
+      <h2>Entreno libre</h2>
+      <p>Carga tu plan de 6 meses y aquí verás cada semana qué toca hacer.</p>
+      <button class="btn" id="ir-plan">Ver mesociclos</button>
+    </section>`;
+  const total = semanasDeMeso(meso) || 4;
+  const guia = meso.numero && SEMANAS_MESO[semana - 1];
+  return `
+    <section class="hero">
+      <p class="hero-sup">${meso.numero ? `Mesociclo ${meso.numero} de 6` : 'Mesociclo'}</p>
+      <h2>${esc(meso.nombre)}</h2>
+      <div class="hero-semana"><b>Semana ${semana}</b><span>de ${total}</span></div>
+      <div class="segmentos">${Array.from({ length: total }, (_, i) =>
+        `<i class="${i + 1 < semana ? 'hecho' : i + 1 === semana ? 'actual' : ''}"></i>`).join('')}</div>
+      ${guia ? `<div class="instruccion"><b>${guia.titulo}.</b> ${guia.texto}</div>` : ''}
+      ${meso.descripcion ? `<p>${esc(meso.descripcion)}</p>` : ''}
+    </section>`;
+}
+
 function pintarRegistrar(cont) {
-  const dias = diasRutina();
+  const ctx = contexto(form.fecha, form.dia);
+  const dias = diasPara(form.fecha);
   if (!dias.includes(form.dia)) dias.push(form.dia);
-  const meso = mesocicloDe(form.fecha);
   const ses = sesionDe(form.fecha, form.dia);
   const otros = state.ejercicios.filter(e => e.activo && !form.orden.includes(e.id)).sort(ordenEjercicios);
 
   cont.innerHTML = `
-    <div class="barra-sesion">
-      <label>Fecha <input type="date" id="f-fecha" value="${form.fecha}"></label>
-      <label>Día <select id="f-dia">${dias.map(d => `<option ${d === form.dia ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
-    </div>
-    <p class="meta">
-      Mesociclo: <b>${meso ? esc(meso.nombre) : 'ninguno'}</b>
-      ${ses ? `<span class="tag ${ses.pendiente ? 'tag-pend' : 'tag-ok'}">${ses.pendiente ? 'Pendiente de subir' : 'Sesión guardada'}</span>` : ''}
-    </p>
-    <p class="leyenda"><span class="estado mejor"></span> superas <span class="estado igual"></span> igualas <span class="estado peor"></span> por debajo de la última vez</p>
+    ${bannerMigracion()}
+    ${heroGym(ctx)}
 
-    ${form.orden.map(tarjetaEjercicio).join('')}
+    <section class="campos">
+      <div class="barra-sesion">
+        <div class="chips" role="tablist">
+          ${dias.map(d => `<button class="chip ${d === form.dia ? 'activo' : ''}" data-dia="${esc(d)}">${esc(nombreCorto(d))}${sesionDe(form.fecha, d) ? '<span class="marca"></span>' : ''}</button>`).join('')}
+        </div>
+        <input type="date" id="f-fecha" value="${form.fecha}" aria-label="Fecha">
+      </div>
+      <div class="panel-cab">
+        <div>
+          <h3>${esc(restoNombre(form.dia) || form.dia)}</h3>
+          <p class="tenue">${capitalizar(parseISO(form.fecha).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))}</p>
+        </div>
+        ${ses ? `<span class="etiqueta ${ses.pendiente ? 'pend' : 'ok'}">${ses.pendiente ? 'Pendiente de subir' : 'Guardada'}</span>` : ''}
+      </div>
+      <div class="leyenda">
+        <span><i class="estado mejor"></i> Superas la última vez</span>
+        <span><i class="estado igual"></i> Igualas</span>
+        <span><i class="estado peor"></i> Por debajo</span>
+      </div>
+    </section>
 
-    <select id="f-anadir" class="anadir">
-      <option value="">+ Añadir ejercicio a esta sesión…</option>
-      ${otros.map(e => `<option value="${e.id}">${esc(e.nombre)} (${esc(e.dia || 'Sin día')})</option>`).join('')}
-      <option value="nuevo">➕ Crear ejercicio nuevo</option>
+    ${form.orden.map(id => tarjetaEjercicio(id, ctx)).join('')}
+
+    <select id="f-anadir" aria-label="Añadir ejercicio">
+      <option value="">Añadir otro ejercicio a esta sesión…</option>
+      ${otros.map(e => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('')}
+      <option value="nuevo">Crear un ejercicio nuevo…</option>
     </select>
 
-    <label class="notas">Notas de la sesión
-      <textarea id="f-notas" rows="2" placeholder="Cómo te has sentido, molestias...">${esc(form.notas)}</textarea>
+    <label class="campo">Notas de la sesión
+      <textarea id="f-notas" rows="2" placeholder="Sensaciones, molestias, cambios…">${esc(form.notas)}</textarea>
     </label>
     <div class="acciones-sesion">
-      <button id="f-guardar" class="btn primario">${ses ? 'Actualizar sesión' : 'Guardar sesión'}</button>
-      ${ses ? '<button id="f-borrar" class="btn peligro">Borrar</button>' : ''}
+      <button id="f-guardar" class="btn primario">${ses ? 'Guardar cambios' : 'Guardar sesión'}</button>
+      ${ses ? `<button id="f-borrar" class="btn peligro" aria-label="Borrar sesión">${icono('papelera')}</button>` : ''}
     </div>`;
 
   cont.oninput = ev => actualizarCampo(ev.target);
@@ -105,45 +172,55 @@ function pintarRegistrar(cont) {
   cont.onclick = ev => alPulsar(ev, cont);
 }
 
-function tarjetaEjercicio(id) {
+function tarjetaEjercicio(id, ctx) {
   const e = ejercicioPorId(id);
   const u = ultimaVez(id, form.fecha);
+  const p = ctx.presc.get(id);
   const sets = form.ej[id];
+  const setsUltima = u ? u.sets.map(partes => partes.map((x, j) =>
+    `<span class="${j ? 'drop' : ''}">${j ? '+ ' : ''}${x.reps} × ${fmtKg(x.kg)}</span>`).join(' ')).join('') : '';
   return `
-  <article class="tarjeta" data-ej="${id}">
-    <header>
-      <h3>${esc(e?.nombre ?? '¿?')}</h3>
-      ${e?.por_lado ? '<span class="tag">por lado</span>' : ''}
-    </header>
-    <p class="ultima">${u
-      ? `Última vez · ${fmtCorta(u.sesion.fecha)}: <b>${u.sets.map(textoSet).join(' · ')}</b>`
-      : 'Primera vez con este ejercicio'}</p>
-    <div class="series">
-      ${sets.map((partes, i) => partes.map((p, j) => fila(p, i, j, u?.sets[i]?.[j], u?.sets[i]?.[0])).join('')).join('')}
+  <article class="panel ej" data-ej="${id}">
+    <div class="ej-cab">
+      <div>
+        <h3>${esc(e?.nombre ?? 'Ejercicio borrado')}</h3>
+        <div class="ej-meta">
+          ${p ? `<span class="etiqueta objetivo">${p.series} × ${rango(p.reps_min, p.reps_max)} reps</span>` : ''}
+          ${p && ctx.descarga ? '<span class="etiqueta descarga">Descarga</span>' : ''}
+          ${e?.por_lado ? '<span class="etiqueta">Kg por lado</span>' : ''}
+        </div>
+      </div>
+      ${u ? `<button class="btn-icono" data-acc="copiar" aria-label="Copiar la última vez" title="Copiar la última vez">${icono('copiar')}</button>` : ''}
     </div>
-    <div class="botones-tarjeta">
-      <button class="btn mini" data-acc="serie">+ Serie</button>
-      ${u ? '<button class="btn mini" data-acc="copiar">Copiar última vez</button>' : ''}
+    ${u ? `
+      <div class="ultima">
+        <div class="ultima-cab">La última vez, ${fmtCorta(u.sesion.fecha).toLowerCase()}</div>
+        <div class="ultima-sets num">${setsUltima}</div>
+      </div>` : '<p class="tenue" style="margin-top:10px">Primera vez con este ejercicio: hoy marcas la referencia.</p>'}
+    <div class="cab-series"><span></span><span>Reps</span><span>Kg</span><span>Técnica</span><span></span><span></span></div>
+    ${sets.map((partes, i) => partes.map((pt, j) => fila(pt, i, j, u?.sets[i]?.[j], u?.sets[i]?.[0])).join('')).join('')}
+    <div class="ej-pie">
+      <button class="btn chico" data-acc="serie">${icono('mas')} Serie</button>
     </div>
   </article>`;
 }
 
 function fila(p, i, j, ref, prevPrincipal) {
   const principal = j === 0;
-  const tec = ['', 'mala', 'regular', 'bien'];
-  const tecTxt = { '': 'téc.', mala: 'mala', regular: 'reg.', bien: 'bien' };
+  const tec = [['', '—'], ['mala', 'Mala'], ['regular', 'Regular'], ['bien', 'Buena']];
   return `
   <div class="fila ${principal ? '' : 'drop'}" data-i="${i}" data-j="${j}">
-    <span class="n">${principal ? 'S' + (i + 1) : '↳'}</span>
-    <input data-campo="reps" inputmode="numeric" value="${esc(p.reps)}" placeholder="${ref ? ref.reps : 'reps'}" aria-label="Repeticiones">
-    <span class="x">×</span>
-    <input data-campo="kg" inputmode="decimal" value="${esc(p.kg)}" placeholder="${ref ? fmtKg(ref.kg) : 'kg'}" aria-label="Kilos">
+    <span class="n">${principal ? i + 1 : '↳'}</span>
+    <input data-campo="reps" inputmode="numeric" value="${esc(p.reps)}" placeholder="${ref ? ref.reps : '–'}" aria-label="Repeticiones serie ${i + 1}">
+    <input data-campo="kg" inputmode="decimal" value="${esc(p.kg)}" placeholder="${ref ? fmtKg(ref.kg) : 'kg'}" aria-label="Kilos serie ${i + 1}">
     ${principal
-      ? `<select data-campo="tecnica" aria-label="Técnica">${tec.map(t => `<option value="${t}" ${p.tecnica === t ? 'selected' : ''}>${tecTxt[t]}</option>`).join('')}</select>`
+      ? `<select data-campo="tecnica" aria-label="Técnica">${tec.map(([v, t]) => `<option value="${v}" ${p.tecnica === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`
       : '<span></span>'}
     <span class="estado ${principal ? comparar(p, prevPrincipal) : ''}"></span>
-    ${principal ? '<button class="mini" data-acc="drop" title="Añadir drop">+drop</button>' : '<span></span>'}
-    <button class="mini quitar" data-acc="quitar" title="Quitar">✕</button>
+    <span class="acciones">
+      ${principal ? `<button class="btn-icono" data-acc="drop" title="Añadir drop" aria-label="Añadir drop">${icono('abajo')}</button>` : ''}
+      <button class="btn-icono" data-acc="quitar" title="Quitar" aria-label="Quitar">${icono('x')}</button>
+    </span>
   </div>`;
 }
 
@@ -152,7 +229,7 @@ function actualizarCampo(t) {
   const campo = t.dataset.campo;
   if (!campo) return;
   const filaEl = t.closest('.fila');
-  const id = Number(t.closest('.tarjeta').dataset.ej);
+  const id = Number(t.closest('.ej').dataset.ej);
   const i = +filaEl.dataset.i, j = +filaEl.dataset.j;
   form.ej[id][i][j][campo] = t.value;
   form.sucio = true;
@@ -162,16 +239,20 @@ function actualizarCampo(t) {
   }
 }
 
+function cambiarSesion(cont, fecha, dia) {
+  if (form.sucio && !confirm('Tienes cambios sin guardar. ¿Descartarlos?')) return false;
+  form = nuevoForm(fecha, dia);
+  pintarRegistrar(cont);
+  return true;
+}
+
 async function alCambiar(t, cont) {
   if (t.dataset.campo) return actualizarCampo(t);
 
-  if (t.id === 'f-fecha' || t.id === 'f-dia') {
-    if (form.sucio && !confirm('Tienes cambios sin guardar. ¿Descartarlos?')) {
-      t.value = t.id === 'f-fecha' ? form.fecha : form.dia;
-      return;
-    }
-    form = nuevoForm(cont.querySelector('#f-fecha').value || hoyISO(), cont.querySelector('#f-dia').value);
-    pintarRegistrar(cont);
+  if (t.id === 'f-fecha') {
+    const fecha = t.value || hoyISO();
+    const dias = diasPara(fecha);
+    if (!cambiarSesion(cont, fecha, dias.includes(form.dia) ? form.dia : diaSugerido(fecha, dias))) t.value = form.fecha;
   }
 
   if (t.id === 'f-anadir') {
@@ -181,7 +262,7 @@ async function alCambiar(t, cont) {
     if (v === 'nuevo') {
       const nombre = prompt('Nombre del nuevo ejercicio')?.trim();
       if (!nombre || !requiereConexion()) return;
-      const porLado = confirm('¿La carga se apunta por lado (por brazo/mancuerna)?\n\nAceptar = sí · Cancelar = no');
+      const porLado = confirm('¿Apuntas la carga por lado (por brazo o mancuerna)?\n\nAceptar = sí · Cancelar = no');
       try {
         const e = await ejecutar(supabase.from('ejercicios')
           .insert({ nombre, dia: form.dia, por_lado: porLado, orden: 999 }).select().single());
@@ -194,8 +275,8 @@ async function alCambiar(t, cont) {
 
     if (!form.orden.includes(id)) {
       form.orden.push(id);
-      const u = ultimaVez(id, form.fecha);
-      form.ej[id] = Array.from({ length: u ? u.sets.length : 3 }, () => [vacia()]);
+      const n = ultimaVez(id, form.fecha)?.sets.length ?? 3;
+      form.ej[id] = Array.from({ length: n }, () => [vacia()]);
     }
     pintarRegistrar(cont);
   }
@@ -204,17 +285,22 @@ async function alCambiar(t, cont) {
 async function alPulsar(ev, cont) {
   const b = ev.target.closest('button');
   if (!b) return;
+  if (b.id === 'ir-plan') return navegar('mesociclos');
   if (b.id === 'f-guardar') return guardar(cont, b);
   if (b.id === 'f-borrar') return borrar(cont);
+  if (b.dataset.dia) return cambiarSesion(cont, form.fecha, b.dataset.dia);
 
   const acc = b.dataset.acc;
   if (!acc) return;
-  const id = Number(b.closest('.tarjeta').dataset.ej);
+  const id = Number(b.closest('.ej').dataset.ej);
   const filaEl = b.closest('.fila');
   const i = filaEl ? +filaEl.dataset.i : -1, j = filaEl ? +filaEl.dataset.j : -1;
   const sets = form.ej[id];
 
-  if (acc === 'serie') sets.push([vacia()]);
+  if (acc === 'serie') {
+    const anterior = sets.at(-1)?.[0];
+    sets.push([{ reps: '', kg: anterior?.kg ?? '', tecnica: '' }]);   // misma carga que la serie anterior
+  }
   if (acc === 'drop') sets[i].push(vacia());
   if (acc === 'quitar') j === 0 ? sets.splice(i, 1) : sets[i].splice(j, 1);
   if (acc === 'copiar') {
@@ -245,14 +331,14 @@ function construirSeries() {
 
 async function guardar(cont, boton) {
   const series = construirSeries();
-  if (!series.length) return aviso('Rellena al menos una serie (reps y kg)', 'error');
+  if (!series.length) return aviso('Rellena al menos una serie con reps y kg', 'error');
   boton.disabled = true;
   try {
     const r = await guardarSesion({
       fecha: form.fecha, dia: form.dia, notas: form.notas.trim() || null,
       mesociclo_id: mesocicloDe(form.fecha)?.id ?? null, series,
     });
-    aviso(r === 'guardado' ? 'Sesión guardada ✔' : 'Sin conexión: guardada en el móvil, se subirá sola');
+    aviso(r === 'guardado' ? 'Sesión guardada' : 'Sin conexión: guardada en el móvil, se subirá sola');
     form = nuevoForm(form.fecha, form.dia);
     pintarRegistrar(cont);
     window.dispatchEvent(new Event('estado-red'));
@@ -273,47 +359,6 @@ async function borrar(cont) {
   } catch (e) { aviso(mensajeError(e), 'error'); }
 }
 
-// Primera vez: cargar tu rutina con los dos entrenos que apuntaste
-function renderBienvenida(cont) {
-  const h = hoyISO();
-  cont.innerHTML = `
-  <div class="tarjeta bienvenida">
-    <h2>Empecemos 💪</h2>
-    <p>Aún no tienes ejercicios. Puedo cargar tu rutina actual con las series que apuntaste en tus dos últimos entrenos:</p>
-    <ul>
-      <li><b>${D1}</b>: sentadilla, prensa, extensión, gemelos, core…</li>
-      <li><b>${D2}</b>: press militar, elevaciones, curl, tríceps, antebrazo…</li>
-    </ul>
-    <label>Nombre del mesociclo <input id="b-meso" value="Mesociclo 1"></label>
-    <div class="dos-col">
-      <label>¿Qué día hiciste el Día 1? <input type="date" id="b-f1" value="${sumarDias(h, -2)}"></label>
-      <label>¿Y el Día 2? <input type="date" id="b-f2" value="${sumarDias(h, -1)}"></label>
-    </div>
-    <button id="b-cargar" class="btn primario">Cargar mi rutina</button>
-    <button id="b-cero" class="btn">Prefiero empezar de cero</button>
-  </div>`;
-
-  cont.onclick = async ev => {
-    if (ev.target.id === 'b-cero') return navegar('ejercicios');
-    if (ev.target.id !== 'b-cargar' || !requiereConexion()) return;
-    ev.target.disabled = true;
-    try {
-      await cargarRutinaInicial({
-        nombreMeso: cont.querySelector('#b-meso').value.trim() || 'Mesociclo 1',
-        fechaD1: cont.querySelector('#b-f1').value || sumarDias(h, -2),
-        fechaD2: cont.querySelector('#b-f2').value || sumarDias(h, -1),
-      });
-      await cargarTodo();
-      form = null;
-      aviso('Rutina cargada ✔');
-      renderRegistrar(cont);
-    } catch (e) {
-      aviso(mensajeError(e), 'error');
-      ev.target.disabled = false;
-    }
-  };
-}
-
 /* =====================================================================
    HISTORIAL: tabla tipo Excel por semana, mes o mesociclo
    ===================================================================== */
@@ -327,13 +372,13 @@ export function renderHistorial(cont) {
   if (hist.modo === 'meso') {
     const m = mesos.find(x => x.id === hist.mesoId) || mesocicloDe(hoyISO()) || mesos.at(-1);
     hist.mesoId = m?.id ?? null;
-    etiqueta = m ? m.nombre : 'Sin mesociclos';
+    etiqueta = m ? (m.numero ? `${m.numero}. ${m.nombre}` : m.nombre) : 'Sin mesociclos';
     sesiones = state.sesiones.filter(s => m && s.mesociclo_id === m.id);
   } else {
     let ini, fin;
     if (hist.modo === 'semana') {
       ini = lunesDe(hist.ref); fin = sumarDias(ini, 6);
-      etiqueta = `${fmtCorta(ini)} – ${fmtCorta(fin)}`;
+      etiqueta = `${fmtCorta(ini)} – ${fmtCorta(fin).toLowerCase()}`;
     } else {
       ini = hist.ref.slice(0, 8) + '01'; fin = finDeMes(ini);
       etiqueta = capitalizar(parseISO(ini).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }));
@@ -341,12 +386,12 @@ export function renderHistorial(cont) {
     sesiones = state.sesiones.filter(s => s.fecha >= ini && s.fecha <= fin);
   }
   if (hist.dia) sesiones = sesiones.filter(s => s.dia === hist.dia);
-  sesiones.sort((a, b) => a.fecha.localeCompare(b.fecha) || compararIds(a.id, b.id));
+  sesiones = [...sesiones].sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   const idsSes = new Set(sesiones.map(s => s.id));
   const seriesP = state.series.filter(s => idsSes.has(s.sesion_id));
   const ejercicios = [...new Set(seriesP.map(s => s.ejercicio_id))].map(ejercicioPorId).filter(Boolean).sort(ordenEjercicios);
-  const diasTodos = [...new Set(state.sesiones.map(s => s.dia).filter(Boolean))].sort();
+  const diasTodos = [...new Set(state.sesiones.map(s => s.dia).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
 
   const celda = (e, s) => {
     const sets = agruparSeries(seriesP.filter(x => x.sesion_id === s.id && x.ejercicio_id === e.id));
@@ -354,7 +399,7 @@ export function renderHistorial(cont) {
     const ahora = metricas(sets, e.por_lado).e1rm;
     const u = ultimaVez(e.id, s.fecha);
     const antes = u ? metricas(u.sets, e.por_lado).e1rm : null;
-    const cls = antes == null ? '' : ahora > antes + 0.05 ? 'sube' : ahora < antes - 0.05 ? 'baja' : 'igual';
+    const cls = antes == null ? '' : ahora > antes + 0.05 ? 'sube' : ahora < antes - 0.05 ? 'baja' : '';
     return `<td class="${cls}">${sets.map(p => `<div>${textoSet(p)}</div>`).join('')}</td>`;
   };
   const volumenSesion = s => seriesP.filter(x => x.sesion_id === s.id)
@@ -366,25 +411,25 @@ export function renderHistorial(cont) {
         `<button data-modo="${m}" class="${hist.modo === m ? 'activo' : ''}">${t}</button>`).join('')}
     </div>
     <div class="navegador">
-      <button data-nav="-1" aria-label="Anterior">‹</button>
+      <button class="btn-icono" data-nav="-1" aria-label="Anterior">${icono('izq')}</button>
       <span>${esc(etiqueta)}</span>
-      <button data-nav="1" aria-label="Siguiente">›</button>
+      <button class="btn-icono" data-nav="1" aria-label="Siguiente">${icono('der')}</button>
     </div>
-    <select id="h-dia">
+    <select id="h-dia" aria-label="Filtrar por día">
       <option value="">Todos los días</option>
-      ${diasTodos.map(d => `<option ${d === hist.dia ? 'selected' : ''}>${esc(d)}</option>`).join('')}
+      ${diasTodos.map(d => `<option value="${esc(d)}" ${d === hist.dia ? 'selected' : ''}>${esc(d)}</option>`).join('')}
     </select>
 
-    ${!sesiones.length ? '<p class="vacio">No hay sesiones en este periodo.</p>' : `
-    <p class="meta">${sesiones.length} sesion${sesiones.length > 1 ? 'es' : ''} · toca una fecha para editarla · ▲▼ = 1RM estimado frente a la vez anterior</p>
+    ${!sesiones.length ? '<div class="vacio"><h3>Sin sesiones</h3><p>No hay entrenos en este periodo.</p></div>' : `
+    <p class="tenue">${sesiones.length} ${sesiones.length > 1 ? 'sesiones' : 'sesión'}. Toca una fecha para abrirla. El color compara el 1RM estimado con la vez anterior.</p>
     <div class="tabla-scroll">
       <table class="tabla">
         <thead><tr>
           <th class="col-ej">Ejercicio</th>
-          ${sesiones.map(s => `<th class="clicable" data-fecha="${s.fecha}" data-dia="${esc(s.dia)}">${fmtCorta(s.fecha)}<br><small>${esc(s.dia || '')}</small></th>`).join('')}
+          ${sesiones.map(s => `<th class="clicable" data-fecha="${s.fecha}" data-dia="${esc(s.dia)}">${fmtCorta(s.fecha)}<br><small>${esc(nombreCorto(s.dia || ''))}</small></th>`).join('')}
         </tr></thead>
         <tbody>
-          ${ejercicios.map(e => `<tr><td class="col-ej">${esc(e.nombre)}${e.por_lado ? ' <small>(por lado)</small>' : ''}</td>${sesiones.map(s => celda(e, s)).join('')}</tr>`).join('')}
+          ${ejercicios.map(e => `<tr><td class="col-ej">${esc(e.nombre)}${e.por_lado ? '<small>kg por lado</small>' : ''}</td>${sesiones.map(s => celda(e, s)).join('')}</tr>`).join('')}
           <tr class="total"><td class="col-ej">Volumen total</td>${sesiones.map(s => `<td>${fmtEntero(volumenSesion(s))} kg</td>`).join('')}</tr>
         </tbody>
       </table>
@@ -414,5 +459,3 @@ export function renderHistorial(cont) {
     renderHistorial(cont);
   };
 }
-
-const compararIds = (a, b) => String(a).localeCompare(String(b), 'es', { numeric: true });

@@ -1,119 +1,120 @@
 // Bloque GIMNASIO: pestañas "Ejercicios" y "Mesociclos" (lo que configuras tú)
-import { state, supabase, ejecutar, cargarTodo } from './db.js';
-import { ordenEjercicios } from './consultas.js';
-import { resetForm } from './gym.js';
-import { hoyISO, sumarDias, esc, aviso, mensajeError, requiereConexion } from './utils.js';
+import { state, supabase, ejecutar, cargarTodo, uid } from './db.js';
+import { mesocicloDe, semanaPlan, rutinaDe, ejercicioPorId } from './consultas.js';
+import { resetForm, bannerMigracion } from './gym.js';
+import { hoyISO, sumarDias, fmtCorta, esc, num, aviso, mensajeError, requiereConexion } from './utils.js';
+import { cargarPlan, planCargado, proximoLunes, MESOS_PLAN } from './plan.js';
+import { icono } from './iconos.js';
+
+const compararTexto = (a, b) => a.localeCompare(b, 'es', { numeric: true });
 
 // Ejecuta un cambio en Supabase, recarga los datos y repinta la vista
 async function cambiar(cont, render, fn, mensaje) {
-  if (!requiereConexion()) return;
+  if (!requiereConexion()) return false;
   try {
     await fn();
     await cargarTodo();
     resetForm();
     aviso(mensaje);
     render(cont);
-  } catch (e) { aviso(mensajeError(e), 'error'); }
+    return true;
+  } catch (e) { aviso(mensajeError(e), 'error'); return false; }
 }
 
 /* ============================ EJERCICIOS ============================ */
+let filtro = '';
+
 export function renderEjercicios(cont) {
-  const dias = [...new Set(state.ejercicios.map(e => e.dia || 'Sin día'))]
-    .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-  const activos = state.ejercicios.filter(e => e.activo).sort(ordenEjercicios);
-  const ocultos = state.ejercicios.filter(e => !e.activo).sort(ordenEjercicios);
-
-  const filaEj = e => `
-    <div class="tarjeta fila-ej" data-id="${e.id}">
-      <input data-c="nombre" class="ej-nombre" value="${esc(e.nombre)}" aria-label="Nombre">
-      <div class="fila-ej-opciones">
-        <label>Día <input data-c="dia" list="lista-dias" value="${esc(e.dia || '')}"></label>
-        <label>Orden <input data-c="orden" type="number" inputmode="numeric" value="${e.orden}"></label>
-      </div>
-      <div class="fila-ej-opciones">
-        <label class="chk"><input data-c="por_lado" type="checkbox" ${e.por_lado ? 'checked' : ''}> Carga por lado</label>
-        <label class="chk"><input data-c="activo" type="checkbox" ${e.activo ? 'checked' : ''}> Activo</label>
-      </div>
-      <div class="fila-ej-botones">
-        <button class="btn" data-acc="guardar">Guardar</button>
-        <button class="btn peligro" data-acc="borrar">Borrar</button>
-      </div>
-    </div>`;
-
-  const porDia = {};
-  activos.forEach(e => (porDia[e.dia || 'Sin día'] ??= []).push(e));
+  const dias = [...new Set(state.ejercicios.map(e => e.dia).filter(Boolean))].sort(compararTexto);
+  const lista = [...state.ejercicios].sort((a, b) => (b.activo - a.activo) || compararTexto(a.nombre, b.nombre));
+  const usos = id => [...new Set(state.rutinas.filter(r => r.ejercicio_id === id).map(r => {
+    const m = state.mesociclos.find(x => x.id === r.mesociclo_id);
+    return m?.numero ? `M${m.numero}` : m?.nombre;
+  }))].filter(Boolean);
 
   cont.innerHTML = `
     <datalist id="lista-dias">${dias.map(d => `<option value="${esc(d)}">`).join('')}</datalist>
-
-    <div class="tarjeta">
+    <section class="panel campos">
       <h3>Nuevo ejercicio</h3>
-      <label>Nombre <input id="n-nombre" placeholder="Ej.: Hip thrust"></label>
-      <div class="dos-col">
-        <label>Día <input id="n-dia" list="lista-dias" value="${esc(dias[0] || 'Día 1')}"></label>
-        <label class="chk alto"><input type="checkbox" id="n-lado"> Carga por lado</label>
-      </div>
-      <button id="n-anadir" class="btn primario">Añadir</button>
-    </div>
+      <label class="campo">Nombre <input id="n-nombre" placeholder="Por ejemplo, hip thrust en máquina"></label>
+      <label class="check"><input type="checkbox" id="n-lado"> Apunto la carga por lado</label>
+      <button id="n-anadir" class="btn primario">Añadir ejercicio</button>
+      <p class="tenue">Para que aparezca un día concreto, añádelo a la rutina del mesociclo en la pestaña Mesociclos.</p>
+    </section>
 
-    ${Object.entries(porDia).map(([dia, lista]) => `
-      <div class="titulo-dia">
-        <h3>${esc(dia)}</h3>
-        <button class="btn-texto" data-renombrar="${esc(dia)}">Renombrar día</button>
-      </div>
-      ${lista.map(filaEj).join('')}`).join('')}
+    <input id="n-buscar" type="search" placeholder="Buscar ejercicio" value="${esc(filtro)}" aria-label="Buscar ejercicio">
 
-    ${ocultos.length ? `<h3 class="seccion">Ocultos (no salen al entrenar, conservan su historial)</h3>${ocultos.map(filaEj).join('')}` : ''}`;
+    <div class="lista">
+      ${lista.map(e => `
+        <details class="${e.activo ? '' : 'inactivo'}" data-id="${e.id}" data-nombre="${esc(e.nombre.toLowerCase())}">
+          <summary>
+            <span>${esc(e.nombre)}</span>
+            <span class="der">${!e.activo ? '<span class="etiqueta">Oculto</span>' : e.por_lado ? '<span class="etiqueta">Por lado</span>' : ''}${icono('der', 'flecha')}</span>
+          </summary>
+          <div class="cuerpo">
+            <label class="campo">Nombre <input data-c="nombre" value="${esc(e.nombre)}"></label>
+            <label class="campo">Día por defecto (si no usas mesociclos) <input data-c="dia" list="lista-dias" value="${esc(e.dia || '')}"></label>
+            <label class="check"><input data-c="por_lado" type="checkbox" ${e.por_lado ? 'checked' : ''}> Carga por lado</label>
+            <label class="check"><input data-c="activo" type="checkbox" ${e.activo ? 'checked' : ''}> Activo (si lo desmarcas, conserva su historial)</label>
+            ${usos(e.id).length ? `<p class="tenue">En la rutina de: ${usos(e.id).join(', ')}</p>` : ''}
+            <div class="acciones-sesion">
+              <button class="btn primario" data-acc="guardar">Guardar</button>
+              <button class="btn peligro" data-acc="borrar" aria-label="Borrar ejercicio">${icono('papelera')}</button>
+            </div>
+          </div>
+        </details>`).join('')}
+    </div>`;
 
+  const aplicarFiltro = () => cont.querySelectorAll('.lista details').forEach(d =>
+    d.classList.toggle('oculto', !!filtro && !d.dataset.nombre.includes(filtro.toLowerCase())));
+  aplicarFiltro();
+
+  cont.oninput = ev => { if (ev.target.id === 'n-buscar') { filtro = ev.target.value.trim(); aplicarFiltro(); } };
   cont.onclick = ev => {
     const b = ev.target.closest('button');
     if (!b) return;
 
     if (b.id === 'n-anadir') {
       const nombre = cont.querySelector('#n-nombre').value.trim();
-      const dia = cont.querySelector('#n-dia').value.trim() || 'Día 1';
-      if (!nombre) return aviso('Ponle un nombre', 'error');
-      const orden = Math.max(-1, ...state.ejercicios.filter(e => e.dia === dia).map(e => e.orden)) + 1;
+      if (!nombre) return aviso('Escribe el nombre del ejercicio', 'error');
       return cambiar(cont, renderEjercicios, () => ejecutar(supabase.from('ejercicios')
-        .insert({ nombre, dia, orden, por_lado: cont.querySelector('#n-lado').checked })), 'Ejercicio añadido ✔');
+        .insert({ nombre, orden: 999, por_lado: cont.querySelector('#n-lado').checked })), 'Ejercicio añadido');
     }
 
-    if (b.dataset.renombrar) {
-      const viejo = b.dataset.renombrar;
-      const nuevo = prompt(`Nuevo nombre para "${viejo}"`, viejo)?.trim();
-      if (!nuevo || nuevo === viejo) return;
-      return cambiar(cont, renderEjercicios, async () => {
-        await ejecutar(supabase.from('ejercicios').update({ dia: nuevo }).eq('dia', viejo));
-        await ejecutar(supabase.from('sesiones').update({ dia: nuevo }).eq('dia', viejo));
-      }, 'Día renombrado ✔');
-    }
-
-    const filaEl = b.closest('.fila-ej');
-    if (!filaEl) return;
-    const id = Number(filaEl.dataset.id);
-    const valor = c => filaEl.querySelector(`[data-c="${c}"]`);
+    const det = b.closest('details');
+    if (!det) return;
+    const id = Number(det.dataset.id);
+    const valor = c => det.querySelector(`[data-c="${c}"]`);
 
     if (b.dataset.acc === 'guardar') {
       const datos = {
         nombre: valor('nombre').value.trim(),
         dia: valor('dia').value.trim() || null,
-        orden: Number(valor('orden').value) || 0,
         por_lado: valor('por_lado').checked,
         activo: valor('activo').checked,
       };
-      if (!datos.nombre) return aviso('El nombre no puede estar vacío', 'error');
-      return cambiar(cont, renderEjercicios, () => ejecutar(supabase.from('ejercicios').update(datos).eq('id', id)), 'Guardado ✔');
+      if (!datos.nombre) return aviso('El nombre no puede quedar vacío', 'error');
+      return cambiar(cont, renderEjercicios, () => ejecutar(supabase.from('ejercicios').update(datos).eq('id', id)), 'Ejercicio guardado');
     }
-
     if (b.dataset.acc === 'borrar') {
-      if (!confirm('Se borrará el ejercicio Y TODO su historial.\n\nSi solo quieres que deje de salir, desmarca "Activo".\n\n¿Borrar igualmente?')) return;
+      if (!confirm('Se borrará el ejercicio y TODO su historial.\n\nSi solo quieres que deje de salir, desmarca "Activo".\n\n¿Borrar igualmente?')) return;
       return cambiar(cont, renderEjercicios, () => ejecutar(supabase.from('ejercicios').delete().eq('id', id)), 'Ejercicio borrado');
     }
   };
 }
 
 /* ============================ MESOCICLOS ============================ */
-// Asigna a un mesociclo las sesiones que caen dentro de sus fechas
+// Edición de la rutina de un día: se guarda todo junto al pulsar "Guardar rutina"
+let abierto = null;     // id del mesociclo desplegado
+let edicion = null;     // { mesoId, dia, filas: [{ejercicio_id, series, reps_min, reps_max}], sucio }
+
+function empezarEdicion(mesoId, dia) {
+  edicion = {
+    mesoId, dia, sucio: false,
+    filas: rutinaDe(mesoId, dia).map(r => ({ ejercicio_id: r.ejercicio_id, series: r.series, reps_min: r.reps_min, reps_max: r.reps_max })),
+  };
+}
+
 async function reasignarSesiones(m) {
   let q = supabase.from('sesiones').update({ mesociclo_id: m.id }).gte('fecha', m.fecha_inicio);
   if (m.fecha_fin) q = q.lte('fecha', m.fecha_fin);
@@ -121,70 +122,248 @@ async function reasignarSesiones(m) {
 }
 
 export function renderMesociclos(cont) {
-  const mesos = [...state.mesociclos].sort((a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio));
-  const nSesiones = id => state.sesiones.filter(s => s.mesociclo_id === id).length;
+  const hoy = hoyISO();
+  const mesos = [...state.mesociclos].sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
+  const actual = mesocicloDe(hoy);
+  if (abierto == null) abierto = actual?.id ?? null;
 
   cont.innerHTML = `
-    <div class="tarjeta">
+    ${bannerMigracion()}
+    ${panelPlan(hoy)}
+    ${mesos.length ? `
+      <div class="titulo-seccion"><h3>Tus mesociclos</h3><span class="tenue">${mesos.length}</span></div>
+      <div class="lista">${mesos.map(m => itemMeso(m, actual)).join('')}</div>` : ''}
+    <section class="panel campos">
       <h3>Nuevo mesociclo</h3>
-      <label>Nombre <input id="m-nombre" value="Mesociclo ${mesos.length + 1}"></label>
-      <label>Empieza el <input type="date" id="m-inicio" value="${hoyISO()}"></label>
-      <p class="ayuda">El mesociclo en curso se cerrará automáticamente el día anterior.</p>
-      <button id="m-crear" class="btn primario">Empezar mesociclo</button>
-    </div>
+      <label class="campo">Nombre <input id="m-nombre" value="Mesociclo ${mesos.length + 1}"></label>
+      <div class="campos-2">
+        <label class="campo">Empieza <input type="date" id="m-inicio" value="${hoy}"></label>
+        <label class="campo">Semanas <input id="m-semanas" inputmode="numeric" value="4"></label>
+      </div>
+      <label class="campo">Copiar la rutina de
+        <select id="m-copiar">
+          <option value="">No copiar (rutina vacía)</option>
+          ${mesos.map(m => `<option value="${m.id}" ${m.id === actual?.id ? 'selected' : ''}>${esc(m.numero ? `${m.numero}. ${m.nombre}` : m.nombre)}</option>`).join('')}
+        </select>
+      </label>
+      <p class="tenue">El mesociclo en curso se cerrará el día anterior. Luego puedes ajustar su rutina día a día.</p>
+      <button id="m-crear" class="btn">Crear mesociclo</button>
+    </section>`;
 
-    ${mesos.map(m => `
-      <div class="tarjeta fila-meso" data-id="${m.id}">
-        <div class="titulo-dia">
-          <input data-c="nombre" class="ej-nombre" value="${esc(m.nombre)}" aria-label="Nombre">
-          ${m.fecha_fin ? '' : '<span class="tag tag-ok">en curso</span>'}
-        </div>
-        <div class="dos-col">
-          <label>Inicio <input type="date" data-c="fecha_inicio" value="${m.fecha_inicio}"></label>
-          <label>Fin <input type="date" data-c="fecha_fin" value="${m.fecha_fin || ''}"></label>
-        </div>
-        <p class="meta">${nSesiones(m.id)} sesiones</p>
-        <div class="fila-ej-botones">
-          <button class="btn" data-acc="guardar">Guardar</button>
-          <button class="btn peligro" data-acc="borrar">Borrar</button>
-        </div>
-      </div>`).join('')}`;
-
-  cont.onclick = ev => {
-    const b = ev.target.closest('button');
-    if (!b) return;
-
-    if (b.id === 'm-crear') {
-      const nombre = cont.querySelector('#m-nombre').value.trim() || `Mesociclo ${mesos.length + 1}`;
-      const inicio = cont.querySelector('#m-inicio').value || hoyISO();
-      return cambiar(cont, renderMesociclos, async () => {
-        for (const m of state.mesociclos.filter(m => !m.fecha_fin && m.fecha_inicio < inicio)) {
-          await ejecutar(supabase.from('mesociclos').update({ fecha_fin: sumarDias(inicio, -1) }).eq('id', m.id));
-        }
-        const nuevo = await ejecutar(supabase.from('mesociclos').insert({ nombre, fecha_inicio: inicio }).select().single());
-        await reasignarSesiones(nuevo);
-      }, 'Mesociclo creado ✔');
+  // Abrir/cerrar un mesociclo recuerda cuál está desplegado
+  cont.querySelectorAll('.lista details').forEach(d => d.addEventListener('toggle', () => {
+    const id = Number(d.dataset.id);
+    if (d.open && abierto !== id) {
+      if (edicion?.sucio && !confirm('Hay cambios sin guardar en la rutina. ¿Descartarlos?')) { d.open = false; return; }
+      abierto = id; edicion = null;
+      renderMesociclos(cont);            // pinta el contenido del mesociclo abierto
+    } else if (!d.open && abierto === id) {
+      abierto = null; edicion = null;
     }
+  }));
 
-    const tarjeta = b.closest('.fila-meso');
-    if (!tarjeta) return;
-    const id = Number(tarjeta.dataset.id);
-    const valor = c => tarjeta.querySelector(`[data-c="${c}"]`).value;
-
-    if (b.dataset.acc === 'guardar') {
-      const datos = { id, nombre: valor('nombre').trim(), fecha_inicio: valor('fecha_inicio'), fecha_fin: valor('fecha_fin') || null };
-      if (!datos.nombre || !datos.fecha_inicio) return aviso('Falta el nombre o la fecha de inicio', 'error');
-      if (datos.fecha_fin && datos.fecha_fin < datos.fecha_inicio) return aviso('El fin no puede ser antes del inicio', 'error');
-      return cambiar(cont, renderMesociclos, async () => {
-        const { id: _, ...cambios } = datos;
-        await ejecutar(supabase.from('mesociclos').update(cambios).eq('id', id));
-        await reasignarSesiones(datos);
-      }, 'Guardado ✔');
-    }
-
-    if (b.dataset.acc === 'borrar') {
-      if (!confirm('¿Borrar este mesociclo? Las sesiones NO se borran, solo quedan sin mesociclo.')) return;
-      return cambiar(cont, renderMesociclos, () => ejecutar(supabase.from('mesociclos').delete().eq('id', id)), 'Mesociclo borrado');
+  cont.oninput = ev => {
+    const t = ev.target;
+    if (t.dataset.r == null || !edicion) return;
+    const f = edicion.filas[Number(t.closest('.rutina-fila').dataset.i)];
+    f[t.dataset.r] = num(t.value) || null;
+    edicion.sucio = true;
+  };
+  cont.onchange = ev => {
+    if (ev.target.id === 'r-anadir' && ev.target.value) {
+      edicion.filas.push({ ejercicio_id: Number(ev.target.value), series: 3, reps_min: 8, reps_max: 12 });
+      edicion.sucio = true;
+      renderMesociclos(cont);
     }
   };
+  cont.onclick = ev => alPulsarMeso(ev, cont, mesos);
 }
+
+function panelPlan(hoy) {
+  if (!planCargado()) {
+    return `
+      <section class="hero">
+        <p class="hero-sup">Tu plan</p>
+        <h2>Seis mesociclos, cinco días</h2>
+        <p>Carga la rutina completa del PDF: 24 semanas de gimnasio en 6 bloques de 4, la preparación de 15K y la flexibilidad diaria. Lo que ya hayas registrado se conserva.</p>
+        <label class="campo" style="margin-top:16px;color:rgba(255,255,255,.8)">Empieza el lunes
+          <input type="date" id="p-inicio" value="${proximoLunes(hoy)}">
+        </label>
+        <button class="btn ancho" id="p-cargar">Cargar el plan</button>
+      </section>`;
+  }
+  const n = semanaPlan(hoy);
+  return `
+    <section class="banner">${icono('calendario')}<div>
+      <b>Plan de 6 meses cargado.</b> Empezó el ${fmtCorta(state.ajustes.inicio_plan).toLowerCase()}${n >= 1 ? `, vas por la semana ${n}` : n != null ? `, empieza en ${1 - n} ${1 - n === 1 ? 'semana' : 'semanas'}` : ''}.
+      <button class="btn-texto" id="p-recargar">Volver a cargarlo</button>
+    </div></section>`;
+}
+
+function itemMeso(m, actual) {
+  const nSes = state.sesiones.filter(s => s.mesociclo_id === m.id).length;
+  const dias = [...new Set(state.rutinas.filter(r => r.mesociclo_id === m.id).map(r => r.dia))].sort(compararTexto);
+  const abiertoAqui = abierto === m.id;
+  if (abiertoAqui && (!edicion || edicion.mesoId !== m.id)) empezarEdicion(m.id, dias[0] ?? null);
+  const ed = abiertoAqui ? edicion : null;
+  const diasChips = ed?.dia && !dias.includes(ed.dia) ? [...dias, ed.dia] : dias;
+  const enRutina = new Set(ed?.filas.map(f => f.ejercicio_id) ?? []);
+
+  return `
+    <details data-id="${m.id}" ${abiertoAqui ? 'open' : ''}>
+      <summary>
+        <span class="meso-item ${m.id === actual?.id ? 'actual' : ''}">
+          <span class="meso-num">${m.numero ?? '–'}</span>
+          <span><span style="display:block">${esc(m.nombre)}</span>
+            <span class="fechas">${fmtCorta(m.fecha_inicio)}${m.fecha_fin ? ` – ${fmtCorta(m.fecha_fin).toLowerCase()}` : ', en curso'}, ${nSes} ${nSes === 1 ? 'sesión' : 'sesiones'}</span></span>
+        </span>
+        <span class="der">${m.id === actual?.id ? '<span class="etiqueta objetivo">Ahora</span>' : ''}${icono('der', 'flecha')}</span>
+      </summary>
+      ${abiertoAqui ? `
+      <div class="cuerpo">
+        ${m.descripcion ? `<p class="sub">${esc(m.descripcion)}</p>` : ''}
+        <h4>Rutina</h4>
+        <div class="chips">
+          ${diasChips.map(d => `<button class="chip ${d === ed.dia ? 'activo' : ''}" data-rdia="${esc(d)}">${esc(d.split(' · ')[0])}</button>`).join('')}
+          <button class="chip" data-rdia-nuevo>${icono('mas')}</button>
+        </div>
+        ${ed.dia ? `
+          <p class="sub"><b>${esc(ed.dia)}</b></p>
+          <div class="cab-rutina"><span>Ejercicio</span><span>Series</span><span>Reps</span><span></span></div>
+          <div>
+            ${ed.filas.map((f, i) => `
+              <div class="rutina-fila" data-i="${i}">
+                <span class="nombre" style="display:flex;align-items:center;gap:4px">
+                  <span class="orden">
+                    <button class="btn-icono" data-racc="subir" aria-label="Subir">${icono('arriba')}</button>
+                    <button class="btn-icono" data-racc="bajar" aria-label="Bajar">${icono('abajo')}</button>
+                  </span>${esc(ejercicioPorId(f.ejercicio_id)?.nombre ?? '¿?')}
+                </span>
+                <input data-r="series" inputmode="numeric" value="${f.series ?? ''}" aria-label="Series">
+                <span class="rango">
+                  <input data-r="reps_min" inputmode="numeric" value="${f.reps_min ?? ''}" aria-label="Reps mínimas">–<input data-r="reps_max" inputmode="numeric" value="${f.reps_max ?? ''}" aria-label="Reps máximas">
+                </span>
+                <button class="btn-icono" data-racc="quitar" aria-label="Quitar">${icono('x')}</button>
+              </div>`).join('')}
+          </div>
+          <select id="r-anadir" aria-label="Añadir ejercicio a la rutina">
+            <option value="">Añadir ejercicio a este día…</option>
+            ${state.ejercicios.filter(e => e.activo && !enRutina.has(e.id)).sort((a, b) => compararTexto(a.nombre, b.nombre))
+              .map(e => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('')}
+          </select>
+          <button class="btn primario" data-guardar-rutina>Guardar rutina del día</button>` : '<p class="tenue">Este mesociclo aún no tiene rutina. Pulsa + para crear el primer día.</p>'}
+
+        <hr class="separador">
+        <h4>Datos del mesociclo</h4>
+        <label class="campo">Nombre <input data-m="nombre" value="${esc(m.nombre)}"></label>
+        <div class="campos-2">
+          <label class="campo">Inicio <input type="date" data-m="fecha_inicio" value="${m.fecha_inicio}"></label>
+          <label class="campo">Fin <input type="date" data-m="fecha_fin" value="${m.fecha_fin || ''}"></label>
+        </div>
+        <label class="campo">Objetivo <textarea data-m="descripcion" rows="2">${esc(m.descripcion || '')}</textarea></label>
+        <div class="acciones-sesion">
+          <button class="btn" data-guardar-meso>Guardar datos</button>
+          <button class="btn peligro" data-borrar-meso aria-label="Borrar mesociclo">${icono('papelera')}</button>
+        </div>
+      </div>` : ''}
+    </details>`;
+}
+
+async function alPulsarMeso(ev, cont, mesos) {
+  const b = ev.target.closest('button');
+  if (!b) return;
+
+  // ---- Plan de 6 meses ----
+  if (b.id === 'p-cargar' || b.id === 'p-recargar') {
+    if (b.id === 'p-recargar' && !confirm('Se volverán a crear los 6 mesociclos del plan con su rutina original (perderás los cambios que hayas hecho en sus rutinas). Tus sesiones registradas se conservan. ¿Continuar?')) return;
+    let inicio = cont.querySelector('#p-inicio')?.value;
+    if (!inicio) inicio = prompt('Fecha de inicio del plan (AAAA-MM-DD)', state.ajustes?.inicio_plan || proximoLunes(hoyISO()));
+    if (!inicio) return;
+    if (state.faltaMigracion) return aviso('Primero ejecuta schema_v2.sql en Supabase', 'error');
+    b.disabled = true;
+    abierto = null; edicion = null;
+    const ok = await cambiar(cont, renderMesociclos, () => cargarPlan(inicio, uid), 'Plan cargado: 6 mesociclos listos');
+    if (!ok) b.disabled = false;
+    return;
+  }
+
+  // ---- Nuevo mesociclo ----
+  if (b.id === 'm-crear') {
+    const nombre = cont.querySelector('#m-nombre').value.trim() || `Mesociclo ${mesos.length + 1}`;
+    const inicio = cont.querySelector('#m-inicio').value || hoyISO();
+    const semanas = Math.max(1, num(cont.querySelector('#m-semanas').value) || 4);
+    const copiar = Number(cont.querySelector('#m-copiar').value) || null;
+    return cambiar(cont, renderMesociclos, async () => {
+      for (const m of state.mesociclos.filter(m => (!m.fecha_fin || m.fecha_fin >= inicio) && m.fecha_inicio < inicio)) {
+        await ejecutar(supabase.from('mesociclos').update({ fecha_fin: sumarDias(inicio, -1) }).eq('id', m.id));
+      }
+      const nuevo = await ejecutar(supabase.from('mesociclos')
+        .insert({ nombre, fecha_inicio: inicio, fecha_fin: sumarDias(inicio, semanas * 7 - 1) }).select().single());
+      if (copiar) {
+        const filas = state.rutinas.filter(r => r.mesociclo_id === copiar).map(({ dia, ejercicio_id, orden, series, reps_min, reps_max, notas }) =>
+          ({ mesociclo_id: nuevo.id, dia, ejercicio_id, orden, series, reps_min, reps_max, notas }));
+        if (filas.length) await ejecutar(supabase.from('rutinas').insert(filas));
+      }
+      await reasignarSesiones(nuevo);
+      abierto = nuevo.id; edicion = null;
+    }, 'Mesociclo creado');
+  }
+
+  const det = b.closest('details');
+  if (!det) return;
+  const id = Number(det.dataset.id);
+
+  // ---- Editor de rutina ----
+  if (b.dataset.rdia != null) {
+    if (edicion?.sucio && !confirm('Hay cambios sin guardar en este día. ¿Descartarlos?')) return;
+    empezarEdicion(id, b.dataset.rdia);
+    return renderMesociclos(cont);
+  }
+  if (b.hasAttribute('data-rdia-nuevo')) {
+    const n = new Set(state.rutinas.filter(r => r.mesociclo_id === id).map(r => r.dia)).size + 1;
+    const nombre = prompt('Nombre del día', `Día ${n} · `)?.trim();
+    if (!nombre) return;
+    edicion = { mesoId: id, dia: nombre, filas: [], sucio: true };
+    return renderMesociclos(cont);
+  }
+  if (b.dataset.racc) {
+    const i = Number(b.closest('.rutina-fila').dataset.i);
+    const f = edicion.filas;
+    if (b.dataset.racc === 'quitar') f.splice(i, 1);
+    if (b.dataset.racc === 'subir' && i > 0) [f[i - 1], f[i]] = [f[i], f[i - 1]];
+    if (b.dataset.racc === 'bajar' && i < f.length - 1) [f[i + 1], f[i]] = [f[i], f[i + 1]];
+    edicion.sucio = true;
+    return renderMesociclos(cont);
+  }
+  if (b.hasAttribute('data-guardar-rutina')) {
+    const { mesoId, dia, filas } = edicion;
+    if (filas.some(f => !(f.series > 0))) return aviso('Cada ejercicio necesita al menos 1 serie', 'error');
+    return cambiar(cont, renderMesociclos, async () => {
+      await ejecutar(supabase.from('rutinas').delete().eq('mesociclo_id', mesoId).eq('dia', dia));
+      if (filas.length) await ejecutar(supabase.from('rutinas').insert(filas.map((f, orden) => ({
+        mesociclo_id: mesoId, dia, orden, ejercicio_id: f.ejercicio_id,
+        series: f.series, reps_min: f.reps_min || null, reps_max: f.reps_max || f.reps_min || null,
+      }))));
+      empezarEdicion(mesoId, dia);
+    }, 'Rutina guardada');
+  }
+
+  // ---- Datos del mesociclo ----
+  if (b.hasAttribute('data-guardar-meso')) {
+    const v = c => det.querySelector(`[data-m="${c}"]`).value;
+    const datos = { nombre: v('nombre').trim(), fecha_inicio: v('fecha_inicio'), fecha_fin: v('fecha_fin') || null, descripcion: v('descripcion').trim() || null };
+    if (!datos.nombre || !datos.fecha_inicio) return aviso('Falta el nombre o la fecha de inicio', 'error');
+    if (datos.fecha_fin && datos.fecha_fin < datos.fecha_inicio) return aviso('El fin no puede ser antes del inicio', 'error');
+    return cambiar(cont, renderMesociclos, async () => {
+      await ejecutar(supabase.from('mesociclos').update(datos).eq('id', id));
+      await reasignarSesiones({ id, ...datos });
+    }, 'Mesociclo guardado');
+  }
+  if (b.hasAttribute('data-borrar-meso')) {
+    if (!confirm('¿Borrar este mesociclo y su rutina? Las sesiones registradas NO se borran.')) return;
+    abierto = null; edicion = null;
+    return cambiar(cont, renderMesociclos, () => ejecutar(supabase.from('mesociclos').delete().eq('id', id)), 'Mesociclo borrado');
+  }
+}
+
+export const NUM_MESOS_PLAN = MESOS_PLAN.length;

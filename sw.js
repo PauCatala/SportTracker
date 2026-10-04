@@ -1,11 +1,12 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'sport-tracker-v1';
+const CACHE = 'sport-tracker-v2';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/styles.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
-  './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/seed.js',
+  './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
+  './js/flex.js', './js/graficos.js', './js/iconos.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 
@@ -40,7 +41,7 @@ self.addEventListener('fetch', ev => {
         .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))
     );
   } else {
-    // Librerías externas (Supabase, Chart.js): primero la copia, que no cambian
+    // Librerías y tipografía externas (Supabase, Chart.js, Google Fonts): primero la copia, que no cambian
     ev.respondWith(caches.match(req).then(r => r || fetch(req).then(res => guardarCopia(req, res))));
   }
 });
