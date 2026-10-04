@@ -1,7 +1,7 @@
 // Bloque GIMNASIO: pestañas "Entrenar" e "Historial".
 import { state, supabase, ejecutar, guardarSesion, cargarTodo } from './db.js';
 import {
-  diasPara, ejerciciosDelDia, ejercicioPorId, mesocicloDe, semanaDeMeso, semanasDeMeso, rutinaDe,
+  diasPara, mesoConRutina, ejerciciosDelDia, ejercicioPorId, mesocicloDe, semanaDeMeso, semanasDeMeso, rutinaDe,
   sesionDe, seriesDe, ultimaVez, ordenEjercicios,
 } from './consultas.js';
 import {
@@ -14,7 +14,10 @@ import { icono } from './iconos.js';
 export const navegar = (vista, bloque = 'gym') =>
   window.dispatchEvent(new CustomEvent('navegar', { detail: { bloque, vista } }));
 
-const nombreCorto = dia => dia.split(' · ')[0];
+const nombreCorto = (dia, todos = []) => {
+  const corto = dia.split(' · ')[0];
+  return todos.filter(d => d.split(' · ')[0] === corto).length > 1 ? dia : corto;
+};
 const restoNombre = dia => dia.split(' · ').slice(1).join(' · ');
 const rango = (min, max) => (min && max && min !== max ? `${min}–${max}` : `${min || max || ''}`);
 
@@ -34,7 +37,8 @@ function contexto(fecha, dia) {
   const meso = mesocicloDe(fecha);
   const semana = meso ? semanaDeMeso(meso, fecha) : null;
   const descarga = !!(meso?.numero && semana === 4);
-  const rutina = meso ? rutinaDe(meso.id, dia) : [];
+  const mesoRutina = mesoConRutina(fecha);
+  const rutina = mesoRutina ? rutinaDe(mesoRutina.id, dia) : [];
   const presc = new Map(rutina.map(r => [r.ejercicio_id, { ...r, series: descarga ? Math.max(1, r.series - 1) : r.series }]));
   return { meso, semana, descarga, rutina, presc };
 }
@@ -133,7 +137,7 @@ function pintarRegistrar(cont) {
     <section class="campos">
       <div class="barra-sesion">
         <div class="chips" role="tablist">
-          ${dias.map(d => `<button class="chip ${d === form.dia ? 'activo' : ''}" data-dia="${esc(d)}">${esc(nombreCorto(d))}${sesionDe(form.fecha, d) ? '<span class="marca"></span>' : ''}</button>`).join('')}
+          ${dias.map(d => `<button class="chip ${d === form.dia ? 'activo' : ''}" data-dia="${esc(d)}">${esc(nombreCorto(d, dias))}${sesionDe(form.fecha, d) ? '<span class="marca"></span>' : ''}</button>`).join('')}
         </div>
         <input type="date" id="f-fecha" value="${form.fecha}" aria-label="Fecha">
       </div>
@@ -190,7 +194,10 @@ function tarjetaEjercicio(id, ctx) {
           ${e?.por_lado ? '<span class="etiqueta">Kg por lado</span>' : ''}
         </div>
       </div>
-      ${u ? `<button class="btn-icono" data-acc="copiar" aria-label="Copiar la última vez" title="Copiar la última vez">${icono('copiar')}</button>` : ''}
+      <span style="display:flex">
+        ${u ? `<button class="btn-icono" data-acc="copiar" aria-label="Copiar la última vez" title="Copiar la última vez">${icono('copiar')}</button>` : ''}
+        <button class="btn-icono" data-acc="quitar-ej" aria-label="Quitar de la sesión de hoy" title="Hoy no lo hago">${icono('x')}</button>
+      </span>
     </div>
     ${u ? `
       <div class="ultima">
@@ -297,6 +304,13 @@ async function alPulsar(ev, cont) {
   const i = filaEl ? +filaEl.dataset.i : -1, j = filaEl ? +filaEl.dataset.j : -1;
   const sets = form.ej[id];
 
+  if (acc === 'quitar-ej') {
+    form.orden = form.orden.filter(x => x !== id);
+    delete form.ej[id];
+    form.sucio = true;
+    aviso('Quitado de hoy. La rutina no cambia.');
+    return pintarRegistrar(cont);
+  }
   if (acc === 'serie') {
     const anterior = sets.at(-1)?.[0];
     sets.push([{ reps: '', kg: anterior?.kg ?? '', tecnica: '' }]);   // misma carga que la serie anterior

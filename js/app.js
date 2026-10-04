@@ -3,6 +3,7 @@ import { supabase, cargarTodo, vaciarCola, pendientes, limpiarLocal } from './db
 import { renderRegistrar, renderHistorial } from './gym.js';
 import { renderProgreso } from './progreso.js';
 import { renderEjercicios, renderMesociclos } from './catalogo.js';
+import { renderRutina } from './rutina.js';
 import { renderSemanaRun, renderRegistrarRun, renderProgresoRun } from './running.js';
 import { renderFlexHoy, renderFlexProgreso } from './flex.js';
 import { aviso, capitalizar } from './utils.js';
@@ -13,6 +14,7 @@ const BLOQUES = {
   gym: {
     titulo: 'Gimnasio', icono: 'gym',
     vistas: [
+      ['rutina', 'Rutina', renderRutina],
       ['entrenar', 'Entreno', renderRegistrar],
       ['progreso', 'Progreso', renderProgreso],
       ['ejercicios', 'Ejercicios', renderEjercicios],

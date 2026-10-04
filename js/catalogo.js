@@ -1,7 +1,8 @@
 // Bloque GIMNASIO: pestañas "Ejercicios" y "Mesociclos" (lo que configuras tú)
 import { state, supabase, ejecutar, cargarTodo, uid } from './db.js';
-import { mesocicloDe, semanaPlan, rutinaDe, ejercicioPorId } from './consultas.js';
-import { resetForm, bannerMigracion } from './gym.js';
+import { mesocicloDe, semanaPlan } from './consultas.js';
+import { resetForm, bannerMigracion, navegar } from './gym.js';
+import { seleccionarMeso } from './rutina.js';
 import { hoyISO, sumarDias, fmtCorta, esc, num, aviso, mensajeError, requiereConexion } from './utils.js';
 import { cargarPlan, planCargado, proximoLunes, MESOS_PLAN } from './plan.js';
 import { icono } from './iconos.js';
@@ -106,14 +107,6 @@ export function renderEjercicios(cont) {
 /* ============================ MESOCICLOS ============================ */
 // Edición de la rutina de un día: se guarda todo junto al pulsar "Guardar rutina"
 let abierto = null;     // id del mesociclo desplegado
-let edicion = null;     // { mesoId, dia, filas: [{ejercicio_id, series, reps_min, reps_max}], sucio }
-
-function empezarEdicion(mesoId, dia) {
-  edicion = {
-    mesoId, dia, sucio: false,
-    filas: rutinaDe(mesoId, dia).map(r => ({ ejercicio_id: r.ejercicio_id, series: r.series, reps_min: r.reps_min, reps_max: r.reps_max })),
-  };
-}
 
 async function reasignarSesiones(m) {
   let q = supabase.from('sesiones').update({ mesociclo_id: m.id }).gte('fecha', m.fecha_inicio);
@@ -146,7 +139,7 @@ export function renderMesociclos(cont) {
           ${mesos.map(m => `<option value="${m.id}" ${m.id === actual?.id ? 'selected' : ''}>${esc(m.numero ? `${m.numero}. ${m.nombre}` : m.nombre)}</option>`).join('')}
         </select>
       </label>
-      <p class="tenue">El mesociclo en curso se cerrará el día anterior. Luego puedes ajustar su rutina día a día.</p>
+      <p class="tenue">El mesociclo en curso se cerrará el día anterior. Su rutina se diseña en la pestaña Rutina.</p>
       <button id="m-crear" class="btn">Crear mesociclo</button>
     </section>`;
 
@@ -154,28 +147,13 @@ export function renderMesociclos(cont) {
   cont.querySelectorAll('.lista details').forEach(d => d.addEventListener('toggle', () => {
     const id = Number(d.dataset.id);
     if (d.open && abierto !== id) {
-      if (edicion?.sucio && !confirm('Hay cambios sin guardar en la rutina. ¿Descartarlos?')) { d.open = false; return; }
-      abierto = id; edicion = null;
+      abierto = id;
       renderMesociclos(cont);            // pinta el contenido del mesociclo abierto
     } else if (!d.open && abierto === id) {
-      abierto = null; edicion = null;
+      abierto = null;
     }
   }));
 
-  cont.oninput = ev => {
-    const t = ev.target;
-    if (t.dataset.r == null || !edicion) return;
-    const f = edicion.filas[Number(t.closest('.rutina-fila').dataset.i)];
-    f[t.dataset.r] = num(t.value) || null;
-    edicion.sucio = true;
-  };
-  cont.onchange = ev => {
-    if (ev.target.id === 'r-anadir' && ev.target.value) {
-      edicion.filas.push({ ejercicio_id: Number(ev.target.value), series: 3, reps_min: 8, reps_max: 12 });
-      edicion.sucio = true;
-      renderMesociclos(cont);
-    }
-  };
   cont.onclick = ev => alPulsarMeso(ev, cont, mesos);
 }
 
@@ -204,10 +182,6 @@ function itemMeso(m, actual) {
   const nSes = state.sesiones.filter(s => s.mesociclo_id === m.id).length;
   const dias = [...new Set(state.rutinas.filter(r => r.mesociclo_id === m.id).map(r => r.dia))].sort(compararTexto);
   const abiertoAqui = abierto === m.id;
-  if (abiertoAqui && (!edicion || edicion.mesoId !== m.id)) empezarEdicion(m.id, dias[0] ?? null);
-  const ed = abiertoAqui ? edicion : null;
-  const diasChips = ed?.dia && !dias.includes(ed.dia) ? [...dias, ed.dia] : dias;
-  const enRutina = new Set(ed?.filas.map(f => f.ejercicio_id) ?? []);
 
   return `
     <details data-id="${m.id}" ${abiertoAqui ? 'open' : ''}>
@@ -222,36 +196,8 @@ function itemMeso(m, actual) {
       ${abiertoAqui ? `
       <div class="cuerpo">
         ${m.descripcion ? `<p class="sub">${esc(m.descripcion)}</p>` : ''}
-        <h4>Rutina</h4>
-        <div class="chips">
-          ${diasChips.map(d => `<button class="chip ${d === ed.dia ? 'activo' : ''}" data-rdia="${esc(d)}">${esc(d.split(' · ')[0])}</button>`).join('')}
-          <button class="chip" data-rdia-nuevo>${icono('mas')}</button>
-        </div>
-        ${ed.dia ? `
-          <p class="sub"><b>${esc(ed.dia)}</b></p>
-          <div class="cab-rutina"><span>Ejercicio</span><span>Series</span><span>Reps</span><span></span></div>
-          <div>
-            ${ed.filas.map((f, i) => `
-              <div class="rutina-fila" data-i="${i}">
-                <span class="nombre" style="display:flex;align-items:center;gap:4px">
-                  <span class="orden">
-                    <button class="btn-icono" data-racc="subir" aria-label="Subir">${icono('arriba')}</button>
-                    <button class="btn-icono" data-racc="bajar" aria-label="Bajar">${icono('abajo')}</button>
-                  </span>${esc(ejercicioPorId(f.ejercicio_id)?.nombre ?? '¿?')}
-                </span>
-                <input data-r="series" inputmode="numeric" value="${f.series ?? ''}" aria-label="Series">
-                <span class="rango">
-                  <input data-r="reps_min" inputmode="numeric" value="${f.reps_min ?? ''}" aria-label="Reps mínimas">–<input data-r="reps_max" inputmode="numeric" value="${f.reps_max ?? ''}" aria-label="Reps máximas">
-                </span>
-                <button class="btn-icono" data-racc="quitar" aria-label="Quitar">${icono('x')}</button>
-              </div>`).join('')}
-          </div>
-          <select id="r-anadir" aria-label="Añadir ejercicio a la rutina">
-            <option value="">Añadir ejercicio a este día…</option>
-            ${state.ejercicios.filter(e => e.activo && !enRutina.has(e.id)).sort((a, b) => compararTexto(a.nombre, b.nombre))
-              .map(e => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('')}
-          </select>
-          <button class="btn primario" data-guardar-rutina>Guardar rutina del día</button>` : '<p class="tenue">Este mesociclo aún no tiene rutina. Pulsa + para crear el primer día.</p>'}
+        <div class="panel-cab"><h4>Rutina</h4><button class="btn chico suave" data-ver-rutina>Diseñar rutina</button></div>
+        <p class="sub">${dias.length ? dias.map(d => esc(d.split(' · ')[0])).join(', ') : 'Sin rutina todavía'}${dias.length ? `, ${state.rutinas.filter(r => r.mesociclo_id === m.id).length} ejercicios en total` : ''}</p>
 
         <hr class="separador">
         <h4>Datos del mesociclo</h4>
@@ -281,7 +227,7 @@ async function alPulsarMeso(ev, cont, mesos) {
     if (!inicio) return;
     if (state.faltaMigracion) return aviso('Primero ejecuta schema_v2.sql en Supabase', 'error');
     b.disabled = true;
-    abierto = null; edicion = null;
+    abierto = null;
     const ok = await cambiar(cont, renderMesociclos, () => cargarPlan(inicio, uid), 'Plan cargado: 6 mesociclos listos');
     if (!ok) b.disabled = false;
     return;
@@ -305,7 +251,7 @@ async function alPulsarMeso(ev, cont, mesos) {
         if (filas.length) await ejecutar(supabase.from('rutinas').insert(filas));
       }
       await reasignarSesiones(nuevo);
-      abierto = nuevo.id; edicion = null;
+      abierto = nuevo.id;
     }, 'Mesociclo creado');
   }
 
@@ -313,39 +259,9 @@ async function alPulsarMeso(ev, cont, mesos) {
   if (!det) return;
   const id = Number(det.dataset.id);
 
-  // ---- Editor de rutina ----
-  if (b.dataset.rdia != null) {
-    if (edicion?.sucio && !confirm('Hay cambios sin guardar en este día. ¿Descartarlos?')) return;
-    empezarEdicion(id, b.dataset.rdia);
-    return renderMesociclos(cont);
-  }
-  if (b.hasAttribute('data-rdia-nuevo')) {
-    const n = new Set(state.rutinas.filter(r => r.mesociclo_id === id).map(r => r.dia)).size + 1;
-    const nombre = prompt('Nombre del día', `Día ${n} · `)?.trim();
-    if (!nombre) return;
-    edicion = { mesoId: id, dia: nombre, filas: [], sucio: true };
-    return renderMesociclos(cont);
-  }
-  if (b.dataset.racc) {
-    const i = Number(b.closest('.rutina-fila').dataset.i);
-    const f = edicion.filas;
-    if (b.dataset.racc === 'quitar') f.splice(i, 1);
-    if (b.dataset.racc === 'subir' && i > 0) [f[i - 1], f[i]] = [f[i], f[i - 1]];
-    if (b.dataset.racc === 'bajar' && i < f.length - 1) [f[i + 1], f[i]] = [f[i], f[i + 1]];
-    edicion.sucio = true;
-    return renderMesociclos(cont);
-  }
-  if (b.hasAttribute('data-guardar-rutina')) {
-    const { mesoId, dia, filas } = edicion;
-    if (filas.some(f => !(f.series > 0))) return aviso('Cada ejercicio necesita al menos 1 serie', 'error');
-    return cambiar(cont, renderMesociclos, async () => {
-      await ejecutar(supabase.from('rutinas').delete().eq('mesociclo_id', mesoId).eq('dia', dia));
-      if (filas.length) await ejecutar(supabase.from('rutinas').insert(filas.map((f, orden) => ({
-        mesociclo_id: mesoId, dia, orden, ejercicio_id: f.ejercicio_id,
-        series: f.series, reps_min: f.reps_min || null, reps_max: f.reps_max || f.reps_min || null,
-      }))));
-      empezarEdicion(mesoId, dia);
-    }, 'Rutina guardada');
+  if (b.hasAttribute('data-ver-rutina')) {
+    seleccionarMeso(id);
+    return navegar('rutina');
   }
 
   // ---- Datos del mesociclo ----
@@ -361,7 +277,7 @@ async function alPulsarMeso(ev, cont, mesos) {
   }
   if (b.hasAttribute('data-borrar-meso')) {
     if (!confirm('¿Borrar este mesociclo y su rutina? Las sesiones registradas NO se borran.')) return;
-    abierto = null; edicion = null;
+    abierto = null;
     return cambiar(cont, renderMesociclos, () => ejecutar(supabase.from('mesociclos').delete().eq('id', id)), 'Mesociclo borrado');
   }
 }

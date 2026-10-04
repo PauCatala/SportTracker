@@ -513,6 +513,18 @@ label.check input { width: 20px; min-height: 20px; height: 20px; accent-color: v
 .cab-rutina span { text-align: center; }
 .cab-rutina span:first-child { text-align: left; }
 
+/* Rutina: tabla de cada día */
+.rutina-lista { margin-top: 12px; }
+.rutina-linea {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 10px 0; border-bottom: 1px solid var(--linea);
+}
+.rutina-linea:last-child { border-bottom: none; }
+.rutina-linea .pos { font-size: 12px; font-weight: 700; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+.rutina-linea .nombre { font-weight: 600; }
+.rutina-linea .presc { font-weight: 750; font-stretch: 110%; color: var(--electrico); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel.editando { border-color: var(--electrico); box-shadow: 0 0 0 3px var(--pervinca-2); }
+
 /* ---------------------------------------------------------------------
    Login
    --------------------------------------------------------------------- */

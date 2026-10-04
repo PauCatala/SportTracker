@@ -1,12 +1,12 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'sport-tracker-v2';
+const CACHE = 'sport-tracker-v3';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/styles.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
   './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
-  './js/flex.js', './js/graficos.js', './js/iconos.js',
+  './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

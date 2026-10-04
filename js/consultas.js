@@ -26,10 +26,20 @@ export const semanasDeMeso = meso => meso.fecha_fin ? Math.ceil((diasEntre(meso.
 export const rutinaDe = (mesoId, dia) =>
   state.rutinas.filter(r => r.mesociclo_id === mesoId && r.dia === dia).sort((a, b) => a.orden - b.orden);
 
-// Días disponibles para entrenar en una fecha: los de la rutina del mesociclo,
-// o si no hay rutina, los días que tengas puestos en los ejercicios
-export function diasPara(fecha) {
+// Mesociclo cuya rutina se usa en una fecha: el de esa fecha si tiene rutina;
+// si no (p. ej. un mesociclo antiguo sin rutina), el más cercano en el tiempo que sí la tenga
+export function mesoConRutina(fecha) {
+  const conRutina = new Set(state.rutinas.map(r => r.mesociclo_id));
   const meso = mesocicloDe(fecha);
+  if (meso && conRutina.has(meso.id)) return meso;
+  const distancia = m => fecha < m.fecha_inicio ? diasEntre(fecha, m.fecha_inicio) : m.fecha_fin && fecha > m.fecha_fin ? diasEntre(m.fecha_fin, fecha) : 0;
+  return state.mesociclos.filter(m => conRutina.has(m.id)).sort((a, b) => distancia(a) - distancia(b))[0] || null;
+}
+
+// Días disponibles para entrenar en una fecha: los de la rutina del mesociclo,
+// o si no hay ninguna rutina, los días que tengas puestos en los ejercicios
+export function diasPara(fecha) {
+  const meso = mesoConRutina(fecha);
   const deRutina = meso ? [...new Set(state.rutinas.filter(r => r.mesociclo_id === meso.id).map(r => r.dia))] : [];
   const dias = deRutina.length ? deRutina
     : [...new Set(state.ejercicios.filter(e => e.activo).map(e => e.dia || 'Sin día'))];
