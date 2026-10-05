@@ -12,36 +12,42 @@
    ===================================================================== */
 
 :root {
-  /* ---------- Marca ---------- */
-  --marca: #1F4FD1;          /* Azul tinta: botones, enlaces, agujas del reloj */
-  --marca-hover: #0C3084;    /* Azul profundo: al pulsar, sombras azules */
-  --marca-profundo: #0C3084; /* Azul profundo */
-  --acero: #B4B6BA;          /* Gris acero: caja del reloj, detalles metálicos */
-  --luz: #FFE45C;            /* "Lumen": el brillo de lo completado */
+  /* =========== PALETA: blanco, grises y azules =========== */
 
-  /* ---------- Módulos: cada uno tiene su tono ---------- */
-  --estudio: #CFCDF9;        /* Pervinca */
-  --nutricion: #C6F0D8;      /* Menta */
-  --deporte: #FFD0C2;        /* Melocotón */
-  --diario: #FFE7A8;         /* Mantequilla */
-  /* Versión intensa de cada tono, para iconos y texto sobre su color */
-  --estudio-fuerte: #3D33C9;
-  --nutricion-fuerte: #12805A;
-  --deporte-fuerte: #C2452D;
-  --diario-fuerte: #9A6A00;
+  /* ---------- Azules ---------- */
+  --marca: #1F4FD1;          /* Azul fuerte: botones, enlaces, agujas, letras destacadas */
+  --marca-hover: #0C3084;    /* Azul profundo: al pulsar */
+  --marca-profundo: #0C3084; /* Azul profundo: títulos con peso, detalles oscuros */
+  --azul-medio: #5B7FE6;     /* Azul intermedio: gráficos, segundas series */
+  --azul-pastel: #E4EBFF;    /* Azul pastel: fondos de tarjetas activas, chips */
+  --azul-pastel-2: #C9D7FF;  /* Azul pastel más vivo: barras, rellenos */
+  --luz: #FFE45C;            /* "Lumen": el brillo del reloj al arrancar (solo en la web) */
+
+  /* ---------- Grises ---------- */
+  --acero: #B4B6BA;          /* Gris acero: reloj, grietas de la pared, marcos */
+  --gris-claro: #E6E7EA;     /* Bordes de cuadros y tarjetas */
+  --gris-medio: #8E9197;     /* Iconos apagados, detalles metálicos */
+
+  /* ---------- Secciones: todas en la familia de los azules ----------
+     (el nombre de cada variable es la sección; el valor, su tono) */
+  --estudio: #E4EBFF;        --estudio-fuerte: #1F4FD1;     /* Estudios y trabajo */
+  --nutricion: #DDEBFB;      --nutricion-fuerte: #1F6FC7;   /* Nutrición */
+  --deporte: #DFE4FA;        --deporte-fuerte: #2F3FB8;     /* Salud / deporte */
+  --diario: #ECEEF2;         --diario-fuerte: #4A5876;      /* Imagen (gris azulado) */
+  --personal: #E2F0FF;       --personal-fuerte: #0C5BA8;    /* Personal */
 
   /* ---------- Neutros ---------- */
   --fondo: #FAFAF8;          /* Blanco pared: fondo principal */
-  --fondo-2: #F4F4F7;        /* Paneles y zonas agrupadas */
-  --linea: #E6E6EC;          /* Bordes finos */
+  --fondo-2: #F3F4F6;        /* Paneles y zonas agrupadas */
+  --linea: #E6E7EA;          /* Bordes finos */
   --tinta: #0E1A3F;          /* Texto principal (azul noche, no negro) */
-  --tinta-2: #5B5F7E;        /* Texto secundario */
-  --tinta-3: #9A9DB5;        /* Texto de apoyo, iconos apagados */
+  --tinta-2: #5B6380;        /* Texto secundario */
+  --tinta-3: #9A9FB3;        /* Texto de apoyo */
 
-  /* ---------- Estados ---------- */
-  --ok: #12805A;
+  /* ---------- Estados (verde y rojo solo para hábitos y avisos) ---------- */
+  --ok: #1E9E62;      --ok-suave: #DDF5E8;
+  --error: #D64545;   --error-suave: #FBE4E4;
   --aviso: #9A6A00;
-  --error: #C2384A;
 
   /* ---------- Tipografía (Archivo, con eje de anchura) ---------- */
   --fuente: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -59,8 +65,8 @@
   --peso-medio: 600;
 
   /* ---------- Forma ---------- */
-  --r-grande: 28px;          /* Tarjetas grandes y hojas */
-  --r-medio: 16px;           /* Botones y campos */
+  --r-grande: 24px;          /* Tarjetas grandes */
+  --r-medio: 14px;           /* Botones y campos */
   --r-pildora: 999px;        /* Chips y etiquetas */
 
   /* ---------- Espaciado (escala de 4 en 4) ---------- */
@@ -71,39 +77,10 @@
   --rapido: 160ms;           /* Pulsar, marcar */
   --medio: 320ms;            /* Abrir, cambiar de pantalla */
   --lento: 700ms;            /* Solo en la web de presentación */
-  --curva: cubic-bezier(.2, .8, .2, 1);        /* Salida suave, estilo Apple */
+  --curva: cubic-bezier(.2, .8, .2, 1);            /* Salida suave, estilo Apple */
   --curva-rebote: cubic-bezier(.34, 1.56, .64, 1); /* Rebote del check */
 
   color-scheme: light;
-}
-
-/* ---------- Modo oscuro (automático según el móvil) ---------- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema="claro"]) {
-    --marca: #8F87FF;
-    --marca-hover: #A9A3FF;
-    --fondo: #0E0F24;
-    --fondo-2: #181A36;
-    --linea: #2A2D4E;
-    --tinta: #F2F2F8;
-    --tinta-2: #B4B6CF;
-    --tinta-3: #7C7FA0;
-    --estudio: #2E2A6E;   --estudio-fuerte: #C9C5FF;
-    --nutricion: #173F2E; --nutricion-fuerte: #8FE3B5;
-    --deporte: #4A2318;   --deporte-fuerte: #FFB29C;
-    --diario: #43361A;    --diario-fuerte: #FFD872;
-    color-scheme: dark;
-  }
-}
-:root[data-tema="oscuro"] {
-  --marca: #8F87FF; --marca-hover: #A9A3FF;
-  --fondo: #0E0F24; --fondo-2: #181A36; --linea: #2A2D4E;
-  --tinta: #F2F2F8; --tinta-2: #B4B6CF; --tinta-3: #7C7FA0;
-  --estudio: #2E2A6E;   --estudio-fuerte: #C9C5FF;
-  --nutricion: #173F2E; --nutricion-fuerte: #8FE3B5;
-  --deporte: #4A2318;   --deporte-fuerte: #FFB29C;
-  --diario: #43361A;    --diario-fuerte: #FFD872;
-  color-scheme: dark;
 }
 
 /* Si el usuario tiene desactivadas las animaciones en su móvil, se respetan */

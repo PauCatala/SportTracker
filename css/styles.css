@@ -11,16 +11,16 @@
   --electrico: var(--marca);
   --electrico-2: var(--marca-profundo);
   --pervinca: var(--estudio);
-  --pervinca-2: #E6ECFB;
-  --pervinca-3: #F2F5FD;
+  --pervinca-2: var(--azul-pastel);
+  --pervinca-3: #F1F5FF;
   --papel: #FFFFFF;
   --niebla: var(--fondo-2);
   --niebla-2: #ECEDF1;
   --linea-2: #D5D8E0;
 
-  --ok: #12805A;      --ok-fondo: #E2F3EB;
+  --ok-fondo: var(--ok-suave);
   --igual: #9A6A00;   --igual-fondo: #FBF1D9;
-  --mal: #C2384A;     --mal-fondo: #FBE7EA;
+  --mal: var(--error);  --mal-fondo: var(--error-suave);
 
   --r-panel: 20px;
   --r-control: 12px;

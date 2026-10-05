@@ -1,15 +1,18 @@
 // Estilo común de todas las gráficas (Chart.js) y utilidades para crearlas.
 
 export const C = {
-  electrico: '#10069F',
-  electricoSuave: 'rgba(16, 6, 159, .12)',
-  pervinca: '#CFCDF9',
-  pervinca2: '#E9E8FD',
-  tinta: '#14163A',
-  tinta2: '#565B7D',
-  tinta3: '#8E93AE',
-  linea: '#E4E6EF',
-  ok: '#12805A',
+  // Mismos colores que css/tokens.css
+  electrico: '#1F4FD1',
+  electricoSuave: 'rgba(31, 79, 209, .12)',
+  pervinca: '#C9D7FF',
+  pervinca2: '#E4EBFF',
+  medio: '#5B7FE6',
+  acero: '#B4B6BA',
+  tinta: '#0E1A3F',
+  tinta2: '#5B6380',
+  tinta3: '#9A9FB3',
+  linea: '#E6E7EA',
+  ok: '#1E9E62',
 };
 
 let configurado = false;
