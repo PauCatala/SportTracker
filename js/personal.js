@@ -1,6 +1,5 @@
 // PERSONAL: hábitos (verde = hecho, rojo = no hecho), lista general de tareas y notas.
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
-import { renderPostits } from './notas.js';
 import { icono } from './iconos.js';
 import { sumarDias, parseISO, lunesDe } from './utils.js';
 import { grafica, ejeX, ejeY } from './graficos.js';
@@ -49,6 +48,32 @@ function recuento(habitos, dias, desde, hasta) {
     if (f >= desde && f <= hasta) { if (e === 'si') si++; else if (e === 'no') no++; }
   }));
   return { si, no };
+}
+
+// Semana a semana: cada fila es una semana (de lunes a domingo) y cada casilla un día.
+// Verde = todo hecho ese día · verde claro = parte · rojo = no hecho · gris = sin marcar.
+function semanaASemanaHTML(habitos, dias, hoy) {
+  const elegidos = filtroGrafica === 'todos' ? habitos : habitos.filter(h => h.id === filtroGrafica);
+  const lunesHoy = lunesDe(hoy);
+  const semanas = Array.from({ length: 8 }, (_, i) => sumarDias(lunesHoy, -7 * (7 - i)));
+  const corto = f => parseISO(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '');
+  const celda = f => {
+    if (f > hoy) return '<i class="sd-celda futuro"></i>';
+    const si = elegidos.filter(h => estadoDe(dias, h.id, f) === 'si').length;
+    const no = elegidos.filter(h => estadoDe(dias, h.id, f) === 'no').length;
+    const clase = si && si === elegidos.length ? 'todo' : si ? 'parte' : no ? 'no' : '';
+    const texto = elegidos.length > 1 && (si || no) ? `<b>${si}</b>` : '';
+    return `<i class="sd-celda ${clase} ${f === hoy ? 'hoy' : ''}" title="${corto(f)}: ${si} hechos, ${no} no hechos">${texto}</i>`;
+  };
+  return `
+    <div class="semana-dias">
+      <div class="sd-fila sd-cabeza"><span></span>${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => `<span>${d}</span>`).join('')}<span>Hechos</span></div>
+      ${semanas.map(l => {
+        const dias7 = Array.from({ length: 7 }, (_, i) => sumarDias(l, i));
+        const total = dias7.reduce((t, f) => t + elegidos.filter(h => estadoDe(dias, h.id, f) === 'si').length, 0);
+        return `<div class="sd-fila ${l === lunesHoy ? 'actual' : ''}"><span class="sd-semana">${corto(l)} – ${corto(sumarDias(l, 6))}</span>${dias7.map(celda).join('')}<span class="sd-total">${total}</span></div>`;
+      }).join('')}
+    </div>`;
 }
 
 export function renderHabitos(cont) {
@@ -104,7 +129,7 @@ export function renderHabitos(cont) {
       <div class="panel-cab"><h3>Cómo vas</h3><span class="tenue">Hechos y no hechos</span></div>
       <div class="chips">${[['todos', 'Todos'], ...habitos.map(h => [h.id, h.nombre])].map(([k, v]) => `<button class="chip ${filtroGrafica === k ? 'activo' : ''}" data-filtro="${k}">${escapar(v)}</button>`).join('')}</div>
       <div class="dos-graficas">
-        <div><h4>Por semana</h4><div class="grafico"><canvas id="g-hab-semana"></canvas></div></div>
+        <div><h4>Semana a semana</h4>${semanaASemanaHTML(habitos, dias, hoy)}</div>
         <div><h4>Por mes</h4><div class="grafico"><canvas id="g-hab-mes"></canvas></div></div>
       </div>
     </section>` : ''}`;
@@ -112,8 +137,6 @@ export function renderHabitos(cont) {
   // ---------- Gráficas ----------
   if (habitos.length) {
     const elegidos = filtroGrafica === 'todos' ? habitos : habitos.filter(h => h.id === filtroGrafica);
-    const semanas = Array.from({ length: 8 }, (_, i) => sumarDias(lunesDe(hoy), -7 * (7 - i)));
-    const porSemana = semanas.map(l => recuento(elegidos, dias, l, sumarDias(l, 6)));
     const meses = Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i)); return d; });
     const porMes = meses.map(d => {
       const ini = d.toLocaleDateString('sv-SE');
@@ -134,7 +157,6 @@ export function renderHabitos(cont) {
         plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10 } } },
       },
     });
-    barras('#g-hab-semana', semanas.map(l => parseISO(l).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })), porSemana);
     barras('#g-hab-mes', meses.map(d => d.toLocaleDateString('es-ES', { month: 'short' })), porMes);
   }
 
@@ -185,7 +207,6 @@ export function renderLista(cont) {
     </li>`;
 
   cont.innerHTML = `
-    <div class="doble">
     <section class="panel">
       <div class="panel-cab"><h3>Tu lista</h3><span class="tenue">${pendientes.length} por hacer</span></div>
       <form class="fila-anadir" id="l-form" autocomplete="off">
@@ -194,15 +215,12 @@ export function renderLista(cont) {
       </form>
       <ul class="lista-tareas">${pendientes.map(item).join('') || '<li class="tenue" style="padding:14px 0">Todo hecho. Buen trabajo.</li>'}</ul>
     </section>
-    <section class="panel" id="l-postits"></section>
-    </div>
     ${hechas.length ? `
     <section class="panel">
       <div class="panel-cab"><h3>Hechas</h3><button class="btn-texto" data-limpiar>Borrar hechas</button></div>
       <ul class="lista-tareas">${hechas.map(item).join('')}</ul>
     </section>` : ''}`;
 
-  renderPostits(cont.querySelector('#l-postits'), 'notas-personal');
   const form = cont.querySelector('#l-form');
   form.onsubmit = ev => {
     ev.preventDefault();
@@ -213,7 +231,6 @@ export function renderLista(cont) {
     cont.querySelector('#l-form input').focus();
   };
   cont.onclick = ev => {
-    if (ev.target.closest('#l-postits')) return;
     const m = ev.target.closest('[data-marcar]');
     if (m) {
       guardar('lista', leer('lista', []).map(x => (x.id === m.dataset.marcar ? { ...x, hecho: !x.hecho } : x)));

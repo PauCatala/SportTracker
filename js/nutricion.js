@@ -5,6 +5,7 @@ import { PERFIL_VACIO, perfilCompleto, caloriasObjetivo } from './perfil.js';
 import { grafica, ejeX, ejeY, C } from './graficos.js';
 import { icono } from './iconos.js';
 import { aviso, sumarDias, fmtCorta } from './utils.js';
+import { abrirModal, revelar, carruseles } from './interaccion.js';
 
 export const AJUSTES_VACIOS = { proteinaKg: 1.8, grasaPct: 27, tipo: 'real' };
 
@@ -212,6 +213,14 @@ export function renderNutriObjetivos(cont) {
 }
 
 // ============================== IDEAS ==============================
+const DEGRADADOS = {
+  Desayuno: 'linear-gradient(150deg, #E4EBFF, #C9D7FF)',
+  Comida: 'linear-gradient(150deg, #DDEBFB, #9FC0F2)',
+  Cena: 'linear-gradient(150deg, #E6E8F0, #B9C3DD)',
+  Snack: 'linear-gradient(150deg, #EEF1F6, #D5DDEB)',
+};
+
+// Ideas en carruseles por momento del día; cada tarjeta se amplía al pulsarla
 export function renderNutriIdeas(cont) {
   const a = leer('nutri-ajustes', AJUSTES_VACIOS);
   const lista = IDEAS.filter(x => x.t.includes(a.tipo));
@@ -223,26 +232,55 @@ export function renderNutriIdeas(cont) {
       const de = lista.filter(x => x.m === m);
       if (!de.length) return '';
       return `
-      <section class="panel">
-        <div class="panel-cab"><h3>${m}</h3></div>
-        <ul class="lista-simple">${de.map(x => `
-          <li><span><b>${x.n}</b><small class="tenue">${x.kcal} kcal · ${x.p} P · ${x.c} C · ${x.g} G</small></span>
-            <button class="btn suave chico" data-anadir="${IDEAS.indexOf(x)}">${icono('mas')}Hoy</button></li>`).join('')}</ul>
+      <section class="bloque-ideas">
+        <h3>${m}</h3>
+        <div class="carrusel">
+          <div class="carrusel-pista">
+            ${de.map(x => `
+              <article class="idea" data-idea="${IDEAS.indexOf(x)}" tabindex="0">
+                <div class="idea-visual" style="background:${DEGRADADOS[m]}"><b>${x.kcal}</b><span>kcal</span></div>
+                <h4>${x.n}</h4>
+                <p class="idea-macros"><span>${x.p} g proteína</span><span>${x.c} g carbos</span><span>${x.g} g grasas</span></p>
+                <span class="mas-info" aria-hidden="true">${icono('mas')}</span>
+              </article>`).join('')}
+          </div>
+        </div>
       </section>`;
     }).join('')}`;
+
+  const abrirIdea = tarjeta => {
+    const x = IDEAS[Number(tarjeta.dataset.idea)];
+    const obj = objetivosDelDia();
+    const barra = (n, g, meta) => `<div class="macro-fila"><div><span>${n}</span><span class="tenue">${g} g${meta ? ` · ${Math.round((g / meta) * 100)}% de tu día` : ''}</span></div><div class="progreso"><i style="width:${meta ? Math.min(100, (g / meta) * 100) : 0}%"></i></div></div>`;
+    abrirModal({
+      origen: tarjeta, subtitulo: x.m, titulo: x.n,
+      contenido: `
+        <p class="modal-cifra">${x.kcal} <small>kcal${obj ? ` · ${Math.round((x.kcal / obj.kcal) * 100)}% de tu objetivo diario` : ''}</small></p>
+        <div class="macros">${barra('Proteína', x.p, obj?.p)}${barra('Carbohidratos', x.c, obj?.c)}${barra('Grasas', x.g, obj?.g)}</div>
+        <div class="modal-acciones"><button class="btn primario" data-anadir-modal>${icono('mas')}Añadir a hoy</button></div>`,
+      alAbrir: (cuerpo, cerrar) => {
+        cuerpo.querySelector('[data-anadir-modal]').onclick = async () => {
+          anadirComida({ nombre: x.n, kcal: x.kcal, p: x.p, c: x.c, g: x.g });
+          await cerrar();
+        };
+      },
+    });
+  };
 
   cont.onclick = ev => {
     const t = ev.target.closest('[data-tipo]');
     if (t) {
       guardar('nutri-ajustes', { ...leer('nutri-ajustes', AJUSTES_VACIOS), tipo: t.dataset.tipo });
-      return renderNutriIdeas(cont);
+      renderNutriIdeas(cont);
+      revelar(cont);
+      carruseles(cont);
+      return;
     }
-    const b = ev.target.closest('[data-anadir]');
-    if (b) {
-      const x = IDEAS[Number(b.dataset.anadir)];
-      anadirComida({ nombre: x.n, kcal: x.kcal, p: x.p, c: x.c, g: x.g });
-      b.textContent = 'Añadida';
-      b.disabled = true;
-    }
+    const idea = ev.target.closest('[data-idea]');
+    if (idea) abrirIdea(idea);
+  };
+  cont.onkeydown = ev => {
+    const idea = ev.target.closest('[data-idea]');
+    if (idea && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); abrirIdea(idea); }
   };
 }

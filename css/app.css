@@ -501,3 +501,225 @@ input[type="range"] { accent-color: var(--marca); min-height: 32px; padding: 0; 
 .r-lista .fecha-tarea.pronto { color: var(--marca); }
 .r-lista .fecha-tarea.vencida { color: var(--error); }
 .comparador { max-width: 640px; }
+
+/* =====================================================================
+   ESTILO APPLE · capa de interacción
+   Mosaicos gris claro sobre blanco, píldoras, ventanas que crecen,
+   apariciones suaves y respuesta inmediata al pasar el ratón o pulsar.
+   ===================================================================== */
+:root { --mosaico: #F5F5F7; --sombra-hover: 0 22px 44px -26px rgba(14, 26, 63, .38); }
+body { background: #fff; }
+.cabecera { background: rgba(255, 255, 255, .82); backdrop-filter: saturate(1.8) blur(20px); -webkit-backdrop-filter: saturate(1.8) blur(20px); }
+
+/* ---------- Mosaicos ---------- */
+.panel, .tarjeta-hoy, .kpi, .columna, .tr-resumen, .proximamente, .hoy-aviso:not(.x) {
+  border: 0; border-radius: 28px;
+}
+.panel, .tarjeta-hoy, .kpi, .columna, .proximamente { background: var(--mosaico); }
+.tr-resumen { background: #fff; }
+.panel { padding: 22px; }
+.panel input, .panel select, .panel textarea, .columna input { background: #fff; }
+.marca, .calc { background: #fff; }
+.lista-simple li, .r-lista li, .item-lista { border-color: #E8E8ED; }
+
+/* Mosaicos que se pueden pulsar: crecen un poco al pasar por encima y se hunden al pulsar */
+.tarjeta-hoy, .tarea, .foto, .r-ventana, .idea, .nota-tarjeta, .marca, .tr-resumen {
+  transition: transform .45s cubic-bezier(.2, .8, .2, 1), box-shadow .45s cubic-bezier(.2, .8, .2, 1);
+  will-change: transform;
+}
+@media (hover: hover) {
+  .tarjeta-hoy:hover, .tarea:hover, .r-ventana:hover, .idea:hover, .nota-tarjeta:hover {
+    transform: scale(1.015); box-shadow: var(--sombra-hover);
+  }
+  .foto:hover { transform: scale(1.03); box-shadow: var(--sombra-hover); }
+}
+.tarjeta-hoy:active, .tarea:active, .r-ventana:active, .idea:active, .foto:active { transform: scale(.985); transition-duration: .15s; }
+
+/* Botón "+" en la esquina, como en apple.com */
+.tarjeta-hoy { position: relative; padding-bottom: 64px; }
+.mas-info {
+  position: absolute; right: 16px; bottom: 16px; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; border: 0; background: var(--tinta); color: #fff; cursor: pointer;
+  transition: transform .4s cubic-bezier(.2, .8, .2, 1), background .2s;
+}
+.mas-info .ico { width: 18px; height: 18px; stroke-width: 2.2; }
+.tarjeta-hoy:hover .mas-info, .idea:hover .mas-info, .mas-info:focus-visible { transform: rotate(90deg); background: var(--marca); }
+
+/* Enlaces con flecha › que avanza al pasar por encima */
+.btn-texto, .enlace-flecha {
+  display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 4px 0;
+  color: var(--marca); font: inherit; font-weight: 600; font-size: 15px; cursor: pointer;
+}
+.btn-texto .ico, .enlace-flecha .ico { width: 15px; height: 15px; transition: transform .3s cubic-bezier(.2, .8, .2, 1); }
+.btn-texto:hover .ico, .enlace-flecha:hover .ico { transform: translateX(3px); }
+.btn-texto:hover, .enlace-flecha:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Botones píldora ---------- */
+.btn { border-radius: var(--r-pildora); transition: background .2s, border-color .2s, transform .15s, box-shadow .2s; }
+.btn.chico { border-radius: var(--r-pildora); }
+.btn.primario { box-shadow: 0 6px 16px -10px rgba(31, 79, 209, .9); }
+.btn.primario:hover { background: #2A5AE0; border-color: #2A5AE0; }
+.btn:active { transform: scale(.96); }
+.btn.suave { background: var(--azul-pastel); border-color: var(--azul-pastel); }
+.btn.suave:hover { background: var(--azul-pastel-2); border-color: var(--azul-pastel-2); }
+.chip { transition: background .25s, color .25s, border-color .25s, transform .15s; }
+.chip:active { transform: scale(.95); }
+.chip.activo { background: var(--tinta); border-color: var(--tinta); }
+
+/* ---------- Títulos grandes que se compactan al bajar ---------- */
+.cabecera h1 { transition: font-size .35s cubic-bezier(.2, .8, .2, 1); }
+.lema { color: var(--tinta-3); font-size: 17px; margin-top: 4px; transition: opacity .25s, height .3s; }
+.fecha-hoy { transition: opacity .25s; }
+@media (min-width: 900px) { .cabecera h1 { font-size: 46px; letter-spacing: -0.04em; } }
+.cabecera.compacta h1 { font-size: 24px; }
+.cabecera.compacta .lema, .cabecera.compacta .fecha-hoy { opacity: 0; height: 0; margin: 0; overflow: hidden; }
+.cabecera.compacta { box-shadow: 0 1px 0 rgba(14, 26, 63, .08); }
+
+/* ---------- Píldora deslizante (menú, apartados y pestañas) ---------- */
+.con-indicador { position: relative; }
+.indicador {
+  position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; border-radius: var(--r-pildora);
+  transition: transform .45s cubic-bezier(.2, .8, .2, 1), width .45s cubic-bezier(.2, .8, .2, 1), height .45s cubic-bezier(.2, .8, .2, 1), opacity .2s;
+}
+.con-indicador > button { position: relative; z-index: 1; }
+/* Menú lateral: píldora gris que baja y sube */
+.secciones .indicador { background: var(--mosaico); border-radius: 12px; }
+.secciones button.activo, .secciones button:hover { background: transparent; }
+.secciones button:hover:not(.activo) { color: var(--tinta); }
+/* Apartados de Salud: píldora oscura */
+.subbloques .indicador { top: 0; height: 38px; background: var(--tinta); }
+.subbloques button.activo { background: transparent; border-color: transparent; color: #fff; }
+/* Pestañas: línea azul que se desliza */
+.tabs .indicador { top: auto; bottom: -1px; height: 2.5px; border-radius: 2px; background: var(--marca); }
+.tabs button.activo::after { display: none; }
+
+/* ---------- Apariciones ---------- */
+.revela { opacity: 0; transform: translateY(18px) scale(.985); }
+.revela.visto {
+  opacity: 1; transform: none;
+  transition: opacity .55s cubic-bezier(.2, .8, .2, 1) var(--retraso, 0ms), transform .7s cubic-bezier(.2, .8, .2, 1) var(--retraso, 0ms);
+}
+.progreso i { transition: width .9s cubic-bezier(.2, .8, .2, 1); }
+
+/* ---------- Transición entre secciones ---------- */
+::view-transition-old(root) { animation: salir .22s ease-in both; }
+::view-transition-new(root) { animation: entrar .38s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes salir { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes entrar { from { opacity: 0; transform: translateY(10px); } }
+.lateral-app, .barra { view-transition-name: menu; }
+::view-transition-old(menu), ::view-transition-new(menu) { animation: none; }
+
+/* ---------- Ventana ampliada ---------- */
+.sin-scroll { overflow: hidden; }
+.modal-fondo {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px 16px;
+  background: rgba(14, 26, 63, .32); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  overflow-y: auto;
+}
+.modal-tarjeta {
+  position: relative; width: min(760px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto;
+  background: #fff; border-radius: 28px; box-shadow: 0 40px 100px -40px rgba(14, 26, 63, .55);
+  transform-origin: top left;
+}
+.modal-cuerpo { padding: 44px 40px 36px; display: grid; gap: 14px; }
+@media (max-width: 560px) { .modal-cuerpo { padding: 40px 22px 28px; } }
+.modal-sub { font-weight: 650; color: var(--marca); font-size: 15px; }
+.modal-titulo { font-size: clamp(28px, 4vw, 40px); font-stretch: 120%; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; margin-bottom: 6px; }
+.modal-h3 { font-size: 17px; margin-top: 10px; }
+.modal-cerrar {
+  position: sticky; top: 16px; float: right; margin: 16px 16px 0 0; z-index: 2;
+  width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--tinta); color: #fff;
+  font-size: 22px; line-height: 1; cursor: pointer; transition: transform .3s cubic-bezier(.2, .8, .2, 1), background .2s;
+}
+.modal-cerrar:hover { transform: rotate(90deg); background: var(--marca); }
+.modal-lista { list-style: none; margin: 0; padding: 0; }
+.modal-lista li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #E8E8ED; }
+.modal-tabla td, .modal-tabla th { padding: 10px 8px; }
+.modal-enlaces { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; }
+.modal-acciones { margin-top: 10px; }
+.modal-cifra { font-stretch: 120%; font-weight: 800; font-size: 44px; letter-spacing: -0.04em; line-height: 1; }
+.modal-cifra small { font-stretch: 100%; font-weight: 500; font-size: 15px; letter-spacing: 0; color: var(--tinta-3); }
+.texto-ok { color: var(--ok); font-weight: 650; }
+
+/* ---------- Carruseles ---------- */
+.bloque-ideas h3 { font-size: 22px; font-stretch: 115%; margin: 8px 0 12px; }
+.carrusel { position: relative; }
+.carrusel-pista {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 300px); gap: 16px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 8px 4px 22px; margin: -8px -4px 0;
+}
+.carrusel-pista::-webkit-scrollbar { display: none; }
+.carrusel-pista > * { scroll-snap-align: start; }
+.carrusel-flechas { display: flex; justify-content: flex-end; gap: 10px; margin-top: -6px; }
+.flecha {
+  width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--mosaico); color: var(--tinta-2); cursor: pointer;
+  display: grid; place-items: center; transition: background .2s, color .2s, transform .15s, opacity .2s;
+}
+.flecha svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.flecha:hover:not(:disabled) { background: #E8E8ED; color: var(--tinta); }
+.flecha:active:not(:disabled) { transform: scale(.92); }
+.flecha:disabled { opacity: .35; cursor: default; }
+
+.idea {
+  position: relative; display: grid; gap: 10px; align-content: start; padding: 14px 14px 56px; border-radius: 28px;
+  background: var(--mosaico); cursor: pointer; outline: none;
+}
+.idea:focus-visible { box-shadow: 0 0 0 3px var(--marca); }
+.idea-visual { height: 150px; border-radius: 20px; display: grid; place-content: center; text-align: center; color: var(--marca-profundo); }
+.idea-visual b { font-stretch: 125%; font-weight: 800; font-size: 44px; letter-spacing: -0.04em; line-height: 1; }
+.idea-visual span { font-size: 13px; font-weight: 600; opacity: .7; }
+.idea h4 { font-size: 16px; line-height: 1.3; padding: 0 4px; }
+.idea-macros { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px; }
+.idea-macros span { font-size: 12px; padding: 3px 9px; border-radius: var(--r-pildora); background: #fff; color: var(--tinta-2); }
+
+/* ---------- Resumen: Imagen de lado a lado con tres ventanas ---------- */
+.r-imagen { grid-column: 1 / -1 !important; }
+.r-ventanas { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 760px) { .r-ventanas { grid-template-columns: 1fr; } }
+.r-ventana {
+  display: grid; grid-template-rows: auto auto; padding: 0; border: 0; border-radius: 22px; overflow: hidden;
+  background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.r-ventana-fotos { position: relative; display: grid; aspect-ratio: 4 / 3; background: #EEF0F4; overflow: hidden; }
+.r-ventana-fotos > img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.r-ventana:hover .r-ventana-fotos img { transform: scale(1.04); }
+.r-ventana-fotos .par { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.r-ventana-fotos .par > span { position: relative; overflow: hidden; }
+.r-ventana-fotos .par img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.r-ventana-fotos em {
+  position: absolute; left: 8px; bottom: 8px; padding: 3px 9px; border-radius: var(--r-pildora);
+  background: rgba(255, 255, 255, .85); font-style: normal; font-size: 12px; font-weight: 650;
+}
+.r-vacia { display: grid; place-items: center; color: var(--acero); }
+.r-vacia .ico { width: 34px; height: 34px; }
+.r-ventana-pie { display: grid; gap: 2px; padding: 12px 14px 14px; }
+.r-ventana-pie small { color: var(--tinta-3); font-size: 13px; }
+
+/* ---------- Hábitos: semana a semana ---------- */
+.semana-dias { display: grid; gap: 6px; }
+.sd-fila { display: grid; grid-template-columns: 92px repeat(7, 1fr) 44px; gap: 5px; align-items: center; }
+.sd-cabeza span { font-size: 11px; font-weight: 700; color: var(--tinta-3); text-align: center; }
+.sd-semana { font-size: 11px; color: var(--tinta-3); white-space: nowrap; }
+.sd-fila.actual .sd-semana { color: var(--marca); font-weight: 700; }
+.sd-celda {
+  aspect-ratio: 1; border-radius: 8px; background: #fff; border: 1.5px solid #E8E8ED;
+  display: grid; place-items: center; font-style: normal; font-size: 11px; color: #fff;
+  transition: transform .2s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sd-celda:hover { transform: scale(1.12); }
+.sd-celda.todo { background: var(--ok); border-color: var(--ok); }
+.sd-celda.parte { background: #8FD3AE; border-color: #8FD3AE; }
+.sd-celda.no { background: var(--error); border-color: var(--error); }
+.sd-celda.hoy { box-shadow: 0 0 0 2px var(--marca); }
+.sd-celda.futuro { background: transparent; border-style: dashed; }
+.sd-total { text-align: center; font-weight: 800; font-stretch: 115%; }
+@media (prefers-reduced-motion: reduce) {
+  .revela { opacity: 1; transform: none; }
+  .tarjeta-hoy, .tarea, .foto, .r-ventana, .idea { transition: none; }
+}
+.r-imagen { padding-bottom: 20px; }
+.cabecera-in { max-width: 1040px; }
+@media (max-width: 560px) {
+  .modal-tabla { font-size: 13px; }
+  .modal-tabla td, .modal-tabla th { padding: 8px 4px; }
+}
