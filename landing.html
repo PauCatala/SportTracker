@@ -180,8 +180,9 @@
       position: absolute; z-index: 8; left: 50%; top: 50%;
       width: 960px; height: 600px; margin: -300px 0 0 -480px;
       opacity: 0; pointer-events: none; transform-style: preserve-3d;
+      transform-origin: 480px 600px;   /* la bisagra: todo gira alrededor de ella */
     }
-    .tapa { position: absolute; inset: 0; transform-style: preserve-3d; }
+    .tapa { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 100%; }
     .cara { position: absolute; inset: 0; border-radius: 24px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     /* Frente: marco negro fino con canto de aluminio */
     .cara.frente {
@@ -198,7 +199,7 @@
     /* Base: tumbada en horizontal delante de la pantalla */
     .teclado {
       position: absolute; left: -24px; right: -24px; top: 100%; height: 380px;
-      transform-origin: 50% 0; transform: rotateX(-90deg);
+      transform-origin: 50% 0; transform: rotateX(90deg);
       border-radius: 0 0 26px 26px;
       background: linear-gradient(180deg, #C9CBCF, #E6E8EA 30%, #D9DBDE);
       box-shadow: inset 0 0 0 2px #B4B6BA;
@@ -360,7 +361,7 @@
 
       <!-- Portátil: sale de la aguja, gira hacia ti y se acerca hasta que su pantalla es la tuya -->
       <div class="portatil" id="portatil" aria-hidden="true">
-        <div class="tapa">
+        <div class="tapa" id="tapa">
           <div class="cara dorso"><b>Lumen</b></div>
           <div class="cara frente">
             <div class="app">
@@ -549,7 +550,7 @@
       const k = formaPortatil;
       $('a-hora').style.transform = `rotate(${mezclarAngulo(anguloHora, 90, k)}deg)`;
       $('a-min').style.transform = `rotate(${mezclarAngulo(anguloMin, -12, k)}deg)`;
-      $('a-hora').style.height = `${26 + 12 * k}%`;   // el teclado se alarga
+      $('a-hora').style.height = `${26 - 2 * k}%`;   // el teclado, visto de perfil
       $('a-min').style.width = `${1.8 + 1.6 * k}%`;    // la pantalla se ensancha
       $('a-min').style.boxShadow = k > 0 ? `0 0 ${24 * k}px ${6 * k}px rgba(255, 228, 92, ${0.35 * k})` : 'none';
       $('a-seg').style.opacity = 1 - adelanto;
@@ -630,23 +631,39 @@
       $('reloj').style.filter = g > 0 ? `blur(${g * 8}px)` : 'none';
       if (g > 0) $('reloj').style.transform += ` scale(${1 - g * 0.12})`;
 
-      const aguja = $('a-min').getBoundingClientRect();
-      const ax = aguja.left + aguja.width / 2 - W / 2, ay = aguja.top + aguja.height / 2 - H / 2;
-      const inicio = Math.max(0.05, aguja.height / 600);
-      const deFrente = Math.min(0.9, (W * 0.8) / 1010, (H * 0.62) / 600);
-
-      // 8. Te acercas: la pantalla del portátil crece hasta cubrir la tuya
-      const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
+      // El portátil nace de perfil justo encima de las agujas: de lado, un portátil abierto es una "L"
+      // (la pantalla = aguja de minutos, el teclado = aguja de horas). Luego gira hacia ti.
+      const esf = $('esfera').getBoundingClientRect();
+      const bx = esf.left + esf.width / 2, by = esf.top + esf.height / 2;   // bisagra = eje del reloj
+      const s0 = $('a-min').offsetHeight / 600;                              // tapa = largo de la aguja
+      const sFrente = Math.min(0.85, (W * 0.78) / 1010, (H * 0.6) / 640);
       const cubrir = Math.max(W / 936, H / 576) * 1.03;
-      const escala = g < 1 ? inicio + (deFrente - inicio) * g : deFrente + (cubrir - deFrente) * z;
-      // Mientras gira: de lado (vemos el dorso) a de frente, mirando un poco desde arriba al teclado
-      const giroY = (1 - g) * -118;
-      const giroX = 30 * (1 - z);
-      const subir = -60 * g * (1 - z);   // deja ver el teclado cuando está de frente
-      $('portatil').style.opacity = tramo(p, MOMENTOS.girar[0], MOMENTOS.girar[0] + 0.015) * (1 - tramo(p, ...MOMENTOS.fundir));
+
+      // 8. Te acercas hasta que la pantalla es la tuya
+      const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
+      const escala = z > 0 ? sFrente + (cubrir - sFrente) * z : s0 + (sFrente - s0) * g;
+
+      // Dónde está la bisagra en pantalla en cada momento
+      const hxFrente = W / 2, hyFrente = H / 2 + 300 * sFrente * 0.82;
+      const hyCubrir = H / 2 + 288 * cubrir;           // centro de la pantalla = centro de tu pantalla
+      const hx = z > 0 ? hxFrente : bx + (hxFrente - bx) * g;
+      const hy = z > 0 ? hyFrente + (hyCubrir - hyFrente) * z : by + (hyFrente - by) * g;
+
+      const giroY = 90 * (1 - g);                       // de perfil (90°) a de frente (0°)
+      const camara = -14 * suave(g) * (1 - z);          // mirando un poco desde arriba
+      const inclinacion = 12 * (1 - z);                 // la tapa reclinada, como la aguja
+
+      $('portatil').style.opacity =
+        tramo(g, 0, 0.12) * (1 - tramo(p, ...MOMENTOS.fundir));
       $('portatil').style.transform =
-        `translate(${ax * (1 - g)}px, ${ay * (1 - g) + subir}px) scale(${escala}) rotateX(${giroX}deg) rotateY(${giroY}deg)`;
-      $('teclado').style.opacity = 1 - tramo(p, MOMENTOS.acercar[0], MOMENTOS.acercar[0] + 0.05);
+        `translate(${hx - W / 2}px, ${hy - (H / 2 + 300)}px) scale(${escala}) rotateX(${camara}deg) rotateY(${giroY}deg)`;
+      $('tapa').style.transform = `rotateX(${inclinacion}deg)`;
+      $('teclado').style.opacity = 1 - tramo(z, 0, 0.45);
+
+      // Las agujas desaparecen mientras el portátil ocupa su lugar
+      const fueraAgujas = 1 - tramo(g, 0.06, 0.3);
+      $('a-min').style.opacity = fueraAgujas;
+      $('a-hora').style.opacity = fueraAgujas;
 
       // 9. Fusión: la pantalla del portátil se convierte en la web a pantalla completa
       const fu = tramo(p, ...MOMENTOS.fundir);
