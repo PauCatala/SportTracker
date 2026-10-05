@@ -175,22 +175,56 @@
       background: var(--marca); transform-origin: 0 50%; transform: rotate(-3deg) scaleX(0);
     }
 
-    /* ---------- El portátil que gira hacia ti con la app ---------- */
+    /* ---------- Portátil 3D (tapa con pantalla + base con teclado) ---------- */
     .portatil {
       position: absolute; z-index: 8; left: 50%; top: 50%;
       width: 960px; height: 600px; margin: -300px 0 0 -480px;
-      opacity: 0; pointer-events: none; transform-style: preserve-3d; will-change: transform, opacity;
+      opacity: 0; pointer-events: none; transform-style: preserve-3d;
     }
-    .pantalla {
-      position: absolute; left: 0; top: 0; width: 960px; height: 572px; padding: 14px;
-      border-radius: 22px; background: var(--tinta);
-      box-shadow: 0 60px 120px -50px rgba(12, 48, 132, .55);
+    .tapa { position: absolute; inset: 0; transform-style: preserve-3d; }
+    .cara { position: absolute; inset: 0; border-radius: 24px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    /* Frente: marco negro fino con canto de aluminio */
+    .cara.frente {
+      padding: 12px; background: #121522;
+      box-shadow: 0 0 0 3px #C9CBCF, 0 0 0 4px #A7AAB0, 0 70px 120px -50px rgba(12, 48, 132, .5);
     }
-    .base {
-      position: absolute; left: -50px; right: -50px; bottom: 0; height: 22px; border-radius: 4px 4px 18px 18px;
-      background: linear-gradient(180deg, #E9EAEC, #B4B6BA 70%, #8E9197);
+    /* Dorso: aluminio cepillado con el nombre grabado */
+    .cara.dorso {
+      transform: rotateY(180deg); display: grid; place-items: center;
+      background: linear-gradient(115deg, #D7D9DC 0%, #EEF0F1 35%, #C3C6CA 60%, #E4E6E8 100%);
+      box-shadow: inset 0 0 0 2px #B4B6BA;
     }
-    .base::before { content: ""; position: absolute; left: 50%; top: 0; width: 150px; height: 8px; margin-left: -75px; border-radius: 0 0 8px 8px; background: #A7AAB0; }
+    .cara.dorso b { font-stretch: 125%; font-weight: 800; font-size: 46px; letter-spacing: -0.03em; color: #A7AAB0; text-shadow: 0 1px 0 #F4F5F6; }
+    /* Base: tumbada en horizontal delante de la pantalla */
+    .teclado {
+      position: absolute; left: -24px; right: -24px; top: 100%; height: 380px;
+      transform-origin: 50% 0; transform: rotateX(-90deg);
+      border-radius: 0 0 26px 26px;
+      background: linear-gradient(180deg, #C9CBCF, #E6E8EA 30%, #D9DBDE);
+      box-shadow: inset 0 0 0 2px #B4B6BA;
+    }
+    .teclas {
+      position: absolute; left: 90px; right: 90px; top: 28px; height: 190px; border-radius: 10px;
+      background:
+        linear-gradient(90deg, #D9DBDE 0 5px, transparent 5px) 0 0 / 58px 32px,
+        linear-gradient(180deg, #D9DBDE 0 5px, transparent 5px) 0 0 / 58px 32px,
+        #22252F;
+    }
+    .trackpad { position: absolute; left: 50%; top: 236px; width: 300px; height: 124px; margin-left: -150px; border-radius: 14px; background: #D2D4D8; box-shadow: inset 0 0 0 1px #B4B6BA; }
+
+    /* La app a pantalla completa: la "web normal" del final */
+    .app-web {
+      position: absolute; inset: 0; z-index: 9; opacity: 0; pointer-events: none;
+      background: var(--fondo);
+    }
+    .app-web .app { border-radius: 0; font-size: 14px; grid-template-columns: 220px 1fr; }
+    .app-web .principal { padding: 32px 40px; gap: 18px; }
+    @media (max-width: 800px) {
+      .app-web .app { grid-template-columns: 1fr; }
+      .app-web .lateral { display: none; }
+      .app-web .principal { grid-template-columns: 1fr; padding: 20px 16px; overflow-y: auto; }
+      .app-web .semana { grid-column: auto; }
+    }
 
     .app {
       width: 100%; height: 100%; border-radius: 10px; overflow: hidden; background: var(--fondo);
@@ -324,10 +358,12 @@
         <p class="manana">Tomorrow.<i id="tachon"></i></p>
       </div>
 
-      <!-- Portátil con la app: gira desde la aguja hasta quedar de frente -->
-      <div class="portatil" id="portatil" aria-label="Vista previa de la app Lumen">
-        <div class="pantalla" id="pantalla">
-          <div class="app">
+      <!-- Portátil: sale de la aguja, gira hacia ti y se acerca hasta que su pantalla es la tuya -->
+      <div class="portatil" id="portatil" aria-hidden="true">
+        <div class="tapa">
+          <div class="cara dorso"><b>Lumen</b></div>
+          <div class="cara frente">
+            <div class="app">
             <nav class="lateral">
               <b>Lumen</b>
               <span class="nav activo entra"><i style="background: var(--marca)"></i>Hoy</span>
@@ -337,13 +373,13 @@
               <span class="nav entra"><i style="background: var(--diario-fuerte)"></i>Diario</span>
             </nav>
             <div class="principal">
-              <div class="saludo entra"><h3>Buenos días</h3><span id="app-fecha"></span></div>
+              <div class="saludo entra"><h3>Buenos días</h3><span class="app-fecha"></span></div>
 
               <div class="tarjeta entra">
                 <h4>Tu día <span>4 de 6</span></h4>
                 <div class="anillo">
-                  <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--fondo-2)" stroke-width="12"/><circle id="anillo-arco" cx="50" cy="50" r="42" fill="none" stroke="var(--marca)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 264"/></svg>
-                  <div><b id="anillo-num">0%</b><span style="color: var(--tinta-3)">completado</span></div>
+                  <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--fondo-2)" stroke-width="12"/><circle class="anillo-arco" cx="50" cy="50" r="42" fill="none" stroke="var(--marca)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 264"/></svg>
+                  <div><b class="anillo-num">0%</b><span style="color: var(--tinta-3)">completado</span></div>
                 </div>
               </div>
 
@@ -382,9 +418,13 @@
               </div>
             </div>
           </div>
+          </div>
         </div>
-        <div class="base" id="base"></div>
+        <div class="teclado" id="teclado"><div class="teclas"></div><div class="trackpad"></div></div>
       </div>
+
+      <!-- La app a pantalla completa (lo que queda al final) -->
+      <div class="app-web" id="app-web" aria-label="Vista previa de la app Lumen"></div>
     </div>
   </section>
 
@@ -417,11 +457,14 @@
       arrancar: 0.41,          // el reloj se pone en marcha
       frase:    [0.43, 0.49],  // aparece "Today. Tomorrow."
       tachar:   [0.49, 0.54],  // se tacha "Tomorrow"
-      fraseFin: [0.58, 0.62],  // la frase se va
-      portatil: [0.60, 0.70],  // las agujas se convierten en portátil
-      persona:  [0.64, 0.72],  // aparece la persona
-      girar:    [0.75, 0.88],  // la pantalla gira hacia ti
-      app:      [0.86, 0.98],  // aparece la app
+      fraseFin: [0.56, 0.59],  // la frase se va
+      adelantar:[0.57, 0.65],  // las agujas corren rápido hasta las 3:55
+      portatil: [0.65, 0.69],  // las agujas toman forma de portátil
+      persona:  [0.67, 0.72],  // aparece la persona
+      girar:    [0.74, 0.84],  // el portátil gira hacia ti
+      app:      [0.76, 0.86],  // la app se va llenando en la pantalla
+      acercar:  [0.84, 0.93],  // te acercas hasta que la pantalla es la tuya
+      fundir:   [0.925, 0.937], // se funde con la web a pantalla completa
     };
 
     // -------------------------------------------------------------
@@ -455,7 +498,8 @@
       $('marcas').appendChild(m);
     }
     $('fecha').textContent = new Date().getDate();
-    $('app-fecha').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    $('app-web').innerHTML = document.querySelector('.portatil .app').outerHTML;
+    document.querySelectorAll('.app-fecha').forEach(e => e.textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
 
     // -------------------------------------------------------------
     // Horas: posición desordenada inicial (por toda la pantalla)
@@ -481,6 +525,7 @@
     // -------------------------------------------------------------
     let marcha = 0;          // 0 = parado, 1 = velocidad normal
     let formaPortatil = 0;   // 0 = reloj normal, 1 = agujas en forma de portátil
+    let adelanto = 0;        // 0 = hora real, 1 = las 3:55
     // Gira por el camino más corto entre dos ángulos
     function mezclarAngulo(a, b, t) {
       const d = ((b - a) % 360 + 540) % 360 - 180;
@@ -492,14 +537,22 @@
     function agujas(ahora) {
       const d = new Date();
       const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds() + d.getMilliseconds() / 1000;
-      // k = 0: hora real · k = 1: forma de portátil (teclado a la derecha, pantalla casi vertical)
+      // Minutos dentro de las 12 horas del reloj
+      const real = h * 60 + m + s / 60;
+      // Las agujas corren hacia delante hasta las 3:55 (235 min), como el tiempo pasando deprisa
+      let salto = ((235 - real) % 720 + 720) % 720;
+      if (salto < 180) salto += 720;               // que siempre den varias vueltas
+      const T = real + salto * adelanto;
+      const anguloHora = (T / 720) * 360, anguloMin = (T % 60) * 6;
+
+      // k = 0: hora · k = 1: forma de portátil (teclado horizontal a la derecha, pantalla casi vertical)
       const k = formaPortatil;
-      $('a-hora').style.transform = `rotate(${mezclarAngulo((h + m / 60) * 30, 90, k)}deg)`;
-      $('a-min').style.transform = `rotate(${mezclarAngulo((m + s / 60) * 6, -12, k)}deg)`;
+      $('a-hora').style.transform = `rotate(${mezclarAngulo(anguloHora, 90, k)}deg)`;
+      $('a-min').style.transform = `rotate(${mezclarAngulo(anguloMin, -12, k)}deg)`;
       $('a-hora').style.height = `${26 + 12 * k}%`;   // el teclado se alarga
       $('a-min').style.width = `${1.8 + 1.6 * k}%`;    // la pantalla se ensancha
       $('a-min').style.boxShadow = k > 0 ? `0 0 ${24 * k}px ${6 * k}px rgba(255, 228, 92, ${0.35 * k})` : 'none';
-      $('a-seg').style.opacity = 1 - k;
+      $('a-seg').style.opacity = 1 - adelanto;
 
       // El segundero acelera hasta su ritmo real (6° por segundo)
       const dt = (ahora - ultimo) / 1000; ultimo = ahora;
@@ -562,45 +615,54 @@
       $('tachon').style.transform = `rotate(-3deg) scaleX(${suaveIO(tramo(p, ...MOMENTOS.tachar))})`;
 
       // 6. Las agujas se convierten en un portátil y aparece la persona
+      adelanto = suaveIO(tramo(p, ...MOMENTOS.adelantar));
       formaPortatil = suaveIO(tramo(p, ...MOMENTOS.portatil));
       const pe = suave(tramo(p, ...MOMENTOS.persona));
       $('persona').style.opacity = pe;
       $('persona').style.transform = `translateX(${(1 - pe) * 30}px)`;
 
-      // 7. La pantalla gira hacia ti y se hace grande; el reloj se aleja
+      // 7. El portátil sale de la aguja y gira hacia ti; el reloj se difumina detrás
       const g = suaveIO(tramo(p, ...MOMENTOS.girar));
-      const desvanecer = 1 - tramo(p, MOMENTOS.girar[0] + 0.03, MOMENTOS.girar[1] - 0.02);
+      const desvanecer = 1 - tramo(p, MOMENTOS.girar[0] + 0.02, MOMENTOS.girar[1]);
       $('reloj').style.opacity = desvanecer;
       $('horas').style.opacity = desvanecer;
       $('pared').style.opacity = 1 - tramo(p, ...MOMENTOS.girar);
-      if (g > 0) {
-        $('reloj').style.transform += ` scale(${1 - g * 0.15})`;
-        $('reloj').style.filter = `blur(${g * 6}px)`;
-      } else {
-        $('reloj').style.filter = 'none';
-      }
+      $('reloj').style.filter = g > 0 ? `blur(${g * 8}px)` : 'none';
+      if (g > 0) $('reloj').style.transform += ` scale(${1 - g * 0.12})`;
 
       const aguja = $('a-min').getBoundingClientRect();
       const ax = aguja.left + aguja.width / 2 - W / 2, ay = aguja.top + aguja.height / 2 - H / 2;
-      const ajuste = Math.min(1, (W * 0.92) / 1060, (H * 0.82) / 600);
-      const inicio = Math.max(0.05, aguja.height / 572);
-      const escala = inicio + (ajuste - inicio) * g;
-      $('portatil').style.opacity = tramo(p, MOMENTOS.girar[0], MOMENTOS.girar[0] + 0.02);
-      $('portatil').style.transform =
-        `translate(${ax * (1 - g)}px, ${ay * (1 - g)}px) scale(${escala}) rotateY(${(1 - g) * 82}deg) rotateZ(${(1 - g) * -12}deg)`;
-      $('base').style.opacity = tramo(p, MOMENTOS.girar[1] - 0.04, MOMENTOS.girar[1]);
+      const inicio = Math.max(0.05, aguja.height / 600);
+      const deFrente = Math.min(0.9, (W * 0.8) / 1010, (H * 0.62) / 600);
 
-      // 8. La app se llena: cada pieza entra con un pequeño retraso
-      const piezas = document.querySelectorAll('.entra');
-      piezas.forEach((el, i) => {
-        const [a1, a2] = MOMENTOS.app;
-        const t = suave(tramo(p, a1 + i * 0.006, a1 + i * 0.006 + 0.04));
+      // 8. Te acercas: la pantalla del portátil crece hasta cubrir la tuya
+      const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
+      const cubrir = Math.max(W / 936, H / 576) * 1.03;
+      const escala = g < 1 ? inicio + (deFrente - inicio) * g : deFrente + (cubrir - deFrente) * z;
+      // Mientras gira: de lado (vemos el dorso) a de frente, mirando un poco desde arriba al teclado
+      const giroY = (1 - g) * -118;
+      const giroX = 30 * (1 - z);
+      const subir = -60 * g * (1 - z);   // deja ver el teclado cuando está de frente
+      $('portatil').style.opacity = tramo(p, MOMENTOS.girar[0], MOMENTOS.girar[0] + 0.015) * (1 - tramo(p, ...MOMENTOS.fundir));
+      $('portatil').style.transform =
+        `translate(${ax * (1 - g)}px, ${ay * (1 - g) + subir}px) scale(${escala}) rotateX(${giroX}deg) rotateY(${giroY}deg)`;
+      $('teclado').style.opacity = 1 - tramo(p, MOMENTOS.acercar[0], MOMENTOS.acercar[0] + 0.05);
+
+      // 9. Fusión: la pantalla del portátil se convierte en la web a pantalla completa
+      const fu = tramo(p, ...MOMENTOS.fundir);
+      $('app-web').style.opacity = fu;
+      $('app-web').style.pointerEvents = fu > 0.99 ? 'auto' : 'none';
+
+      // La app se llena pieza a pieza mientras gira (en el portátil y en la versión completa)
+      document.querySelectorAll('.portatil .entra').forEach((el, i) => {
+        const t = suave(tramo(p, MOMENTOS.app[0] + i * 0.005, MOMENTOS.app[0] + i * 0.005 + 0.035));
         el.style.opacity = t;
         el.style.transform = `translateY(${(1 - t) * 14}px)`;
       });
+      document.querySelectorAll('.app-web .entra').forEach(el => { el.style.opacity = 1; });
       const anillo = suave(tramo(p, MOMENTOS.app[0] + 0.03, MOMENTOS.app[1]));
-      $('anillo-arco').setAttribute('stroke-dasharray', `${264 * 0.67 * anillo} 264`);
-      $('anillo-num').textContent = `${Math.round(67 * anillo)}%`;
+      document.querySelectorAll('.anillo-arco').forEach(a => a.setAttribute('stroke-dasharray', `${264 * 0.67 * anillo} 264`));
+      document.querySelectorAll('.anillo-num').forEach(n => n.textContent = `${Math.round(67 * anillo)}%`);
     }
 
     function progreso() {
