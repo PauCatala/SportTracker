@@ -186,7 +186,7 @@
     .cara { position: absolute; inset: 0; border-radius: 24px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
     /* Frente: marco negro fino con canto de aluminio */
     .cara.frente {
-      padding: 12px; background: #121522;
+      padding: 12px; background: #121522; overflow: hidden;
       box-shadow: 0 0 0 3px #C9CBCF, 0 0 0 4px #A7AAB0, 0 70px 120px -50px rgba(12, 48, 132, .5);
     }
     /* Dorso: aluminio cepillado con el nombre grabado */
@@ -213,64 +213,16 @@
     }
     .trackpad { position: absolute; left: 50%; top: 236px; width: 300px; height: 124px; margin-left: -150px; border-radius: 14px; background: #D2D4D8; box-shadow: inset 0 0 0 1px #B4B6BA; }
 
+    .app-real { display: block; width: 100%; height: 100%; border: 0; border-radius: 12px; background: var(--fondo); }
+    .cara.frente .app-real { pointer-events: none; }
+    .app-web .app-real { border-radius: 0; }
+
     /* La app a pantalla completa: la "web normal" del final */
     .app-web {
       position: absolute; inset: 0; z-index: 9; opacity: 0; pointer-events: none;
       background: var(--fondo);
     }
-    .app-web .app { border-radius: 0; font-size: 14px; grid-template-columns: 220px 1fr; }
-    .app-web .principal { padding: 32px 40px; gap: 18px; }
-    @media (max-width: 800px) {
-      .app-web .app { grid-template-columns: 1fr; }
-      .app-web .lateral { display: none; }
-      .app-web .principal { grid-template-columns: 1fr; padding: 20px 16px; overflow-y: auto; }
-      .app-web .semana { grid-column: auto; }
-    }
 
-    .app {
-      width: 100%; height: 100%; border-radius: 10px; overflow: hidden; background: var(--fondo);
-      display: grid; grid-template-columns: 190px 1fr; font-size: 13px; color: var(--tinta);
-    }
-    .lateral { background: #fff; border-right: 1px solid var(--linea); padding: 22px 14px; display: flex; flex-direction: column; gap: 4px; }
-    .lateral b { font-stretch: 125%; font-weight: 800; font-size: 20px; letter-spacing: -0.03em; padding: 0 10px 18px; color: var(--tinta); }
-    .nav { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; color: var(--tinta-2); font-weight: 500; }
-    .nav.activo { background: var(--fondo-2); color: var(--tinta); font-weight: 650; }
-    .nav i { width: 10px; height: 10px; border-radius: 50%; }
-
-    .principal { padding: 22px 24px; display: grid; gap: 14px; grid-template-columns: 1.1fr 1.3fr 1fr; grid-template-rows: auto auto 1fr; overflow: hidden; }
-    .saludo { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: end; }
-    .saludo h3 { margin: 0; font-stretch: 120%; font-weight: 800; font-size: 26px; letter-spacing: -0.03em; }
-    .saludo span { color: var(--tinta-3); }
-    .tarjeta { background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 16px; }
-    .tarjeta h4 { margin: 0 0 10px; font-size: 13px; font-weight: 650; display: flex; justify-content: space-between; }
-    .tarjeta h4 span { color: var(--tinta-3); font-weight: 500; }
-
-    .anillo { display: flex; align-items: center; gap: 14px; }
-    .anillo svg { width: 92px; height: 92px; transform: rotate(-90deg); }
-    .anillo b { font-stretch: 125%; font-weight: 800; font-size: 26px; letter-spacing: -0.03em; display: block; }
-
-    .ejercicio { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--linea); }
-    .ejercicio:last-of-type { border: 0; }
-    .ejercicio span { color: var(--tinta-3); font-variant-numeric: tabular-nums; }
-    .btn-app { margin-top: 10px; width: 100%; min-height: 38px; border: 0; border-radius: 10px; background: var(--marca); color: #fff; font: inherit; font-weight: 650; }
-
-    .macro { margin-bottom: 9px; }
-    .macro div { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    .macro div span { color: var(--tinta-3); font-variant-numeric: tabular-nums; }
-    .barra-m { height: 7px; border-radius: 4px; background: var(--fondo-2); overflow: hidden; }
-    .barra-m i { display: block; height: 100%; border-radius: 4px; }
-
-    .semana { grid-column: 1 / 3; }
-    .semana table { width: 100%; border-collapse: collapse; }
-    .semana th { text-align: left; font-weight: 500; color: var(--tinta-3); padding: 0 0 8px; }
-    .semana td { padding: 7px 0; border-top: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
-    .ok { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; }
-    .pend { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--linea); }
-
-    .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-    .fotos i { aspect-ratio: 3 / 4; border-radius: 8px; }
-
-    .entra { opacity: 0; }
 
     /* ---------- Lo que viene después (provisional) ---------- */
     .despues { padding: 18vh 16px; text-align: center; }
@@ -364,76 +316,18 @@
         <div class="tapa" id="tapa">
           <div class="cara dorso"><b>Lumen</b></div>
           <div class="cara frente">
-            <div class="app">
-            <nav class="lateral">
-              <b>Lumen</b>
-              <span class="nav activo entra"><i style="background: var(--marca)"></i>Hoy</span>
-              <span class="nav entra"><i style="background: var(--estudio-fuerte)"></i>Estudio</span>
-              <span class="nav entra"><i style="background: var(--nutricion-fuerte)"></i>Nutrición</span>
-              <span class="nav entra"><i style="background: var(--deporte-fuerte)"></i>Deporte</span>
-              <span class="nav entra"><i style="background: var(--diario-fuerte)"></i>Diario</span>
-            </nav>
-            <div class="principal">
-              <div class="saludo entra"><h3>Buenos días</h3><span class="app-fecha"></span></div>
-
-              <div class="tarjeta entra">
-                <h4>Tu día <span>4 de 6</span></h4>
-                <div class="anillo">
-                  <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--fondo-2)" stroke-width="12"/><circle class="anillo-arco" cx="50" cy="50" r="42" fill="none" stroke="var(--marca)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 264"/></svg>
-                  <div><b class="anillo-num">0%</b><span style="color: var(--tinta-3)">completado</span></div>
-                </div>
-              </div>
-
-              <div class="tarjeta entra">
-                <h4>Entreno · Pierna <span>Semana 3</span></h4>
-                <div class="ejercicio">Sentadilla<span>4 × 8 · 80 kg</span></div>
-                <div class="ejercicio">Peso muerto rumano<span>3 × 10 · 60 kg</span></div>
-                <div class="ejercicio">Zancadas<span>3 × 12</span></div>
-                <button class="btn-app" tabindex="-1">Empezar entreno</button>
-              </div>
-
-              <div class="tarjeta entra">
-                <h4>Nutrición <span>1.640 kcal</span></h4>
-                <div class="macro"><div>Proteína<span>98 / 140 g</span></div><div class="barra-m"><i style="width: 70%; background: var(--nutricion-fuerte)"></i></div></div>
-                <div class="macro"><div>Carbohidratos<span>180 / 250 g</span></div><div class="barra-m"><i style="width: 72%; background: var(--marca)"></i></div></div>
-                <div class="macro"><div>Grasas<span>45 / 70 g</span></div><div class="barra-m"><i style="width: 64%; background: var(--deporte-fuerte)"></i></div></div>
-              </div>
-
-              <div class="tarjeta semana entra">
-                <h4>Tu semana <span>Octubre</span></h4>
-                <table>
-                  <tr><th>Día</th><th>Estudio</th><th>Entreno</th><th>Comidas</th><th>Foto</th></tr>
-                  <tr><td>Lunes</td><td>2 h 10 min</td><td><span class="ok" style="background: var(--deporte-fuerte)">✓</span></td><td>4 de 4</td><td><span class="ok" style="background: var(--diario-fuerte)">✓</span></td></tr>
-                  <tr><td>Martes</td><td>1 h 45 min</td><td><span class="ok" style="background: var(--deporte-fuerte)">✓</span></td><td>3 de 4</td><td><span class="pend"></span></td></tr>
-                  <tr><td>Miércoles</td><td>45 min</td><td><span class="pend"></span></td><td>2 de 4</td><td><span class="pend"></span></td></tr>
-                </table>
-              </div>
-
-              <div class="tarjeta entra">
-                <h4>Diario <span>Progreso</span></h4>
-                <div class="fotos">
-                  <i style="background: linear-gradient(160deg, var(--estudio), var(--marca))"></i>
-                  <i style="background: linear-gradient(160deg, var(--diario), var(--deporte))"></i>
-                  <i style="background: linear-gradient(160deg, var(--nutricion), var(--acero))"></i>
-                </div>
-              </div>
-            </div>
-          </div>
+            <iframe class="app-real" src="index.html#hoy" title="Lumen en el portátil" tabindex="-1" loading="eager"></iframe>
           </div>
         </div>
         <div class="teclado" id="teclado"><div class="teclas"></div><div class="trackpad"></div></div>
       </div>
 
       <!-- La app a pantalla completa (lo que queda al final) -->
-      <div class="app-web" id="app-web" aria-label="Vista previa de la app Lumen"></div>
+      <div class="app-web" id="app-web"><iframe class="app-real" src="index.html#hoy" title="Lumen"></iframe></div>
     </div>
   </section>
 
-  <section class="despues">
-    <h2>Tu día entero, en una sola app.</h2>
-    <p>Planifica tus estudios, tus comidas y tus entrenos, y guarda tu progreso en fotos. Todo conectado, todo en orden.</p>
-    <a class="boton" href="#">Apúntate a la lista de espera</a>
-  </section>
+
 
   <script>
     // -------------------------------------------------------------
@@ -465,7 +359,7 @@
       girar:    [0.74, 0.84],  // el portátil gira hacia ti
       app:      [0.76, 0.86],  // la app se va llenando en la pantalla
       acercar:  [0.84, 0.93],  // te acercas hasta que la pantalla es la tuya
-      fundir:   [0.925, 0.937], // se funde con la web a pantalla completa
+      fundir:   [0.925, 0.945], // se funde con la app real a pantalla completa
     };
 
     // -------------------------------------------------------------
@@ -499,9 +393,7 @@
       $('marcas').appendChild(m);
     }
     $('fecha').textContent = new Date().getDate();
-    $('app-web').innerHTML = document.querySelector('.portatil .app').outerHTML;
-    document.querySelectorAll('.app-fecha').forEach(e => e.textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
-
+    
     // -------------------------------------------------------------
     // Horas: posición desordenada inicial (por toda la pantalla)
     // -------------------------------------------------------------
@@ -637,7 +529,8 @@
       const bx = esf.left + esf.width / 2, by = esf.top + esf.height / 2;   // bisagra = eje del reloj
       const s0 = $('a-min').offsetHeight / 600;                              // tapa = largo de la aguja
       const sFrente = Math.min(0.85, (W * 0.78) / 1010, (H * 0.6) / 640);
-      const cubrir = Math.max(W / 936, H / 576) * 1.03;
+      // En ordenador, la pantalla del portátil acaba exactamente del tamaño de la tuya (sin doble imagen al fundirse)
+      const cubrir = W >= 900 ? W / 936 : Math.max(W / 936, H / 576) * 1.03;
 
       // 8. Te acercas hasta que la pantalla es la tuya
       const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
@@ -645,7 +538,7 @@
 
       // Dónde está la bisagra en pantalla en cada momento
       const hxFrente = W / 2, hyFrente = H / 2 + 300 * sFrente * 0.82;
-      const hyCubrir = H / 2 + 288 * cubrir;           // centro de la pantalla = centro de tu pantalla
+      const hyCubrir = W >= 900 ? 588 * cubrir : H / 2 + 288 * cubrir;   // borde superior de su pantalla = el de la tuya
       const hx = z > 0 ? hxFrente : bx + (hxFrente - bx) * g;
       const hy = z > 0 ? hyFrente + (hyCubrir - hyFrente) * z : by + (hyFrente - by) * g;
 
@@ -668,18 +561,8 @@
       // 9. Fusión: la pantalla del portátil se convierte en la web a pantalla completa
       const fu = tramo(p, ...MOMENTOS.fundir);
       $('app-web').style.opacity = fu;
-      $('app-web').style.pointerEvents = fu > 0.99 ? 'auto' : 'none';
+      $('app-web').style.pointerEvents = fu > 0.99 ? 'auto' : 'none';   // ya puedes usar la app
 
-      // La app se llena pieza a pieza mientras gira (en el portátil y en la versión completa)
-      document.querySelectorAll('.portatil .entra').forEach((el, i) => {
-        const t = suave(tramo(p, MOMENTOS.app[0] + i * 0.005, MOMENTOS.app[0] + i * 0.005 + 0.035));
-        el.style.opacity = t;
-        el.style.transform = `translateY(${(1 - t) * 14}px)`;
-      });
-      document.querySelectorAll('.app-web .entra').forEach(el => { el.style.opacity = 1; });
-      const anillo = suave(tramo(p, MOMENTOS.app[0] + 0.03, MOMENTOS.app[1]));
-      document.querySelectorAll('.anillo-arco').forEach(a => a.setAttribute('stroke-dasharray', `${264 * 0.67 * anillo} 264`));
-      document.querySelectorAll('.anillo-num').forEach(n => n.textContent = `${Math.round(67 * anillo)}%`);
     }
 
     function progreso() {
@@ -695,6 +578,20 @@
       agujas(ahora);
       requestAnimationFrame(bucle);
     }
+    // En ordenador, la app del portátil se dibuja al ancho de tu pantalla y se encoge:
+    // así, al fundirse, lo que ves en el portátil y la app final coinciden.
+    function ajustarPantallaPortatil() {
+      const f = document.querySelector('.cara.frente .app-real');
+      if (innerWidth >= 900) {
+        const k = 936 / innerWidth;
+        Object.assign(f.style, { width: `${innerWidth}px`, height: `${innerHeight}px`, transform: `scale(${k})`, transformOrigin: '0 0', borderRadius: `${12 / k}px` });
+      } else {
+        Object.assign(f.style, { width: '', height: '', transform: '', borderRadius: '' });
+      }
+    }
+    ajustarPantallaPortatil();
+    addEventListener('resize', ajustarPantallaPortatil);
+
     if (sinMovimiento) objetivoMarcha = 1;
     requestAnimationFrame(bucle);
   </script>

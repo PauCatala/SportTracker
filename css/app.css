@@ -1,0 +1,128 @@
+/* =====================================================================
+   LUMEN · Estructura de la app
+   Menú lateral en ordenador, barra inferior en móvil, y la pantalla Hoy.
+   Los colores y tamaños salen de css/tokens.css.
+   ===================================================================== */
+
+body { background: var(--fondo); }
+
+.lumen { min-height: 100vh; min-height: 100dvh; }
+.contenido { min-width: 0; }
+
+/* ---------- Menú lateral (solo ordenador) ---------- */
+.lateral-app { display: none; }
+
+@media (min-width: 900px) {
+  .lumen { display: grid; grid-template-columns: 240px 1fr; }
+  .lateral-app {
+    position: sticky; top: 0; height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 28px 16px 20px; background: #fff; border-right: 1px solid var(--linea);
+  }
+  .barra { display: none; }
+  #btn-entrar-movil { display: none; }
+  .vista { padding-bottom: 60px; }
+  .aviso { bottom: 32px; }
+}
+.lateral-logo {
+  font-stretch: 125%; font-weight: 800; font-size: 24px; letter-spacing: -0.035em;
+  padding: 0 12px 22px; color: var(--tinta);
+}
+.secciones { display: flex; flex-direction: column; gap: 2px; }
+.secciones button {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 11px 12px; border: 0; border-radius: 12px; background: none;
+  color: var(--tinta-2); font: inherit; font-size: 15px; font-weight: 550; text-align: left; cursor: pointer;
+  transition: background var(--rapido), color var(--rapido);
+}
+.secciones button:hover { background: var(--fondo-2); }
+.secciones button.activo { background: var(--fondo-2); color: var(--tinta); font-weight: 650; }
+.secciones .ico { width: 20px; height: 20px; color: var(--c, var(--marca)); }
+.lateral-pie { margin-top: auto; display: grid; gap: 8px; }
+.btn-texto-salir {
+  border: 0; background: none; color: var(--tinta-3); font: inherit; font-size: 14px;
+  padding: 10px 12px; text-align: left; border-radius: 10px; cursor: pointer;
+}
+.btn-texto-salir:hover { background: var(--fondo-2); color: var(--tinta); }
+
+/* ---------- Cabecera ---------- */
+.cabecera { background: rgba(250, 250, 248, .9); }
+.cabecera h1 { font-stretch: 125%; }
+@media (min-width: 900px) {
+  .cabecera { padding-top: 28px; }
+  .cabecera h1 { font-size: 36px; }
+}
+
+/* Apartados dentro de una sección (p. ej. Salud) */
+.subbloques {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: 14px;
+}
+.subbloques::-webkit-scrollbar { display: none; }
+.subbloques button {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 38px; padding: 0 14px; border-radius: var(--r-pildora);
+  border: 1px solid var(--linea); background: #fff; color: var(--tinta-2);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background var(--rapido), color var(--rapido), border-color var(--rapido);
+}
+.subbloques button .ico { width: 18px; height: 18px; }
+.subbloques button.activo { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+
+/* ---------- Barra inferior (móvil) ---------- */
+.barra { background: rgba(255, 255, 255, .94); }
+.barra button { cursor: pointer; }
+.barra button.activo { color: var(--marca); }
+.barra button.activo .pastilla { background: #E6ECFB; }
+
+/* ---------- Ventana para entrar ---------- */
+.login {
+  position: fixed; inset: 0; z-index: 30; min-height: 0;
+  background: rgba(14, 26, 63, .32);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.login-caja {
+  position: relative; background: #fff; border-radius: var(--r-grande);
+  padding: 32px 28px 24px; box-shadow: 0 40px 80px -30px rgba(12, 48, 132, .45);
+}
+.login-caja h1 { font-stretch: 125%; }
+.login-cerrar {
+  position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%;
+  border: 0; background: var(--fondo-2); color: var(--tinta-2); font-size: 22px; line-height: 1; cursor: pointer;
+}
+
+/* ---------- Pantalla Hoy ---------- */
+.hoy-aviso {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: 18px; background: #E6ECFB; color: var(--marca-profundo);
+}
+.hoy-aviso p { font-weight: 550; }
+.hoy-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.tarjeta-hoy {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 20px; border-radius: 20px; background: #fff; border: 1px solid var(--linea);
+}
+.tarjeta-hoy header { display: flex; align-items: center; gap: 10px; }
+.tarjeta-hoy header .ico {
+  width: 36px; height: 36px; padding: 8px; border-radius: 12px;
+  color: var(--c-fuerte); background: var(--c-suave);
+}
+.tarjeta-hoy h3 { font-size: 18px; font-stretch: 115%; }
+.tarjeta-hoy p { color: var(--tinta-2); font-size: 14px; }
+.tarjeta-hoy .acciones-hoy { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.tarjeta-hoy .pronto {
+  align-self: flex-start; font-size: 12px; font-weight: 650; padding: 4px 10px;
+  border-radius: var(--r-pildora); background: var(--fondo-2); color: var(--tinta-3);
+}
+
+/* ---------- Secciones en construcción ---------- */
+.proximamente {
+  display: grid; gap: 14px; justify-items: start; padding: 28px; border-radius: 24px;
+  background: #fff; border: 1px solid var(--linea);
+}
+.proximamente .ico {
+  width: 52px; height: 52px; padding: 12px; border-radius: 16px;
+  color: var(--c-fuerte); background: var(--c-suave);
+}
+.proximamente h3 { font-size: 24px; font-stretch: 120%; }
+.proximamente p { color: var(--tinta-2); max-width: 52ch; line-height: 1.55; }
+.proximamente ul { margin: 0; padding-left: 18px; color: var(--tinta-2); line-height: 1.8; }

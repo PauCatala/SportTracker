@@ -6,30 +6,26 @@
    ===================================================================== */
 
 :root {
-  /* Color */
-  --electrico: #10069F;
-  --electrico-2: #2A1FD1;          /* hover / foco */
-  --pervinca: #CFCDF9;             /* pastel fuerte */
-  --pervinca-2: #E9E8FD;           /* pastel suave */
-  --pervinca-3: #F4F3FE;           /* tinte casi blanco */
+  /* Estos nombres antiguos ahora salen del archivo de diseño central (css/tokens.css).
+     Para cambiar colores, edita tokens.css, no este bloque. */
+  --electrico: var(--marca);
+  --electrico-2: var(--marca-profundo);
+  --pervinca: var(--estudio);
+  --pervinca-2: #E6ECFB;
+  --pervinca-3: #F2F5FD;
   --papel: #FFFFFF;
-  --niebla: #F3F4F8;
-  --niebla-2: #ECEEF4;
-  --linea: #E4E6EF;
-  --linea-2: #D5D8E4;
-  --tinta: #14163A;
-  --tinta-2: #565B7D;
-  --tinta-3: #8E93AE;
+  --niebla: var(--fondo-2);
+  --niebla-2: #ECEDF1;
+  --linea-2: #D5D8E0;
 
   --ok: #12805A;      --ok-fondo: #E2F3EB;
   --igual: #9A6A00;   --igual-fondo: #FBF1D9;
   --mal: #C2384A;     --mal-fondo: #FBE7EA;
 
-  /* Forma */
   --r-panel: 20px;
   --r-control: 12px;
   --r-chip: 8px;
-  --ancho-max: 640px;
+  --ancho-max: 760px;
 
   color-scheme: light;
 }
@@ -38,7 +34,7 @@
 html { -webkit-text-size-adjust: 100%; }
 html, body { margin: 0; }
 body {
-  background: var(--niebla);
+  background: var(--fondo);
   color: var(--tinta);
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;

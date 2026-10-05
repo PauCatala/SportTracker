@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-tema="claro">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sport Tracker</title>
+  <title>Lumen</title>
 
   <!-- App instalable (PWA) -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#F3F4F8">
+  <meta name="theme-color" content="#FAFAF8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Tracker">
+  <meta name="apple-mobile-web-app-title" content="Lumen">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon-192.png">
 
@@ -19,7 +19,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <!-- 1º el diseño central, 2º los estilos de cada módulo, 3º la estructura de Lumen -->
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/app.css">
 
   <!-- Gráficas (Chart.js) y nuestro código -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
@@ -27,13 +30,52 @@
 </head>
 <body>
 
-  <!-- ===== Login ===== -->
-  <section id="login" class="login oculto">
+  <div id="app" class="lumen">
+    <!-- Menú lateral (ordenador) -->
+    <aside class="lateral-app">
+      <b class="lateral-logo">Lumen</b>
+      <nav id="secciones" class="secciones" aria-label="Secciones"></nav>
+      <div class="lateral-pie">
+        <button id="btn-entrar" class="btn primario ancho oculto">Entrar</button>
+        <button id="btn-salir" class="btn-texto-salir oculto">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <div class="contenido">
+      <header class="cabecera">
+        <div class="cabecera-in">
+          <div class="cabecera-fila">
+            <div>
+              <p class="fecha-hoy" id="fecha-hoy"></p>
+              <h1 id="titulo-bloque">Hoy</h1>
+            </div>
+            <div class="cabecera-der">
+              <span id="estado-red" class="estado-red"></span>
+              <button id="btn-entrar-movil" class="btn suave chico oculto">Entrar</button>
+            </div>
+          </div>
+          <!-- Dentro de Salud: Gimnasio, Running, Flexibilidad, Nutrición -->
+          <nav id="subbloques" class="subbloques oculto" aria-label="Apartados"></nav>
+          <nav id="tabs" class="tabs oculto" aria-label="Pestañas"></nav>
+        </div>
+      </header>
+
+      <main id="vista" class="vista"></main>
+    </div>
+
+    <!-- Barra inferior (móvil) -->
+    <nav class="barra" aria-label="Secciones">
+      <div class="barra-in" id="barra"></div>
+    </nav>
+  </div>
+
+  <!-- Entrar (ventana) -->
+  <section id="login" class="login oculto" role="dialog" aria-modal="true" aria-labelledby="login-titulo">
     <div class="login-caja">
-      <img src="icons/icon-192.png" alt="">
+      <button class="login-cerrar" id="login-cerrar" aria-label="Cerrar">×</button>
       <div>
-        <h1>Sport Tracker</h1>
-        <p class="sub">Gimnasio, carrera y flexibilidad, todo medido.</p>
+        <h1 id="login-titulo">Lumen</h1>
+        <p class="sub">Entra para guardar tus entrenos, tus estudios y tu progreso.</p>
       </div>
       <form id="form-login" class="campos">
         <label class="campo">Email <input type="email" name="email" autocomplete="username" required></label>
@@ -43,31 +85,6 @@
       </form>
     </div>
   </section>
-
-  <!-- ===== App ===== -->
-  <div id="app" class="oculto">
-    <header class="cabecera">
-      <div class="cabecera-in">
-        <div class="cabecera-fila">
-          <div>
-            <p class="fecha-hoy" id="fecha-hoy"></p>
-            <h1 id="titulo-bloque">Gimnasio</h1>
-          </div>
-          <div class="cabecera-der">
-            <span id="estado-red" class="estado-red"></span>
-            <button id="btn-salir" class="btn-icono" aria-label="Cerrar sesión"></button>
-          </div>
-        </div>
-        <nav id="tabs" class="tabs" aria-label="Secciones"></nav>
-      </div>
-    </header>
-
-    <main id="vista" class="vista"></main>
-
-    <nav class="barra" aria-label="Bloques">
-      <div class="barra-in" id="barra"></div>
-    </nav>
-  </div>
 
   <div id="aviso" class="aviso" role="status"></div>
 </body>
