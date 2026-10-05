@@ -65,6 +65,11 @@
     }
     @keyframes rueda { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(14px); } }
 
+    /* ---------- Grietas en la pared (gris) ---------- */
+    .grietas { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; pointer-events: none; }
+    .grietas path { fill: none; stroke: var(--acero); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .grietas path.fina { stroke: var(--acero); stroke-width: 1.2; opacity: .7; }
+
     /* ---------- El reloj ---------- */
     .reloj {
       position: relative; width: min(64vmin, 440px); aspect-ratio: 1;
@@ -279,11 +284,11 @@
         <div class="persona" id="persona" aria-hidden="true">
           <svg viewBox="0 0 200 300">
             <!-- Taburete -->
-            <rect x="92" y="156" width="74" height="9" rx="4" fill="#C9A27A"/>
-            <path d="M102 165 L94 296 M156 165 L164 296 M98 236 L160 236" stroke="#A9825C" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <rect x="92" y="156" width="74" height="9" rx="4" fill="#B4B6BA"/>
+            <path d="M102 165 L94 296 M156 165 L164 296 M98 236 L160 236" stroke="#8E9197" stroke-width="5" stroke-linecap="round" fill="none"/>
             <!-- Piernas: pantalón claro y zapatillas blancas -->
-            <path d="M146 150 L64 152" stroke="#D9D4CC" stroke-width="24" stroke-linecap="round"/>
-            <path d="M64 152 L58 262" stroke="#D9D4CC" stroke-width="19" stroke-linecap="round"/>
+            <path d="M146 150 L64 152" stroke="#DCDFE6" stroke-width="24" stroke-linecap="round"/>
+            <path d="M64 152 L58 262" stroke="#DCDFE6" stroke-width="19" stroke-linecap="round"/>
             <path d="M40 268 Q42 258 58 258 L70 260 Q74 268 70 274 L42 274 Q38 272 40 268 Z" fill="#FFFFFF" stroke="#B4B6BA" stroke-width="2"/>
             <!-- Sudadera azul profundo -->
             <path d="M104 74 Q146 66 150 104 L154 152 L102 156 Q90 112 104 74 Z" fill="#0C3084"/>
@@ -309,6 +314,8 @@
       <div class="horas" id="horas" aria-hidden="true"></div>
 
       <!-- Pared blanca que se rasga -->
+      <svg class="grietas" id="grietas" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+
       <div class="pared" id="pared" aria-hidden="true">
         <div class="mitad izq" id="izq"></div>
         <div class="mitad der" id="der"></div>
@@ -366,20 +373,22 @@
     // Cambia estos números para que cada parte dure más o menos.
     // -------------------------------------------------------------
     const MOMENTOS = {
-      // Duración total: ~13,5 s en modo vídeo. Cada par es [empieza, termina] sobre 1.
-      rasgar:   [0.000, 0.104], // la pared se abre                (≈1,4 s)
-      salir:    [0.007, 0.133], // el reloj sale hacia ti
-      ordenar:  [0.104, 0.296], // las horas vuelan a su sitio      (≈2,6 s)
-      arrancar: 0.297,          // el reloj se pone en marcha
-      frase:    [0.304, 0.348], // aparece "Today. Tomorrow."
-      tachar:   [0.356, 0.400], // se tacha "Tomorrow"
-      fraseFin: [0.444, 0.474], // la frase se va
-      adelantar:[0.444, 0.622], // las agujas corren hasta las 3:55 (≈2,4 s, igual que antes)
-      portatil: [0.622, 0.659], // las agujas toman forma de portátil
-      persona:  [0.637, 0.681], // aparece la persona
-      girar:    [0.696, 0.815], // el portátil gira hacia ti         (≈1,6 s)
-      acercar:  [0.815, 0.919], // te acercas hasta su pantalla
-      fundir:   [0.919, 0.956], // se funde con la app real
+      // Duración total ≈ 13,5 s en modo vídeo. Cada par es [empieza, termina] sobre 1.
+      // Las fases se solapan a propósito: así todo es un único movimiento continuo.
+      grietas:  [0.000, 0.060], // la pared se agrieta (gris)
+      rasgar:   [0.040, 0.160], // la pared se abre
+      salir:    [0.050, 0.200], // el reloj sale hacia ti
+      ordenar:  [0.120, 0.310], // las horas vuelan a su sitio
+      arrancar: 0.300,          // el reloj se pone en marcha
+      frase:    [0.290, 0.350], // aparece "Today. Tomorrow."
+      tachar:   [0.340, 0.400], // se tacha "Tomorrow"
+      adelantar:[0.390, 0.580], // las agujas corren hasta las 3:55 (≈2,6 s)
+      fraseFin: [0.450, 0.500], // la frase se va mientras el tiempo corre
+      portatil: [0.550, 0.620], // las agujas toman forma de portátil
+      persona:  [0.570, 0.640], // aparece la persona
+      girar:    [0.620, 0.800], // el portátil gira hacia ti
+      acercar:  [0.740, 0.920], // te acercas (empieza antes de terminar el giro)
+      fundir:   [0.900, 0.940], // se funde con la app real
     };
 
     // -------------------------------------------------------------
@@ -399,6 +408,31 @@
         ? `polygon(0 0, ${puntos.join(', ')}, 0 100%)`
         : `polygon(100% 0, 100% 100%, ${puntos.reverse().join(', ')})`;
     }
+    // Grietas: líneas quebradas que salen del centro, como un muro a punto de romperse
+    (function dibujarGrietas() {
+      const rutas = [];
+      const rama = (x, y, ang, largo, pasos, fina) => {
+        let d = `M${x.toFixed(1)} ${y.toFixed(1)}`;
+        for (let i = 0; i < pasos; i++) {
+          ang += (Math.random() - 0.5) * 0.9;
+          x += Math.cos(ang) * largo / pasos * 1.6; y += Math.sin(ang) * largo / pasos;
+          d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+        }
+        rutas.push(`<path class="${fina ? 'fina' : ''}" d="${d}"/>`);
+      };
+      // Grieta principal vertical (por donde se rasga) y ramas
+      rama(50, 50, -Math.PI / 2, 46, 14, false);
+      rama(50, 50, Math.PI / 2, 46, 14, false);
+      for (let i = 0; i < 9; i++) rama(50 + (Math.random() - 0.5) * 6, 50 + (Math.random() - 0.5) * 40, Math.random() * Math.PI * 2, 8 + Math.random() * 14, 6, i % 2);
+      $('grietas').innerHTML = rutas.join('');
+      $('grietas').querySelectorAll('path').forEach(p => {
+        const L = p.getTotalLength() * 3;   // margen por el estiramiento horizontal
+        p.style.strokeDasharray = L;
+        p.style.strokeDashoffset = L;
+        p.dataset.largo = L;
+      });
+    })();
+
     $('izq').style.clipPath = bordeRasgado('izq');
     $('der').style.clipPath = bordeRasgado('der');
 
@@ -464,7 +498,7 @@
       $('a-min').style.transform = `rotate(${mezclarAngulo(anguloMin, -12, k)}deg)`;
       $('a-hora').style.height = `${26 - 2 * k}%`;   // el teclado, visto de perfil
       $('a-min').style.width = `${1.8 + 1.6 * k}%`;    // la pantalla se ensancha
-      $('a-min').style.boxShadow = k > 0 ? `0 0 ${24 * k}px ${6 * k}px rgba(255, 228, 92, ${0.35 * k})` : 'none';
+      $('a-min').style.boxShadow = k > 0 ? `0 0 ${24 * k}px ${6 * k}px rgba(91, 127, 230, ${0.35 * k})` : 'none';
       $('a-seg').style.opacity = 1 - adelanto;
 
       // El segundero acelera hasta su ritmo real (6° por segundo)
@@ -481,6 +515,11 @@
     function escena(p) {
       const W = innerWidth, H = innerHeight;
 
+      // 0. La pared se agrieta y las grietas desaparecen al abrirse
+      const gr = suave(tramo(p, ...MOMENTOS.grietas));
+      $('grietas').querySelectorAll('path').forEach(c => { c.style.strokeDashoffset = c.dataset.largo * (1 - gr); });
+      $('grietas').style.opacity = 1 - tramo(p, MOMENTOS.rasgar[0] + 0.01, MOMENTOS.rasgar[0] + 0.05);
+
       // 1. La pared se rasga y se abre hacia los lados
       const r = suaveIO(tramo(p, ...MOMENTOS.rasgar));
       const apertura = W < 700 ? 82 : 62;   // en móvil se abre más
@@ -490,10 +529,13 @@
       $('intro').style.transform = `translateY(${-tramo(p, 0, 0.06) * 30}px)`;
       $('baja').style.opacity = 1 - tramo(p, 0, 0.04);
 
+      // Cámara: un acercamiento lento y continuo mientras el reloj está en pantalla
+      const camaraReloj = 1 + 0.08 * suaveIO(tramo(p, MOMENTOS.salir[1], MOMENTOS.girar[0]));
+
       // 2. El reloj sale de la pared hacia ti, enderezándose
       const s = suave(tramo(p, ...MOMENTOS.salir));
       $('reloj').style.transform =
-        `translateZ(${-600 + s * 600}px) rotateX(${(1 - s) * 28}deg) rotateY(${(1 - s) * -18}deg) scale(${0.7 + s * 0.3})`;
+        `translateZ(${-600 + s * 600}px) rotateX(${(1 - s) * 28}deg) rotateY(${(1 - s) * -18}deg) scale(${(0.7 + s * 0.3) * camaraReloj})`;
 
       // 3. Las horas vuelan desde el desorden hasta su sitio en la esfera
       const esfera = $('esfera').getBoundingClientRect();
@@ -554,13 +596,15 @@
 
       // 8. Te acercas hasta que la pantalla es la tuya
       const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
-      const escala = z > 0 ? sFrente + (cubrir - sFrente) * z : s0 + (sFrente - s0) * g;
+      const sGiro = s0 + (sFrente - s0) * g;
+      const escala = sGiro + (cubrir - sGiro) * z;
 
       // Dónde está la bisagra en pantalla en cada momento
       const hxFrente = W / 2, hyFrente = H / 2 + 300 * sFrente * 0.82;
       const hyCubrir = W >= 900 ? 588 * cubrir : H / 2 + 288 * cubrir;   // borde superior de su pantalla = el de la tuya
-      const hx = z > 0 ? hxFrente : bx + (hxFrente - bx) * g;
-      const hy = z > 0 ? hyFrente + (hyCubrir - hyFrente) * z : by + (hyFrente - by) * g;
+      const hxGiro = bx + (hxFrente - bx) * g, hyGiro = by + (hyFrente - by) * g;
+      const hx = hxGiro + (W / 2 - hxGiro) * z;
+      const hy = hyGiro + (hyCubrir - hyGiro) * z;
 
       const giroY = 90 * (1 - g);                       // de perfil (90°) a de frente (0°)
       const camara = -14 * suave(g) * (1 - z);          // mirando un poco desde arriba
