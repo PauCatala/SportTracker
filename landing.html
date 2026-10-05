@@ -22,7 +22,7 @@
        Toda la animación depende de cuánto has deslizado (de 0 a 1).
        Altura de la escena = cuánto dura la animación al deslizar.
        ================================================================= */
-    .escena { height: 520vh; position: relative; }
+    .escena { height: 1000vh; position: relative; }
     .marco {
       position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
       display: grid; place-items: center; perspective: 1400px;
@@ -152,6 +152,91 @@
     .frase p { margin: 0; font-size: clamp(18px, 2.6vw, 28px); font-stretch: 115%; font-weight: 700; letter-spacing: -0.02em; }
     .frase small { display: block; margin-top: 8px; color: var(--tinta-2); font-size: 14px; }
 
+
+    /* ---------- Persona trabajando en el portátil (aparece en la 2ª parte) ---------- */
+    .persona {
+      position: absolute; left: 61%; top: 6%; width: 56%; height: 110%;
+      opacity: 0; pointer-events: none; will-change: opacity, transform;
+    }
+    .persona svg { width: 100%; height: 100%; overflow: visible; }
+
+    /* ---------- Frase: Today / Tomorrow tachado ---------- */
+    /* En pantallas anchas va a la izquierda, sobre el papel, para no tapar el reloj */
+    @media (min-width: 900px) {
+      .frase { left: 7vw; right: auto; bottom: auto; top: 50%; margin-top: -60px; text-align: left; }
+    }
+    .frase .hoy, .frase .manana {
+      margin: 0; font-stretch: 125%; font-weight: 800; letter-spacing: -0.035em; line-height: 1;
+      font-size: clamp(30px, 4.6vw, 54px);
+    }
+    .frase .manana { position: relative; display: inline-block; color: var(--tinta-3); margin-top: 6px; }
+    .frase .manana i {
+      position: absolute; left: -5%; right: -5%; top: 52%; height: .09em; border-radius: 4px;
+      background: var(--marca); transform-origin: 0 50%; transform: rotate(-3deg) scaleX(0);
+    }
+
+    /* ---------- El portátil que gira hacia ti con la app ---------- */
+    .portatil {
+      position: absolute; z-index: 8; left: 50%; top: 50%;
+      width: 960px; height: 600px; margin: -300px 0 0 -480px;
+      opacity: 0; pointer-events: none; transform-style: preserve-3d; will-change: transform, opacity;
+    }
+    .pantalla {
+      position: absolute; left: 0; top: 0; width: 960px; height: 572px; padding: 14px;
+      border-radius: 22px; background: var(--tinta);
+      box-shadow: 0 60px 120px -50px rgba(12, 48, 132, .55);
+    }
+    .base {
+      position: absolute; left: -50px; right: -50px; bottom: 0; height: 22px; border-radius: 4px 4px 18px 18px;
+      background: linear-gradient(180deg, #E9EAEC, #B4B6BA 70%, #8E9197);
+    }
+    .base::before { content: ""; position: absolute; left: 50%; top: 0; width: 150px; height: 8px; margin-left: -75px; border-radius: 0 0 8px 8px; background: #A7AAB0; }
+
+    .app {
+      width: 100%; height: 100%; border-radius: 10px; overflow: hidden; background: var(--fondo);
+      display: grid; grid-template-columns: 190px 1fr; font-size: 13px; color: var(--tinta);
+    }
+    .lateral { background: #fff; border-right: 1px solid var(--linea); padding: 22px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .lateral b { font-stretch: 125%; font-weight: 800; font-size: 20px; letter-spacing: -0.03em; padding: 0 10px 18px; color: var(--tinta); }
+    .nav { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; color: var(--tinta-2); font-weight: 500; }
+    .nav.activo { background: var(--fondo-2); color: var(--tinta); font-weight: 650; }
+    .nav i { width: 10px; height: 10px; border-radius: 50%; }
+
+    .principal { padding: 22px 24px; display: grid; gap: 14px; grid-template-columns: 1.1fr 1.3fr 1fr; grid-template-rows: auto auto 1fr; overflow: hidden; }
+    .saludo { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: end; }
+    .saludo h3 { margin: 0; font-stretch: 120%; font-weight: 800; font-size: 26px; letter-spacing: -0.03em; }
+    .saludo span { color: var(--tinta-3); }
+    .tarjeta { background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 16px; }
+    .tarjeta h4 { margin: 0 0 10px; font-size: 13px; font-weight: 650; display: flex; justify-content: space-between; }
+    .tarjeta h4 span { color: var(--tinta-3); font-weight: 500; }
+
+    .anillo { display: flex; align-items: center; gap: 14px; }
+    .anillo svg { width: 92px; height: 92px; transform: rotate(-90deg); }
+    .anillo b { font-stretch: 125%; font-weight: 800; font-size: 26px; letter-spacing: -0.03em; display: block; }
+
+    .ejercicio { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--linea); }
+    .ejercicio:last-of-type { border: 0; }
+    .ejercicio span { color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+    .btn-app { margin-top: 10px; width: 100%; min-height: 38px; border: 0; border-radius: 10px; background: var(--marca); color: #fff; font: inherit; font-weight: 650; }
+
+    .macro { margin-bottom: 9px; }
+    .macro div { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .macro div span { color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+    .barra-m { height: 7px; border-radius: 4px; background: var(--fondo-2); overflow: hidden; }
+    .barra-m i { display: block; height: 100%; border-radius: 4px; }
+
+    .semana { grid-column: 1 / 3; }
+    .semana table { width: 100%; border-collapse: collapse; }
+    .semana th { text-align: left; font-weight: 500; color: var(--tinta-3); padding: 0 0 8px; }
+    .semana td { padding: 7px 0; border-top: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
+    .ok { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; }
+    .pend { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--linea); }
+
+    .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .fotos i { aspect-ratio: 3 / 4; border-radius: 8px; }
+
+    .entra { opacity: 0; }
+
     /* ---------- Lo que viene después (provisional) ---------- */
     .despues { padding: 18vh 16px; text-align: center; }
     .despues h2 { margin: 0 auto; max-width: 16ch; font-size: clamp(36px, 6vw, 72px); font-stretch: 125%; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
@@ -188,13 +273,42 @@
           <div class="eje"></div>
         </div>
         <div class="cristal"></div>
+
+        <!-- Persona: sentada en un taburete, mirando a la izquierda hacia la pantalla -->
+        <div class="persona" id="persona" aria-hidden="true">
+          <svg viewBox="0 0 200 300">
+            <!-- Taburete -->
+            <rect x="92" y="156" width="74" height="9" rx="4" fill="#C9A27A"/>
+            <path d="M102 165 L94 296 M156 165 L164 296 M98 236 L160 236" stroke="#A9825C" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <!-- Piernas: pantalón claro y zapatillas blancas -->
+            <path d="M146 150 L64 152" stroke="#D9D4CC" stroke-width="24" stroke-linecap="round"/>
+            <path d="M64 152 L58 262" stroke="#D9D4CC" stroke-width="19" stroke-linecap="round"/>
+            <path d="M40 268 Q42 258 58 258 L70 260 Q74 268 70 274 L42 274 Q38 272 40 268 Z" fill="#FFFFFF" stroke="#B4B6BA" stroke-width="2"/>
+            <!-- Sudadera azul profundo -->
+            <path d="M104 74 Q146 66 150 104 L154 152 L102 156 Q90 112 104 74 Z" fill="#0C3084"/>
+            <!-- Brazo hacia el teclado -->
+            <path d="M112 90 Q90 116 74 118 L36 116" stroke="#0C3084" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="32" cy="116" r="7" fill="#E7B08E"/>
+            <!-- Cuello y cabeza, de perfil mirando a la izquierda -->
+            <rect x="114" y="58" width="14" height="18" rx="6" fill="#E7B08E"/>
+            <path d="M104 40 Q104 18 126 18 Q146 20 145 42 Q144 60 126 62 Q112 62 108 54 L101 50 Q99 47 103 45 Z" fill="#E7B08E"/>
+            <!-- Pelo rizado -->
+            <path d="M104 34 Q102 12 126 10 Q150 10 150 34 Q152 46 144 50 Q142 36 132 32 Q118 34 104 34 Z" fill="#3B2A20"/>
+            <circle cx="110" cy="22" r="7" fill="#3B2A20"/><circle cx="122" cy="13" r="8" fill="#3B2A20"/>
+            <circle cx="137" cy="14" r="8" fill="#3B2A20"/><circle cx="147" cy="26" r="7" fill="#3B2A20"/>
+            <!-- Oreja y ojo -->
+            <ellipse cx="135" cy="40" rx="4" ry="6" fill="#D9997A"/>
+            <circle cx="112" cy="40" r="2" fill="#3B2A20"/>
+            <path d="M108 52 Q112 54 115 52" stroke="#B9765A" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
       </div>
 
       <!-- Las 12 horas, desordenadas al principio -->
       <div class="horas" id="horas" aria-hidden="true"></div>
 
       <!-- Pared blanca que se rasga -->
-      <div class="pared" aria-hidden="true">
+      <div class="pared" id="pared" aria-hidden="true">
         <div class="mitad izq" id="izq"></div>
         <div class="mitad der" id="der"></div>
       </div>
@@ -206,8 +320,70 @@
       <div class="baja" id="baja" aria-hidden="true"></div>
 
       <div class="frase" id="frase">
-        <p>Time matters. And there's still time.</p>
-        <small>Estudio, comida, entreno y recuerdos, por fin en su sitio.</small>
+        <p class="hoy">Today.</p>
+        <p class="manana">Tomorrow.<i id="tachon"></i></p>
+      </div>
+
+      <!-- Portátil con la app: gira desde la aguja hasta quedar de frente -->
+      <div class="portatil" id="portatil" aria-label="Vista previa de la app Lumen">
+        <div class="pantalla" id="pantalla">
+          <div class="app">
+            <nav class="lateral">
+              <b>Lumen</b>
+              <span class="nav activo entra"><i style="background: var(--marca)"></i>Hoy</span>
+              <span class="nav entra"><i style="background: var(--estudio-fuerte)"></i>Estudio</span>
+              <span class="nav entra"><i style="background: var(--nutricion-fuerte)"></i>Nutrición</span>
+              <span class="nav entra"><i style="background: var(--deporte-fuerte)"></i>Deporte</span>
+              <span class="nav entra"><i style="background: var(--diario-fuerte)"></i>Diario</span>
+            </nav>
+            <div class="principal">
+              <div class="saludo entra"><h3>Buenos días</h3><span id="app-fecha"></span></div>
+
+              <div class="tarjeta entra">
+                <h4>Tu día <span>4 de 6</span></h4>
+                <div class="anillo">
+                  <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--fondo-2)" stroke-width="12"/><circle id="anillo-arco" cx="50" cy="50" r="42" fill="none" stroke="var(--marca)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 264"/></svg>
+                  <div><b id="anillo-num">0%</b><span style="color: var(--tinta-3)">completado</span></div>
+                </div>
+              </div>
+
+              <div class="tarjeta entra">
+                <h4>Entreno · Pierna <span>Semana 3</span></h4>
+                <div class="ejercicio">Sentadilla<span>4 × 8 · 80 kg</span></div>
+                <div class="ejercicio">Peso muerto rumano<span>3 × 10 · 60 kg</span></div>
+                <div class="ejercicio">Zancadas<span>3 × 12</span></div>
+                <button class="btn-app" tabindex="-1">Empezar entreno</button>
+              </div>
+
+              <div class="tarjeta entra">
+                <h4>Nutrición <span>1.640 kcal</span></h4>
+                <div class="macro"><div>Proteína<span>98 / 140 g</span></div><div class="barra-m"><i style="width: 70%; background: var(--nutricion-fuerte)"></i></div></div>
+                <div class="macro"><div>Carbohidratos<span>180 / 250 g</span></div><div class="barra-m"><i style="width: 72%; background: var(--marca)"></i></div></div>
+                <div class="macro"><div>Grasas<span>45 / 70 g</span></div><div class="barra-m"><i style="width: 64%; background: var(--deporte-fuerte)"></i></div></div>
+              </div>
+
+              <div class="tarjeta semana entra">
+                <h4>Tu semana <span>Octubre</span></h4>
+                <table>
+                  <tr><th>Día</th><th>Estudio</th><th>Entreno</th><th>Comidas</th><th>Foto</th></tr>
+                  <tr><td>Lunes</td><td>2 h 10 min</td><td><span class="ok" style="background: var(--deporte-fuerte)">✓</span></td><td>4 de 4</td><td><span class="ok" style="background: var(--diario-fuerte)">✓</span></td></tr>
+                  <tr><td>Martes</td><td>1 h 45 min</td><td><span class="ok" style="background: var(--deporte-fuerte)">✓</span></td><td>3 de 4</td><td><span class="pend"></span></td></tr>
+                  <tr><td>Miércoles</td><td>45 min</td><td><span class="pend"></span></td><td>2 de 4</td><td><span class="pend"></span></td></tr>
+                </table>
+              </div>
+
+              <div class="tarjeta entra">
+                <h4>Diario <span>Progreso</span></h4>
+                <div class="fotos">
+                  <i style="background: linear-gradient(160deg, var(--estudio), var(--marca))"></i>
+                  <i style="background: linear-gradient(160deg, var(--diario), var(--deporte))"></i>
+                  <i style="background: linear-gradient(160deg, var(--nutricion), var(--acero))"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="base" id="base"></div>
       </div>
     </div>
   </section>
@@ -235,11 +411,17 @@
     // Cambia estos números para que cada parte dure más o menos.
     // -------------------------------------------------------------
     const MOMENTOS = {
-      rasgar:   [0.02, 0.30],  // la pared se abre
-      salir:    [0.05, 0.38],  // el reloj sale hacia ti
-      ordenar:  [0.30, 0.78],  // las horas vuelan a su sitio
-      arrancar: 0.80,          // el reloj se pone en marcha
-      frase:    [0.84, 0.96],  // aparece el texto
+      rasgar:   [0.01, 0.15],  // la pared se abre
+      salir:    [0.02, 0.19],  // el reloj sale hacia ti
+      ordenar:  [0.15, 0.40],  // las horas vuelan a su sitio
+      arrancar: 0.41,          // el reloj se pone en marcha
+      frase:    [0.43, 0.49],  // aparece "Today. Tomorrow."
+      tachar:   [0.49, 0.54],  // se tacha "Tomorrow"
+      fraseFin: [0.58, 0.62],  // la frase se va
+      portatil: [0.60, 0.70],  // las agujas se convierten en portátil
+      persona:  [0.64, 0.72],  // aparece la persona
+      girar:    [0.75, 0.88],  // la pantalla gira hacia ti
+      app:      [0.86, 0.98],  // aparece la app
     };
 
     // -------------------------------------------------------------
@@ -273,6 +455,7 @@
       $('marcas').appendChild(m);
     }
     $('fecha').textContent = new Date().getDate();
+    $('app-fecha').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 
     // -------------------------------------------------------------
     // Horas: posición desordenada inicial (por toda la pantalla)
@@ -297,14 +480,26 @@
     // Agujas: hora real, y segundero que arranca poco a poco
     // -------------------------------------------------------------
     let marcha = 0;          // 0 = parado, 1 = velocidad normal
+    let formaPortatil = 0;   // 0 = reloj normal, 1 = agujas en forma de portátil
+    // Gira por el camino más corto entre dos ángulos
+    function mezclarAngulo(a, b, t) {
+      const d = ((b - a) % 360 + 540) % 360 - 180;
+      return a + d * t;
+    }
     let segundero = 0;       // ángulo acumulado del segundero
     let ultimo = performance.now();
 
     function agujas(ahora) {
       const d = new Date();
       const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds() + d.getMilliseconds() / 1000;
-      $('a-hora').style.transform = `rotate(${(h + m / 60) * 30}deg)`;
-      $('a-min').style.transform = `rotate(${(m + s / 60) * 6}deg)`;
+      // k = 0: hora real · k = 1: forma de portátil (teclado a la derecha, pantalla casi vertical)
+      const k = formaPortatil;
+      $('a-hora').style.transform = `rotate(${mezclarAngulo((h + m / 60) * 30, 90, k)}deg)`;
+      $('a-min').style.transform = `rotate(${mezclarAngulo((m + s / 60) * 6, -12, k)}deg)`;
+      $('a-hora').style.height = `${26 + 12 * k}%`;   // el teclado se alarga
+      $('a-min').style.width = `${1.8 + 1.6 * k}%`;    // la pantalla se ensancha
+      $('a-min').style.boxShadow = k > 0 ? `0 0 ${24 * k}px ${6 * k}px rgba(255, 228, 92, ${0.35 * k})` : 'none';
+      $('a-seg').style.opacity = 1 - k;
 
       // El segundero acelera hasta su ritmo real (6° por segundo)
       const dt = (ahora - ultimo) / 1000; ultimo = ahora;
@@ -360,10 +555,52 @@
       // 4. El reloj arranca cuando todas las horas están en su sitio
       objetivoMarcha = p >= MOMENTOS.arrancar ? 1 : 0;
 
-      // 5. La frase final
-      const f = suave(tramo(p, ...MOMENTOS.frase));
+      // 5. "Today." aparece y "Tomorrow." se tacha; luego la frase se va
+      const f = suave(tramo(p, ...MOMENTOS.frase)) * (1 - tramo(p, ...MOMENTOS.fraseFin));
       $('frase').style.opacity = f;
       $('frase').style.transform = `translateY(${(1 - f) * 20}px)`;
+      $('tachon').style.transform = `rotate(-3deg) scaleX(${suaveIO(tramo(p, ...MOMENTOS.tachar))})`;
+
+      // 6. Las agujas se convierten en un portátil y aparece la persona
+      formaPortatil = suaveIO(tramo(p, ...MOMENTOS.portatil));
+      const pe = suave(tramo(p, ...MOMENTOS.persona));
+      $('persona').style.opacity = pe;
+      $('persona').style.transform = `translateX(${(1 - pe) * 30}px)`;
+
+      // 7. La pantalla gira hacia ti y se hace grande; el reloj se aleja
+      const g = suaveIO(tramo(p, ...MOMENTOS.girar));
+      const desvanecer = 1 - tramo(p, MOMENTOS.girar[0] + 0.03, MOMENTOS.girar[1] - 0.02);
+      $('reloj').style.opacity = desvanecer;
+      $('horas').style.opacity = desvanecer;
+      $('pared').style.opacity = 1 - tramo(p, ...MOMENTOS.girar);
+      if (g > 0) {
+        $('reloj').style.transform += ` scale(${1 - g * 0.15})`;
+        $('reloj').style.filter = `blur(${g * 6}px)`;
+      } else {
+        $('reloj').style.filter = 'none';
+      }
+
+      const aguja = $('a-min').getBoundingClientRect();
+      const ax = aguja.left + aguja.width / 2 - W / 2, ay = aguja.top + aguja.height / 2 - H / 2;
+      const ajuste = Math.min(1, (W * 0.92) / 1060, (H * 0.82) / 600);
+      const inicio = Math.max(0.05, aguja.height / 572);
+      const escala = inicio + (ajuste - inicio) * g;
+      $('portatil').style.opacity = tramo(p, MOMENTOS.girar[0], MOMENTOS.girar[0] + 0.02);
+      $('portatil').style.transform =
+        `translate(${ax * (1 - g)}px, ${ay * (1 - g)}px) scale(${escala}) rotateY(${(1 - g) * 82}deg) rotateZ(${(1 - g) * -12}deg)`;
+      $('base').style.opacity = tramo(p, MOMENTOS.girar[1] - 0.04, MOMENTOS.girar[1]);
+
+      // 8. La app se llena: cada pieza entra con un pequeño retraso
+      const piezas = document.querySelectorAll('.entra');
+      piezas.forEach((el, i) => {
+        const [a1, a2] = MOMENTOS.app;
+        const t = suave(tramo(p, a1 + i * 0.006, a1 + i * 0.006 + 0.04));
+        el.style.opacity = t;
+        el.style.transform = `translateY(${(1 - t) * 14}px)`;
+      });
+      const anillo = suave(tramo(p, MOMENTOS.app[0] + 0.03, MOMENTOS.app[1]));
+      $('anillo-arco').setAttribute('stroke-dasharray', `${264 * 0.67 * anillo} 264`);
+      $('anillo-num').textContent = `${Math.round(67 * anillo)}%`;
     }
 
     function progreso() {
