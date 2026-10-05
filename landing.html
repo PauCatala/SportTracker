@@ -22,7 +22,7 @@
        Toda la animación depende de cuánto has deslizado (de 0 a 1).
        Altura de la escena = cuánto dura la animación al deslizar.
        ================================================================= */
-    .escena { height: 1000vh; position: relative; }
+    .escena { height: 650vh; position: relative; }
     .marco {
       position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
       display: grid; place-items: center; perspective: 1400px;
@@ -366,20 +366,20 @@
     // Cambia estos números para que cada parte dure más o menos.
     // -------------------------------------------------------------
     const MOMENTOS = {
-      rasgar:   [0.01, 0.15],  // la pared se abre
-      salir:    [0.02, 0.19],  // el reloj sale hacia ti
-      ordenar:  [0.15, 0.40],  // las horas vuelan a su sitio
-      arrancar: 0.41,          // el reloj se pone en marcha
-      frase:    [0.43, 0.49],  // aparece "Today. Tomorrow."
-      tachar:   [0.49, 0.54],  // se tacha "Tomorrow"
-      fraseFin: [0.56, 0.59],  // la frase se va
-      adelantar:[0.57, 0.65],  // las agujas corren rápido hasta las 3:55
-      portatil: [0.65, 0.69],  // las agujas toman forma de portátil
-      persona:  [0.67, 0.72],  // aparece la persona
-      girar:    [0.74, 0.84],  // el portátil gira hacia ti
-      app:      [0.76, 0.86],  // la app se va llenando en la pantalla
-      acercar:  [0.84, 0.93],  // te acercas hasta que la pantalla es la tuya
-      fundir:   [0.925, 0.945], // se funde con la app real a pantalla completa
+      // Duración total: ~13,5 s en modo vídeo. Cada par es [empieza, termina] sobre 1.
+      rasgar:   [0.000, 0.104], // la pared se abre                (≈1,4 s)
+      salir:    [0.007, 0.133], // el reloj sale hacia ti
+      ordenar:  [0.104, 0.296], // las horas vuelan a su sitio      (≈2,6 s)
+      arrancar: 0.297,          // el reloj se pone en marcha
+      frase:    [0.304, 0.348], // aparece "Today. Tomorrow."
+      tachar:   [0.356, 0.400], // se tacha "Tomorrow"
+      fraseFin: [0.444, 0.474], // la frase se va
+      adelantar:[0.444, 0.622], // las agujas corren hasta las 3:55 (≈2,4 s, igual que antes)
+      portatil: [0.622, 0.659], // las agujas toman forma de portátil
+      persona:  [0.637, 0.681], // aparece la persona
+      girar:    [0.696, 0.815], // el portátil gira hacia ti         (≈1,6 s)
+      acercar:  [0.815, 0.919], // te acercas hasta su pantalla
+      fundir:   [0.919, 0.956], // se funde con la app real
     };
 
     // -------------------------------------------------------------
@@ -486,8 +486,8 @@
       const apertura = W < 700 ? 82 : 62;   // en móvil se abre más
       $('izq').style.transform = `translateX(${-r * apertura}%) rotate(${-r * 2}deg)`;
       $('der').style.transform = `translateX(${r * apertura}%) rotate(${r * 2}deg)`;
-      $('intro').style.opacity = 1 - tramo(p, 0, 0.1);
-      $('intro').style.transform = `translateY(${-tramo(p, 0, 0.1) * 30}px)`;
+      $('intro').style.opacity = 1 - tramo(p, 0, 0.06);
+      $('intro').style.transform = `translateY(${-tramo(p, 0, 0.06) * 30}px)`;
       $('baja').style.opacity = 1 - tramo(p, 0, 0.04);
 
       // 2. El reloj sale de la pared hacia ti, enderezándose
@@ -515,7 +515,7 @@
         h.el.style.transform =
           `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${giro}deg) scale(${escala})`;
         // Al principio están tapadas por la pared; aparecen al rasgarse
-        h.el.style.opacity = tramo(p, 0.12, 0.26);
+        h.el.style.opacity = tramo(p, 0.03, 0.09);
       });
 
       // 4. El reloj arranca cuando todas las horas están en su sitio
@@ -587,8 +587,8 @@
 
     // ?auto en la dirección = la animación se reproduce sola (dura DURACION milisegundos)
     const AUTO = new URLSearchParams(location.search).has('auto');
-    const DURACION = 30000;
-    let inicioAuto = performance.now() + 900;   // pequeña pausa antes de empezar
+    const DURACION = 13500;
+    let inicioAuto = performance.now() + 400;   // pequeña pausa antes de empezar
     if (AUTO) {
       document.documentElement.classList.add('modo-auto');
       document.querySelector('.intro p').textContent = '';
