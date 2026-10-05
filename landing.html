@@ -217,6 +217,20 @@
     .cara.frente .app-real { pointer-events: none; }
     .app-web .app-real { border-radius: 0; }
 
+    /* Modo automático: la animación se reproduce sola, como un vídeo */
+    .controles-auto {
+      position: absolute; z-index: 12; right: 16px; bottom: 16px; display: none; gap: 8px;
+    }
+    .modo-auto .controles-auto { display: flex; }
+    .controles-auto button, .controles-auto a {
+      min-height: 40px; padding: 0 16px; border-radius: var(--r-pildora); border: 1px solid var(--linea);
+      background: rgba(255, 255, 255, .92); color: var(--tinta); font: inherit; font-size: 14px; font-weight: 600;
+      display: inline-flex; align-items: center; text-decoration: none; cursor: pointer;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .modo-auto .escena { height: 100vh; height: 100svh; }
+    .modo-auto .baja { display: none; }
+
     /* La app a pantalla completa: la "web normal" del final */
     .app-web {
       position: absolute; inset: 0; z-index: 9; opacity: 0; pointer-events: none;
@@ -302,7 +316,7 @@
 
       <div class="intro" id="intro">
         <h1>Lumen</h1>
-        <p>Desliza para abrir</p>
+        <p>Desliza para abrir · <a href="?auto" style="color: var(--marca); pointer-events: auto">verlo como vídeo</a></p>
       </div>
       <div class="baja" id="baja" aria-hidden="true"></div>
 
@@ -323,6 +337,12 @@
       </div>
 
       <!-- La app a pantalla completa (lo que queda al final) -->
+      <!-- Controles del modo automático -->
+      <div class="controles-auto" id="controles-auto">
+        <button id="btn-repetir">Repetir</button>
+        <a href="landing.html">Ver con scroll</a>
+      </div>
+
       <div class="app-web" id="app-web"><iframe class="app-real" src="index.html#hoy" title="Lumen"></iframe></div>
     </div>
   </section>
@@ -565,7 +585,18 @@
 
     }
 
+    // ?auto en la dirección = la animación se reproduce sola (dura DURACION milisegundos)
+    const AUTO = new URLSearchParams(location.search).has('auto');
+    const DURACION = 30000;
+    let inicioAuto = performance.now() + 900;   // pequeña pausa antes de empezar
+    if (AUTO) {
+      document.documentElement.classList.add('modo-auto');
+      document.querySelector('.intro p').textContent = '';
+      $('btn-repetir').onclick = () => { inicioAuto = performance.now() + 600; segundero = 0; };
+    }
+
     function progreso() {
+      if (AUTO) return limitar((performance.now() - inicioAuto) / DURACION);
       const e = $('escena').getBoundingClientRect();
       return limitar(-e.top / (e.height - innerHeight));
     }
