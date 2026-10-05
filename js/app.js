@@ -19,6 +19,7 @@ import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.
 import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 import { revelar, indicador, abrirModal, carruseles, transicion } from './interaccion.js';
+import { introNutricion, introRunning } from './intros.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -97,13 +98,31 @@ let datosCargados = false;
 const $ = id => document.getElementById(id);
 
 // ---------- Pintar ----------
-// Pinta la sección y después añade las interacciones (apariciones, píldoras, carruseles)
+// Películas de entrada de cada apartado (solo al entrar, no al cambiar de pestaña)
+const INTROS = {
+  nutricion: introNutricion,
+  running: introRunning,
+};
+let ultimoGrupo = null;
+let turno = 0;
+
+// Pinta la sección y después añade las interacciones (intro, apariciones, píldoras, carruseles)
 function pintar() {
   const resultado = pintarVista();
   indicador($('secciones'), true);
   indicador($('subbloques'));
   indicador($('tabs'));
-  Promise.resolve(resultado).then(() => { revelar($('vista')); carruseles($('vista')); });
+  const grupo = grupoActual();
+  const conDatos = !BLOQUES[grupo]?.cuenta || (sesionIniciada && datosCargados);
+  const intro = seccion === 'salud' && grupo !== ultimoGrupo && INTROS[grupo] && conDatos;
+  ultimoGrupo = grupo;
+  const mio = ++turno;
+  Promise.resolve(resultado).then(async () => {
+    if (intro) await INTROS[grupo]($('vista'));
+    if (mio !== turno) return;   // ya se ha cambiado de sección
+    revelar($('vista'));
+    carruseles($('vista'));
+  });
 }
 
 function pintarVista() {
