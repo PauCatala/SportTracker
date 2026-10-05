@@ -1,13 +1,14 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v5';
+const CACHE = 'lumen-v6';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/tokens.css', './css/styles.css', './css/app.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
   './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
   './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
+  './js/fotos.js', './js/imagen.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

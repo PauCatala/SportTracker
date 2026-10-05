@@ -3,9 +3,9 @@
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
 import { grafica, ejeX, ejeY, C } from './graficos.js';
 import { icono } from './iconos.js';
-import { aviso, fmtCorta, parseTiempo, fmtTiempo } from './utils.js';
+import { aviso, fmtCorta, parseTiempo, fmtTiempo, sumarDias, diasEntre } from './utils.js';
 
-export const PERFIL_VACIO = { sexo: 'h', edad: '', altura: '', peso: '', pesoObjetivo: '', actividad: 1.55, objetivo: 'mantener' };
+export const PERFIL_VACIO = { sexo: 'h', edad: '', altura: '', peso: '', actividad: 1.55, pesoObjetivo: '', meses: '', inicio: null };
 
 const ACTIVIDAD = [
   [1.2, 'Sedentaria (poco o nada de ejercicio)'],
@@ -14,7 +14,17 @@ const ACTIVIDAD = [
   [1.725, 'Alta (6-7 días por semana)'],
   [1.9, 'Muy alta (doble sesión o trabajo físico)'],
 ];
-const OBJETIVOS = { perder: ['Perder grasa', -0.15], mantener: ['Mantener', 0], ganar: ['Ganar músculo', 0.1] };
+
+// Límites para que el objetivo tenga sentido físico (orientativos, no médicos)
+export const LIMITES = {
+  perderPctMes: 4,     // perder más de ~1 % del peso por semana no es sostenible
+  ganarPctMes: 2,      // ganar más de ~0,5 % por semana suele ser casi todo grasa
+  imcMin: 17,          // peso objetivo demasiado bajo para tu altura
+  imcMax: 35,
+  kcalMin: { h: 1500, m: 1200 },
+};
+const KCAL_POR_KG = 7700;
+const DIAS_MES = 30.44;
 
 // ---------- Cálculos (los usa también Nutrición) ----------
 export function perfilCompleto(p) {
@@ -26,10 +36,54 @@ export function caloriasMantenimiento(p) {
   const base = 10 * p.peso + 6.25 * p.altura - 5 * p.edad + (p.sexo === 'm' ? -161 : 5);
   return Math.round(base * p.actividad);
 }
-export function caloriasObjetivo(p) {
-  const m = caloriasMantenimiento(p);
-  return m ? Math.round(m * (1 + OBJETIVOS[p.objetivo][1])) : null;
+
+// El plan de peso: comprueba que el objetivo es realista y calcula ritmo y calorías
+export function planPeso(p) {
+  if (!perfilCompleto(p)) return { estado: 'incompleto' };
+  const obj = Number(p.pesoObjetivo);
+  if (!obj) return { estado: 'mantener' };
+  const m2 = (p.altura / 100) ** 2;
+  const imcObj = obj / m2;
+  if (imcObj < LIMITES.imcMin) {
+    return { estado: 'error', mensaje: `Con ${fmt(obj)} kg tu IMC sería ${fmt(imcObj)}, demasiado bajo para tu altura. El mínimo razonable es ${fmt(Math.ceil(LIMITES.imcMin * m2))} kg.` };
+  }
+  if (imcObj > LIMITES.imcMax) {
+    return { estado: 'error', mensaje: `Con ${fmt(obj)} kg tu IMC sería ${fmt(imcObj)}, demasiado alto. El máximo razonable es ${fmt(Math.floor(LIMITES.imcMax * m2))} kg.` };
+  }
+  const inicio = p.inicio || { fecha: hoyISO(), peso: Number(p.peso) };
+  const diff = obj - inicio.peso;
+  if (Math.abs(diff) < 0.5) return { estado: 'mantener' };
+  const meses = Number(p.meses);
+  if (!meses) return { estado: 'error', mensaje: '¿En cuántos meses quieres conseguirlo? Elige un plazo.' };
+
+  const pierde = diff < 0;
+  const pctMes = (Math.abs(diff) / inicio.peso / meses) * 100;
+  const max = pierde ? LIMITES.perderPctMes : LIMITES.ganarPctMes;
+  if (pctMes > max) {
+    const mesesMin = Math.ceil((Math.abs(diff) / inicio.peso) * 100 / max);
+    return {
+      estado: 'error', mesesMin,
+      mensaje: `Es demasiado rápido: ${pierde ? 'perder' : 'ganar'} ${fmt(Math.abs(diff))} kg en ${meses} ${meses === 1 ? 'mes' : 'meses'} es un ${fmt(pctMes)} % de tu peso al mes. Lo realista es como máximo un ${max} %: necesitas al menos ${mesesMin} meses.`,
+    };
+  }
+  const dias = meses * DIAS_MES;
+  const mant = caloriasMantenimiento(p);
+  const kcal = Math.max(LIMITES.kcalMin[p.sexo], Math.round(mant + (diff * KCAL_POR_KG) / dias));
+  const fin = sumarDias(inicio.fecha, Math.round(dias));
+  const transcurridos = Math.max(0, Math.min(dias, diasEntre(inicio.fecha, hoyISO())));
+  return {
+    estado: 'ok', inicio, obj, diff, meses, fin, kcal,
+    kgSemana: (diff / dias) * 7,
+    esperadoHoy: inicio.peso + diff * (transcurridos / dias),
+    esperadoEn: fecha => inicio.peso + diff * Math.max(0, Math.min(1, diasEntre(inicio.fecha, fecha) / dias)),
+  };
 }
+
+export function caloriasObjetivo(p) {
+  const plan = planPeso(p);
+  return plan.estado === 'ok' ? plan.kcal : caloriasMantenimiento(p);
+}
+const fmt = (n, d = 1) => Number(n).toLocaleString('es-ES', { maximumFractionDigits: d });
 export const imc = p => (perfilCompleto(p) ? p.peso / (p.altura / 100) ** 2 : null);
 function textoImc(v) {
   if (v < 18.5) return 'Bajo peso';
@@ -37,7 +91,6 @@ function textoImc(v) {
   if (v < 30) return 'Sobrepeso';
   return 'Obesidad';
 }
-const fmt = (n, d = 1) => Number(n).toLocaleString('es-ES', { maximumFractionDigits: d });
 
 // Progreso de una marca (0..1). En tiempo, menos es mejor.
 function progresoMarca(m) {
@@ -49,30 +102,66 @@ function progresoMarca(m) {
 const UNIDAD = { peso: 'kg', reps: 'reps', tiempo: '' };
 
 function kpisHTML(p) {
-  const vImc = imc(p), mant = caloriasMantenimiento(p), obj = caloriasObjetivo(p);
-  const falta = p.pesoObjetivo && p.peso ? p.pesoObjetivo - p.peso : null;
+  const vImc = imc(p), mant = caloriasMantenimiento(p), plan = planPeso(p);
+  const kcal = caloriasObjetivo(p);
   return `
       <div class="kpi"><span>IMC</span><b>${vImc ? fmt(vImc) : '–'}</b><small>${vImc ? textoImc(vImc) : 'Completa tus datos'}</small></div>
-      <div class="kpi"><span>Hasta tu objetivo</span><b>${falta != null && p.pesoObjetivo ? `${falta > 0 ? '+' : ''}${fmt(falta)} kg` : '–'}</b><small>${p.pesoObjetivo ? `Objetivo: ${fmt(p.pesoObjetivo)} kg` : 'Pon un peso objetivo'}</small></div>
-      <div class="kpi"><span>Calorías al día</span><b>${obj ? obj.toLocaleString('es-ES') : '–'}</b><small>${mant ? `Mantenimiento: ${mant.toLocaleString('es-ES')}` : 'Completa tus datos'}</small></div>`;
+      <div class="kpi"><span>Mantenimiento</span><b>${mant ? mant.toLocaleString('es-ES') : '–'}</b><small>kcal al día</small></div>
+      <div class="kpi"><span>Tu objetivo diario</span><b>${kcal ? kcal.toLocaleString('es-ES') : '–'}</b><small>${plan.estado === 'ok' ? `kcal · ${plan.diff < 0 ? 'déficit' : 'superávit'} de ${Math.abs(kcal - mant).toLocaleString('es-ES')}` : 'kcal al día'}</small></div>`;
+}
+
+// Texto del plan de peso (verde si es realista, aviso si no lo es)
+function planHTML(p) {
+  const plan = planPeso(p);
+  if (plan.estado === 'incompleto') return '<p class="tenue">Completa edad, altura y peso para calcular tu plan.</p>';
+  if (plan.estado === 'mantener') return '<p class="plan-ok">Sin objetivo de cambio: tus calorías son las de mantenimiento.</p>';
+  if (plan.estado === 'error') {
+    return `<div class="plan-error"><p>${plan.mensaje}</p>${plan.mesesMin ? `<button class="btn suave chico" type="button" data-usar-meses="${plan.mesesMin}">Usar ${plan.mesesMin} meses</button>` : ''}</div>`;
+  }
+  const fin = new Date(plan.fin).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  return `<p class="plan-ok"><b>${plan.kgSemana > 0 ? '+' : ''}${fmt(plan.kgSemana, 2)} kg por semana</b> · ${plan.kcal.toLocaleString('es-ES')} kcal al día · llegarías el ${fin}.</p>`;
 }
 
 function pintarGraficaPeso(cont) {
   const p = leer('perfil', PERFIL_VACIO);
   const pesos = leer('pesos', []).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const lienzo = cont.querySelector('#g-peso');
-  if (!lienzo || pesos.length < 2) return;
+  if (!lienzo || pesos.length < 1) return;
+  const plan = planPeso(p);
+  // Fechas: tus registros + inicio y fin del plan, para ver el camino completo
+  const fechas = [...new Set([...pesos.map(x => x.fecha), ...(plan.estado === 'ok' ? [plan.inicio.fecha, plan.fin] : [])])].sort();
+  const porFecha = new Map(pesos.map(x => [x.fecha, x.kg]));
   grafica(lienzo, {
     type: 'line',
     data: {
-      labels: pesos.map(x => fmtCorta(x.fecha)),
+      labels: fechas.map(f => fmtCorta(f)),
       datasets: [
-        { data: pesos.map(x => x.kg), borderColor: C.electrico, backgroundColor: C.electricoSuave, fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: C.electrico },
-        ...(p.pesoObjetivo ? [{ data: pesos.map(() => Number(p.pesoObjetivo)), borderColor: C.acero, borderDash: [6, 6], pointRadius: 0, fill: false }] : []),
+        { label: 'Tu peso', data: fechas.map(f => porFecha.get(f) ?? null), spanGaps: true, borderColor: C.electrico, backgroundColor: C.electricoSuave, fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: C.electrico },
+        ...(plan.estado === 'ok' ? [{ label: 'Tu plan', data: fechas.map(f => (f >= plan.inicio.fecha ? +plan.esperadoEn(f).toFixed(1) : null)), borderColor: C.acero, borderDash: [6, 6], pointRadius: 0, fill: false }] : []),
       ],
     },
-    options: { scales: { x: ejeX(), y: ejeY({ ticks: { callback: v => `${v} kg` } }) } },
+    options: { scales: { x: ejeX(), y: ejeY({ ticks: { callback: v => `${v} kg` } }) }, plugins: { legend: { display: plan.estado === 'ok', position: 'bottom', labels: { boxWidth: 12, boxHeight: 2 } } } },
   });
+}
+
+// Progreso hacia el objetivo y comparación con lo previsto para hoy
+function progresoPesoHTML(p) {
+  const plan = planPeso(p);
+  if (plan.estado !== 'ok') return '';
+  const hecho = Number(p.peso) - plan.inicio.peso;
+  const frac = Math.max(0, Math.min(1, hecho / plan.diff));
+  const desvio = Number(p.peso) - plan.esperadoHoy;           // + = por encima de lo previsto
+  const bien = plan.diff < 0 ? desvio <= 0.3 : desvio >= -0.3;
+  const verbo = plan.diff < 0 ? 'bajado' : 'subido';
+  return `
+    <div class="progreso-peso">
+      <div class="progreso-peso-cab">
+        <span>Has ${verbo} <b>${fmt(Math.abs(hecho))} kg</b> de ${fmt(Math.abs(plan.diff))} kg</span>
+        <b>${Math.round(frac * 100)}%</b>
+      </div>
+      <div class="progreso"><i style="width:${frac * 100}%"></i></div>
+      <p class="${bien ? 'plan-ok' : 'plan-aviso'}">Según tu plan hoy estarías en ${fmt(plan.esperadoHoy)} kg: ${Math.abs(desvio) <= 0.3 ? 'vas justo a ritmo' : bien ? 'vas por delante' : `vas ${fmt(Math.abs(desvio))} kg por detrás`}.</p>
+    </div>`;
 }
 
 // =====================================================================
@@ -93,32 +182,43 @@ export function renderPerfil(cont) {
           <label class="campo">Altura (cm) <input name="altura" type="number" inputmode="numeric" min="120" max="230" value="${p.altura}"></label>
           <label class="campo">Peso (kg) <input name="peso" type="number" inputmode="decimal" step="0.1" value="${p.peso}"></label>
         </div>
-        <div class="campos-2">
-          <label class="campo">Peso objetivo (kg) <input name="pesoObjetivo" type="number" inputmode="decimal" step="0.1" value="${p.pesoObjetivo}"></label>
-          <label class="campo">Objetivo
-            <select name="objetivo">${Object.entries(OBJETIVOS).map(([k, [t]]) => `<option value="${k}" ${p.objetivo === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
-          </label>
-        </div>
         <label class="campo">Actividad
           <select name="actividad">${ACTIVIDAD.map(([v, t]) => `<option value="${v}" ${Number(p.actividad) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
         </label>
       </form>
     </section>
 
+    <section class="panel">
+      <div class="panel-cab"><h3>Tu objetivo</h3><span class="tenue">Peso y plazo</span></div>
+      <form class="campos" id="pf-objetivo" autocomplete="off">
+        <div class="campos-2">
+          <label class="campo">Peso objetivo (kg) <input name="pesoObjetivo" type="number" inputmode="decimal" step="0.1" placeholder="Vacío = mantener" value="${p.pesoObjetivo}"></label>
+          <label class="campo">En cuántos meses
+            <select name="meses"><option value="">Elige</option>${Array.from({ length: 24 }, (_, i) => i + 1).map(m => `<option value="${m}" ${Number(p.meses) === m ? 'selected' : ''}>${m} ${m === 1 ? 'mes' : 'meses'}</option>`).join('')}</select>
+          </label>
+        </div>
+      </form>
+      <div id="pf-plan">${planHTML(p)}</div>
+    </section>
+
     <div class="kpis" id="pf-kpis">${kpisHTML(p)}</div>
 
     <section class="panel">
-      <div class="panel-cab"><h3>Tu peso</h3><span class="tenue">${pesos.length ? `${pesos.length} registros` : ''}</span></div>
-      <form class="fila-anadir" id="pf-peso">
-        <input name="kg" type="number" inputmode="decimal" step="0.1" placeholder="Peso de hoy (kg)" required>
-        <input name="fecha" type="date" value="${hoyISO()}" max="${hoyISO()}" required>
-        <button class="btn primario" type="submit">Añadir</button>
+      <div class="panel-cab"><h3>Tu peso</h3><span class="tenue">${pesos.length ? `${pesos.length} ${pesos.length === 1 ? 'registro' : 'registros'}` : 'Pésate por la mañana, en ayunas'}</span></div>
+      <form id="pf-peso" class="peso-hoy">
+        <div class="paso-peso">
+          <button type="button" class="btn-paso" data-paso="-0.1" aria-label="Restar 100 g">−</button>
+          <label><input name="kg" type="number" inputmode="decimal" step="0.1" min="30" max="300" value="${pesos.at(-1)?.kg ?? p.peso ?? ''}" required><span>kg</span></label>
+          <button type="button" class="btn-paso" data-paso="0.1" aria-label="Sumar 100 g">+</button>
+        </div>
+        <button class="btn primario" type="submit">Guardar peso de hoy</button>
+        <details class="otra-fecha"><summary>Otra fecha</summary><input name="fecha" type="date" value="${hoyISO()}" max="${hoyISO()}"></details>
       </form>
-      ${pesos.length >= 2 ? '<div class="grafico"><canvas id="g-peso"></canvas></div>'
-        : `<p class="tenue" style="margin-top:12px">Añade al menos dos pesos para ver tu evolución.</p>`}
-      ${pesos.length ? `<ul class="lista-simple">${pesos.slice(-5).reverse().map(x => `
+      <div id="pf-progreso">${progresoPesoHTML(p)}</div>
+      ${pesos.length ? '<div class="grafico"><canvas id="g-peso"></canvas></div>' : ''}
+      ${pesos.length ? `<details class="historial-peso"><summary>Últimos registros</summary><ul class="lista-simple">${pesos.slice(-8).reverse().map(x => `
         <li><span>${fmtCorta(x.fecha)}</span><b>${fmt(x.kg)} kg</b>
-          <button class="btn-icono" data-borrar-peso="${x.fecha}" aria-label="Borrar">${icono('papelera')}</button></li>`).join('')}</ul>` : ''}
+          <button class="btn-icono" data-borrar-peso="${x.fecha}" aria-label="Borrar">${icono('papelera')}</button></li>`).join('')}</ul></details>` : ''}
     </section>
 
     <section class="panel">
@@ -186,15 +286,45 @@ export function renderPerfil(cont) {
     guardar('perfil', { ...leer('perfil', PERFIL_VACIO), ...cambios });
     if (repintar) renderPerfil(cont);
   };
+  const refrescar = () => {
+    const actual = leer('perfil', PERFIL_VACIO);
+    cont.querySelector('#pf-kpis').innerHTML = kpisHTML(actual);
+    cont.querySelector('#pf-plan').innerHTML = planHTML(actual);
+    cont.querySelector('#pf-progreso').innerHTML = progresoPesoHTML(actual);
+    pintarGraficaPeso(cont);
+  };
   form.onchange = ev => {
     const { name, value } = ev.target;
     if (!name) return;
-    guardarPerfil({ [name]: name === 'objetivo' ? value : value === '' ? '' : Number(value) });
-    cont.querySelector('#pf-kpis').innerHTML = kpisHTML(leer('perfil', PERFIL_VACIO));
-    if (name === 'pesoObjetivo') pintarGraficaPeso(cont);
+    guardarPerfil({ [name]: value === '' ? '' : Number(value) });
+    if (name === 'peso') {
+      const campo = cont.querySelector('#pf-peso [name=kg]');
+      if (!campo.value) campo.value = value;
+    }
+    refrescar();
+  };
+  // Al cambiar el objetivo o el plazo, el plan empieza hoy con tu peso actual
+  cont.querySelector('#pf-objetivo').onchange = ev => {
+    const { name, value } = ev.target;
+    const actual = leer('perfil', PERFIL_VACIO);
+    guardarPerfil({ [name]: value === '' ? '' : Number(value), inicio: { fecha: hoyISO(), peso: Number(actual.peso) } });
+    refrescar();
   };
 
   cont.onclick = ev => {
+    const usar = ev.target.closest('[data-usar-meses]');
+    if (usar) {
+      guardarPerfil({ meses: Number(usar.dataset.usarMeses) });
+      cont.querySelector('#pf-objetivo [name=meses]').value = usar.dataset.usarMeses;
+      return refrescar();
+    }
+    const paso = ev.target.closest('[data-paso]');
+    if (paso) {
+      const campo = cont.querySelector('#pf-peso [name=kg]');
+      const base = Number(campo.value) || Number(leer('perfil', PERFIL_VACIO).peso) || 70;
+      campo.value = (base + Number(paso.dataset.paso)).toFixed(1);
+      return;
+    }
     const sexo = ev.target.closest('[data-sexo]');
     if (sexo) return guardarPerfil({ sexo: sexo.dataset.sexo }, true);
     const bp = ev.target.closest('[data-borrar-peso]');
@@ -212,7 +342,8 @@ export function renderPerfil(cont) {
   cont.querySelector('#pf-peso').onsubmit = ev => {
     ev.preventDefault();
     const d = new FormData(ev.target);
-    const kg = Number(d.get('kg')), fecha = d.get('fecha');
+    const kg = Number(d.get('kg')), fecha = d.get('fecha') || hoyISO();
+    if (!(kg >= 30 && kg <= 300)) return aviso('Escribe un peso entre 30 y 300 kg', 'error');
     const lista = leer('pesos', []).filter(x => x.fecha !== fecha);
     lista.push({ fecha, kg });
     guardar('pesos', lista);

@@ -8,10 +8,15 @@ import { renderSemanaRun, renderRegistrarRun, renderProgresoRun } from './runnin
 import { renderFlexHoy, renderFlexProgreso } from './flex.js';
 import { renderPerfil, PERFIL_VACIO } from './perfil.js';
 import { renderNutriHoy, renderNutriObjetivos, renderNutriIdeas, objetivosDelDia, totalesDe } from './nutricion.js';
-import { renderTablero, renderNotasEstudios, tareasPendientes } from './estudios.js';
-import { renderHabitos, renderLista, renderNotasPersonal, habitosDeHoy, pendientesLista } from './personal.js';
-import { leer, sincronizar, olvidar, hoyISO } from './almacen.js';
-import { aviso, capitalizar } from './utils.js';
+import { renderTablero, tareasDeLaSemana, etiquetaFecha } from './estudios.js';
+import { renderHabitos, renderLista, pendientesLista } from './personal.js';
+import { renderProgresoFisico, renderFotosComidas, renderFotosDia } from './imagen.js';
+import { avisoProgreso } from './fotos.js';
+import { state } from './db.js';
+import { semanaPlan } from './consultas.js';
+import { DIAS_PLAN, diaSugerido, flexDelDia, SEMANAS_RUN, faseDeSemana } from './plan.js';
+import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.js';
+import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 
 // =====================================================================
@@ -64,17 +69,20 @@ const BLOQUES = {
 
 // Secciones principales. "c" es su color (de css/tokens.css).
 const SECCIONES = {
-  hoy:      { titulo: 'Hoy', icono: 'hoy', c: 'marca' },
+  hoy:      { titulo: 'Resumen', icono: 'hoy', c: 'marca' },
   salud:    { titulo: 'Salud', icono: 'salud', c: 'deporte' },
   estudios: {
     titulo: 'Estudios y trabajo', corto: 'Estudios', icono: 'estudios', c: 'estudio',
-    vistas: [['tablero', 'Tareas', renderTablero], ['notas', 'Notas', renderNotasEstudios]],
+    vistas: [['tablero', 'Tareas', renderTablero]],
   },
   personal: {
     titulo: 'Personal', icono: 'organizacion', c: 'personal',
-    vistas: [['habitos', 'Hábitos', renderHabitos], ['lista', 'Lista', renderLista], ['notas', 'Notas', renderNotasPersonal]],
+    vistas: [['habitos', 'Hábitos', renderHabitos], ['lista', 'Tareas y post-its', renderLista]],
   },
-  imagen:   { titulo: 'Imagen', icono: 'imagen', c: 'diario' },
+  imagen: {
+    titulo: 'Imagen', icono: 'imagen', c: 'diario',
+    vistas: [['progreso', 'Progreso físico', renderProgresoFisico], ['comidas', 'Comidas', renderFotosComidas], ['dia', 'Tu día', renderFotosDia]],
+  },
 };
 const colorFuerte = c => c === 'marca' ? 'var(--marca)' : `var(--${c}-fuerte)`;
 const colorSuave = c => c === 'marca' ? 'var(--azul-pastel)' : `var(--${c})`;
@@ -104,7 +112,6 @@ function pintar() {
   $('titulo-bloque').textContent = sec.titulo;
 
   if (seccion === 'hoy') return renderHoy(cont);
-  if (seccion === 'imagen') return renderProximamente(cont, seccion);
 
   // El "grupo" es el apartado de Salud elegido, o la propia sección
   const claveGrupo = esSalud ? bloque : seccion;
@@ -126,59 +133,152 @@ function pintar() {
 }
 const grupoActual = () => (seccion === 'salud' ? bloque : seccion);
 
-// ---------- Hoy: el resumen de tu día, con datos reales ----------
+// ---------- Resumen: lo importante de hoy, sencillo ----------
+
+// Entreno de hoy según tu plan (solo con cuenta y plan cargado)
+function entrenoDeHoy() {
+  if (!sesionIniciada) return [{ texto: 'Entra para ver el entreno que te toca hoy.', estado: '' }];
+  if (!datosCargados) return [{ texto: 'Cargando tu plan…', estado: '' }];
+  const hoy = hoyISO();
+  const lineas = [];
+  // Gimnasio: lunes a viernes, un día del plan
+  const dow = new Date().getDay();
+  if (dow >= 1 && dow <= 5) {
+    const dia = diaSugerido(hoy, DIAS_PLAN.map(d => d.nombre));
+    const hecho = state.sesiones.some(x => x.fecha === hoy);
+    lineas.push({ texto: `<b>Gimnasio</b> · ${escapar(dia.split('·')[1]?.trim() || dia)}`, estado: hecho ? 'hecho' : 'pendiente', ir: 'salud|gym|entrenar' });
+  } else {
+    lineas.push({ texto: '<b>Gimnasio</b> · descanso', estado: '' });
+  }
+  // Running: entrenos de la semana del plan
+  const n = semanaPlan(hoy);
+  if (n >= 1 && n <= SEMANAS_RUN) {
+    const lunes = lunesDe(hoy), domingo = sumarDias(lunes, 6);
+    const semana = state.carreras.filter(c => c.fecha >= lunes && c.fecha <= domingo);
+    const faltan = [['series', 'series'], ['larga', 'tirada larga'], [['easy', 'tempo'], 'easy']]
+      .filter(([t]) => !semana.some(c => [].concat(t).includes(c.tipo))).map(([, nombre]) => nombre);
+    lineas.push({
+      texto: `<b>Running</b> · semana ${n}, ${faseDeSemana(n).nombre.toLowerCase()}${faltan.length ? ` · te falta ${faltan.join(', ')}` : ''}`,
+      estado: faltan.length ? 'pendiente' : 'hecho', ir: 'salud|running|semana',
+    });
+  }
+  // Flexibilidad: rutina de la mañana
+  const items = flexDelDia(hoy);
+  const hechos = new Set(state.flex_dias.find(f => f.fecha === hoy)?.completados || []);
+  const nHechos = items.filter(i => hechos.has(i.id)).length;
+  lineas.push({ texto: `<b>Flexibilidad</b> · ${nHechos} de ${items.length} ejercicios`, estado: nHechos === items.length ? 'hecho' : 'pendiente', ir: 'salud|flex|hoy' });
+  return lineas;
+}
+
 function renderHoy(cont) {
   const hoy = hoyISO();
-  const perfil = leer('perfil', PERFIL_VACIO);
   const obj = objetivosDelDia();
-  const kcal = Math.round(totalesDe(hoy).kcal);
-  const hab = habitosDeHoy();
-  const tareas = tareasPendientes();
-  const enCurso = tareas.filter(t => t.estado === 'curso');
-  const vencenHoy = tareas.filter(t => t.fecha && t.fecha <= hoy);
+  const t = totalesDe(hoy);
+  const semana = tareasDeLaSemana();
   const lista = pendientesLista();
+  const habitos = leer('habitos', []);
+  const diasHab = leer('habitos-dias', {});
 
-  const tarjeta = (sec, cifra, texto, acciones) => {
-    const s = SECCIONES[sec];
-    return `
-      <article class="tarjeta-hoy" style="--c-fuerte: ${colorFuerte(s.c)}; --c-suave: ${colorSuave(s.c)}">
-        <header>${icono(s.icono)}<h3>${s.titulo}</h3></header>
-        ${cifra ? `<p class="cifra-hoy">${cifra}</p>` : ''}
-        <p>${texto}</p>
-        <div class="acciones-hoy">${acciones}</div>
-      </article>`;
+  const estilo = sec => { const c = SECCIONES[sec].c; return `--c-fuerte: ${colorFuerte(c)}; --c-suave: ${colorSuave(c)}`; };
+  const cab = (sec, ir) => `<header>${icono(SECCIONES[sec].icono)}<h3>${SECCIONES[sec].titulo}</h3><button class="btn-texto" data-ir="${ir}">Abrir ${icono('der')}</button></header>`;
+  const macro = (nombre, hecho, meta) => {
+    const ok = hecho >= meta * 0.95;
+    return `<div class="r-macro ${ok ? 'ok' : ''}"><span>${nombre}</span><div class="progreso"><i style="width:${Math.min(100, (hecho / meta) * 100)}%"></i></div><small>${Math.round(hecho)}/${meta} g${ok ? ' ✓' : ''}</small></div>`;
   };
-  const ir = (sec, grupo, vista, nombre, principal = false) =>
-    `<button class="btn ${principal ? 'primario' : 'suave'} chico" data-ir="${sec}|${grupo || ''}|${vista || ''}">${nombre}</button>`;
 
   const saludo = (() => { const h = new Date().getHours(); return h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches'; })();
 
   cont.innerHTML = `
-    <p class="saludo-hoy">${saludo}. Esto es lo que tienes hoy.</p>
+    <p class="saludo-hoy">${saludo}. Esto es lo importante de hoy.</p>
+    <div id="aviso-foto"></div>
     ${sesionIniciada ? '' : `
       <div class="hoy-aviso">
         <p>Estás usando Lumen sin cuenta: tus datos se guardan en este navegador. Entra para tenerlos en todos tus dispositivos.</p>
         <button class="btn primario chico" data-entrar>Entrar</button>
       </div>`}
-    <div class="hoy-grid">
-      ${tarjeta('salud',
-        obj ? `${kcal.toLocaleString('es-ES')} <small>de ${obj.kcal.toLocaleString('es-ES')} kcal</small>` : '',
-        obj ? `Peso actual ${perfil.peso} kg${perfil.pesoObjetivo ? ` · objetivo ${perfil.pesoObjetivo} kg` : ''}.` : 'Completa tu perfil para calcular tus calorías y macros.',
-        (obj ? ir('salud', 'nutricion', 'hoy', 'Añadir comida', true) : ir('salud', 'perfil', 'datos', 'Completar perfil', true))
-          + ir('salud', 'gym', 'entrenar', 'Entreno') + ir('salud', 'running', 'registrar', 'Carrera'))}
-      ${tarjeta('estudios',
-        `${tareas.length} <small>${tareas.length === 1 ? 'tarea pendiente' : 'tareas pendientes'}</small>`,
-        tareas.length ? `${enCurso.length} en curso${vencenHoy.length ? ` · <b class="texto-error">${vencenHoy.length} para hoy o atrasadas</b>` : ''}.` : 'Sin tareas pendientes. Añade tus entregas y exámenes.',
-        ir('estudios', 'estudios', 'tablero', 'Ver tareas', true) + ir('estudios', 'estudios', 'notas', 'Notas'))}
-      ${tarjeta('personal',
-        hab.total ? `${hab.hechos} <small>de ${hab.total} hábitos hoy</small>` : '',
-        hab.total ? `${lista ? `${lista} ${lista === 1 ? 'cosa' : 'cosas'} en tu lista.` : 'Tu lista está al día.'}` : 'Crea tus hábitos y márcalos cada día en verde o rojo.',
-        ir('personal', 'personal', 'habitos', 'Marcar hábitos', true) + ir('personal', 'personal', 'lista', 'Lista'))}
-      ${tarjeta('imagen', '', 'Tu diario visual: fotos de progreso físico, comidas y momentos del día.', '<span class="pronto">Muy pronto</span>')}
+
+    <div class="resumen-grid">
+      <article class="tarjeta-hoy r-salud" style="${estilo('salud')}">
+        ${cab('salud', 'salud|nutricion|hoy')}
+        <h4 class="r-sub">Comida</h4>
+        ${obj ? `
+          <div class="r-kcal">
+            <p class="cifra-hoy">${Math.round(t.kcal).toLocaleString('es-ES')} <small>de ${obj.kcal.toLocaleString('es-ES')} kcal</small></p>
+            <div class="progreso grueso"><i style="width:${Math.min(100, (t.kcal / obj.kcal) * 100)}%"></i></div>
+            <small class="tenue">${t.kcal >= obj.kcal ? 'Calorías del día completadas' : `Te quedan ${Math.round(obj.kcal - t.kcal).toLocaleString('es-ES')} kcal`}</small>
+          </div>
+          <div class="r-macros">${macro('Proteína', t.p, obj.p)}${macro('Carbos', t.c, obj.c)}${macro('Grasas', t.g, obj.g)}</div>`
+          : `<p>Completa tu perfil para calcular tus calorías y macros.</p><button class="btn primario chico" data-ir="salud|perfil|datos">Completar perfil</button>`}
+        <h4 class="r-sub">Entreno de hoy</h4>
+        <ul class="r-lista">${entrenoDeHoy().map(l => `
+          <li class="${l.estado}" ${l.ir ? `data-ir="${l.ir}"` : ''}><i class="punto"></i><span>${l.texto}</span></li>`).join('')}</ul>
+      </article>
+
+      <article class="tarjeta-hoy r-estudios" style="${estilo('estudios')}">
+        ${cab('estudios', 'estudios|estudios|tablero')}
+        <h4 class="r-sub">Próximos 7 días</h4>
+        ${semana.length ? `<ul class="r-lista">${semana.slice(0, 7).map(x => `
+          <li class="${x.estado === 'curso' ? 'curso' : ''}"><i class="punto"></i><span>${escapar(x.titulo)}${x.area ? `<small>${escapar(x.area)}</small>` : ''}</span>${etiquetaFecha(x.fecha, x.estado)}</li>`).join('')}</ul>
+          ${semana.length > 7 ? `<small class="tenue">y ${semana.length - 7} más</small>` : ''}`
+          : '<p>Nada que entregar en los próximos 7 días.</p>'}
+      </article>
+
+      <article class="tarjeta-hoy r-personal" style="${estilo('personal')}">
+        ${cab('personal', 'personal|personal|lista')}
+        <h4 class="r-sub">Lo principal</h4>
+        ${lista.length ? `<ul class="r-check">${lista.slice(0, 6).map(x => `
+          <li><button class="caja-lista" data-hecho-lista="${x.id}" aria-label="Marcar como hecha">${icono('check')}</button><span>${escapar(x.texto)}</span></li>`).join('')}</ul>`
+          : '<p>Tu lista está al día.</p>'}
+        ${habitos.length ? `
+          <h4 class="r-sub">Hábitos de hoy</h4>
+          <div class="r-habitos">${habitos.map(h => {
+            const e = diasHab[h.id]?.[hoy] || '';
+            return `<button class="r-habito ${e}" data-habito-hoy="${h.id}">${e === 'si' ? icono('check') : e === 'no' ? icono('x') : ''}${escapar(h.nombre)}</button>`;
+          }).join('')}</div>` : ''}
+      </article>
+
+      <article class="tarjeta-hoy r-imagen" style="${estilo('imagen')}">
+        ${cab('imagen', 'imagen|imagen|progreso')}
+        <p id="r-imagen-texto">Tu foto de progreso es cada domingo por la mañana, en ayunas.</p>
+        <div class="acciones-hoy">
+          <button class="btn suave chico" data-ir="imagen|imagen|progreso">Progreso físico</button>
+          <button class="btn suave chico" data-ir="imagen|imagen|comidas">Comidas</button>
+          <button class="btn suave chico" data-ir="imagen|imagen|dia">Tu día</button>
+        </div>
+      </article>
     </div>`;
+
+  // Aviso de la foto de progreso (se comprueba aparte porque las fotos se leen del dispositivo)
+  avisoProgreso().then(estado => {
+    if (!estado || seccion !== 'hoy') return;
+    const caja = cont.querySelector('#aviso-foto');
+    if (!caja) return;
+    caja.innerHTML = `
+      <div class="aviso-foto">
+        ${icono('imagen')}
+        <p><b>${estado === 'hoy' ? 'Hoy toca tu foto de progreso.' : 'Te faltó la foto de progreso del domingo.'}</b> Por la mañana, en ayunas y antes de hacer ejercicio.</p>
+        <button class="btn primario chico" data-ir="imagen|imagen|progreso">Subir foto</button>
+      </div>`;
+    cont.querySelector('#r-imagen-texto').innerHTML = `<b class="texto-marca">${estado === 'hoy' ? 'Hoy toca foto de progreso.' : 'Te falta la foto del domingo.'}</b>`;
+  });
 
   cont.onclick = ev => {
     if (ev.target.closest('[data-entrar]')) return abrirLogin();
+    const hl = ev.target.closest('[data-hecho-lista]');
+    if (hl) {
+      guardar('lista', leer('lista', []).map(x => (x.id === hl.dataset.hechoLista ? { ...x, hecho: true } : x)));
+      return renderHoy(cont);
+    }
+    const hh = ev.target.closest('[data-habito-hoy]');
+    if (hh) {
+      const todos = leer('habitos-dias', {});
+      const actual = todos[hh.dataset.habitoHoy]?.[hoy] || '';
+      const siguiente = { '': 'si', si: 'no', no: '' }[actual];
+      todos[hh.dataset.habitoHoy] = { ...(todos[hh.dataset.habitoHoy] || {}), [hoy]: siguiente };
+      if (!siguiente) delete todos[hh.dataset.habitoHoy][hoy];
+      guardar('habitos-dias', todos);
+      return renderHoy(cont);
+    }
     const b = ev.target.closest('[data-ir]');
     if (!b) return;
     const [sec, grupo, vista] = b.dataset.ir.split('|');
@@ -188,19 +288,6 @@ function renderHoy(cont) {
     pintar();
     window.scrollTo(0, 0);
   };
-}
-
-// ---------- Imagen: aún en construcción ----------
-function renderProximamente(cont, sec) {
-  const s = SECCIONES[sec];
-  cont.innerHTML = `
-    <div class="proximamente" style="--c-fuerte: ${colorFuerte(s.c)}; --c-suave: ${colorSuave(s.c)}">
-      ${icono(s.icono)}
-      <h3>Tu diario visual</h3>
-      <p>Guarda fotos de tu progreso físico, tus comidas y tu día, y compara mes a mes con un antes y después.</p>
-      <ul><li>Fotos de progreso con fecha y peso</li><li>Antes y después automático cada mes</li><li>Fotos de comidas enlazadas con Nutrición</li></ul>
-      <span class="etiqueta pend">En construcción</span>
-    </div>`;
 }
 
 function renderPideEntrar(cont, texto) {

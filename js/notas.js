@@ -1,71 +1,64 @@
-// NOTAS: bloc de notas sencillo. Lo usan Estudios y trabajo y Personal (cada uno con su propia lista).
+// POST-ITS: recordatorios rápidos al lado de tus tareas.
+// Los usan Estudios y trabajo y Personal, cada uno con su propia lista.
+// Se escriben directamente encima y se guardan solos.
 import { leer, guardar, nuevoId, escapar } from './almacen.js';
 import { icono } from './iconos.js';
 
-const abiertaEn = {};   // qué nota está abierta en cada lista
+// Tonos de papel (familia de azules y un gris), uno por post-it
+const PAPELES = ['#E4EBFF', '#DDEBFB', '#E2F0FF', '#ECEEF2'];
 
-export function renderNotas(cont, clave) {
-  const notas = leer(clave, []).sort((a, b) => b.editada - a.editada);
-  const abierta = notas.find(n => n.id === abiertaEn[clave]);
+// Las notas antiguas (con título y texto) pasan a ser post-its
+function leerPostits(clave) {
+  return leer(clave, []).map((n, i) => ({
+    id: n.id, color: n.color ?? i % PAPELES.length, editada: n.editada || Date.now(),
+    texto: n.texto != null && n.titulo != null ? [n.titulo, n.texto].filter(Boolean).join('\n') : (n.texto || ''),
+  }));
+}
 
-  if (abierta) {
-    cont.innerHTML = `
-      <div class="nota-barra">
-        <button class="btn-texto" data-volver>${icono('izq')}Todas las notas</button>
-        <button class="btn-icono" data-borrar aria-label="Borrar nota">${icono('papelera')}</button>
-      </div>
-      <section class="panel nota-editor">
-        <input class="nota-titulo" placeholder="Título" value="${escapar(abierta.titulo)}" data-campo="titulo">
-        <textarea class="nota-texto" placeholder="Escribe aquí…" data-campo="texto">${escapar(abierta.texto)}</textarea>
-        <p class="tenue">Se guarda sola mientras escribes.</p>
-      </section>`;
-    const texto = cont.querySelector('.nota-texto');
-    texto.focus();
-    texto.setSelectionRange(texto.value.length, texto.value.length);
-
-    cont.oninput = ev => {
-      const campo = ev.target.dataset.campo;
-      if (!campo) return;
-      guardar(clave, leer(clave, []).map(n => (n.id === abierta.id ? { ...n, [campo]: ev.target.value, editada: Date.now() } : n)));
-    };
-    cont.onclick = ev => {
-      if (ev.target.closest('[data-volver]')) { abiertaEn[clave] = null; return renderNotas(cont, clave); }
-      if (ev.target.closest('[data-borrar]') && confirm('¿Borrar esta nota?')) {
-        guardar(clave, leer(clave, []).filter(n => n.id !== abierta.id));
-        abiertaEn[clave] = null;
-        renderNotas(cont, clave);
-      }
-    };
-    return;
-  }
-
-  cont.innerHTML = `
-    <div class="fila-botones">
-      <button class="btn primario" data-nueva>${icono('mas')}Nueva nota</button>
-      <input class="buscador" type="search" placeholder="Buscar en tus notas" data-buscar>
+export function renderPostits(el, clave) {
+  const postits = leerPostits(clave);
+  el.innerHTML = `
+    <div class="postits-cab">
+      <h3>Post-its</h3>
+      <button class="btn suave chico" data-nuevo>${icono('mas')}Nuevo</button>
     </div>
-    <div class="notas-grid">
-      ${notas.length ? notas.map(n => `
-        <button class="nota-tarjeta" data-abrir="${n.id}" data-busqueda="${escapar((n.titulo + ' ' + n.texto).toLowerCase())}">
-          <b>${escapar(n.titulo || 'Sin título')}</b>
-          <p>${escapar(n.texto.slice(0, 140)) || '<span class="tenue">Vacía</span>'}</p>
-          <small class="tenue">${new Date(n.editada).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</small>
-        </button>`).join('') : '<p class="tenue">Aún no tienes notas. Crea la primera.</p>'}
+    <div class="postits">
+      ${postits.map((n, i) => `
+        <div class="postit" data-id="${n.id}" style="--papel:${PAPELES[n.color % PAPELES.length]}; --giro:${[-1.6, 1.2, -0.6, 1.8][i % 4]}deg">
+          <textarea aria-label="Post-it" placeholder="Escribe un recordatorio…">${escapar(n.texto)}</textarea>
+          <div class="postit-acciones">
+            <button class="postit-btn" data-color aria-label="Cambiar color"><i></i></button>
+            <button class="postit-btn" data-quitar aria-label="Quitar post-it">${icono('x')}</button>
+          </div>
+        </div>`).join('') || '<p class="tenue postits-vacio">Pega aquí tus recordatorios: llamadas, ideas, cosas que no quieres olvidar.</p>'}
     </div>`;
 
-  cont.onclick = ev => {
-    if (ev.target.closest('[data-nueva]')) {
-      const n = { id: nuevoId(), titulo: '', texto: '', editada: Date.now() };
-      guardar(clave, [...leer(clave, []), n]);
-      abiertaEn[clave] = n.id;
-      return renderNotas(cont, clave);
-    }
-    const a = ev.target.closest('[data-abrir]');
-    if (a) { abiertaEn[clave] = a.dataset.abrir; renderNotas(cont, clave); }
+  const actualizar = (id, cambios) =>
+    guardar(clave, leerPostits(clave).map(n => (n.id === id ? { ...n, ...cambios, editada: Date.now() } : n)));
+
+  el.oninput = ev => {
+    const p = ev.target.closest('.postit');
+    if (p && ev.target.tagName === 'TEXTAREA') actualizar(p.dataset.id, { texto: ev.target.value });
   };
-  cont.oninput = ev => {
-    if (!ev.target.matches('[data-buscar]')) return;
-    const q = ev.target.value.trim().toLowerCase();
-    cont.querySelectorAll('.nota-tarjeta').forEach(t => { t.hidden = q && !t.dataset.busqueda.includes(q); });
+  el.onclick = ev => {
+    if (ev.target.closest('[data-nuevo]')) {
+      const lista = leerPostits(clave);
+      const nuevo = { id: nuevoId(), texto: '', color: lista.length % PAPELES.length, editada: Date.now() };
+      guardar(clave, [nuevo, ...lista]);
+      renderPostits(el, clave);
+      el.querySelector(`[data-id="${nuevo.id}"] textarea`)?.focus();
+      return;
+    }
+    const p = ev.target.closest('.postit');
+    if (!p) return;
+    if (ev.target.closest('[data-color]')) {
+      const n = leerPostits(clave).find(x => x.id === p.dataset.id);
+      actualizar(p.dataset.id, { color: (n.color + 1) % PAPELES.length });
+      return renderPostits(el, clave);
+    }
+    if (ev.target.closest('[data-quitar]')) {
+      guardar(clave, leerPostits(clave).filter(n => n.id !== p.dataset.id));
+      renderPostits(el, clave);
+    }
   };
 }

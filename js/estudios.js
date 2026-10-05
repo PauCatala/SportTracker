@@ -1,6 +1,6 @@
 // ESTUDIOS Y TRABAJO: tablero de tareas (Por hacer · En curso · Hecho) y notas.
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
-import { renderNotas } from './notas.js';
+import { renderPostits } from './notas.js';
 import { icono } from './iconos.js';
 import { fmtCorta, diasEntre } from './utils.js';
 
@@ -29,9 +29,11 @@ export function renderTablero(cont) {
   const areas = [...new Set(tareas.map(t => t.area).filter(Boolean))];
 
   cont.innerHTML = `
+    <div class="doble">
     <section class="panel">
+      <div class="panel-cab"><h3>Nueva tarea</h3></div>
       <form class="campos" id="t-form" autocomplete="off">
-        <label class="campo">Nueva tarea <input name="titulo" placeholder="Ej.: entregar práctica de Bioestadística" required></label>
+        <input name="titulo" placeholder="Ej.: entregar práctica de Bioestadística" aria-label="Tarea" required>
         <div class="campos-3">
           <label class="campo">Tipo
             <select name="tipo">${Object.entries(TIPOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
@@ -43,6 +45,8 @@ export function renderTablero(cont) {
         <button class="btn primario" type="submit">${icono('mas')}Añadir tarea</button>
       </form>
     </section>
+    <section class="panel" id="t-postits"></section>
+    </div>
 
     <div class="chips">
       ${[['todas', 'Todas'], ...Object.entries(TIPOS)].map(([k, v]) => `<button class="chip ${filtro === k ? 'activo' : ''}" data-filtro="${k}">${v}</button>`).join('')}
@@ -72,6 +76,8 @@ export function renderTablero(cont) {
         </section>`;
       }).join('')}
     </div>`;
+
+  renderPostits(cont.querySelector('#t-postits'), 'notas-estudios');
 
   const cambiar = (id, fn) => { guardar('tareas', leer('tareas', []).map(t => (t.id === id ? fn(t) : t))); renderTablero(cont); };
 
@@ -124,4 +130,11 @@ export function renderTablero(cont) {
   };
 }
 
-export const renderNotasEstudios = cont => renderNotas(cont, 'notas-estudios');
+// Tareas sin terminar que vencen en los próximos 7 días (o ya vencidas), por fecha
+export function tareasDeLaSemana() {
+  const limite = new Date(Date.now() + 7 * 864e5).toLocaleDateString('sv-SE');
+  return leer('tareas', [])
+    .filter(t => t.estado !== 'hecho' && t.fecha && t.fecha <= limite)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+export { etiquetaFecha };

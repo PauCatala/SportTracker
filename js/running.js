@@ -47,6 +47,56 @@ const semanaFechas = n => {
 };
 const carrerasEntre = (a, b) => state.carreras.filter(c => c.fecha >= a && c.fecha <= b);
 
+/* ======================= SEGUIMIENTO POR FASES =======================
+   Como un habit tracker: cada columna es una semana del plan, cada fila un entreno.
+   Verde = hecho · rojo = semana pasada sin hacer · azul = esta semana · gris = futuro. */
+function trackerRun(n) {
+  const estado = (w, slot) => {
+    const [a, b] = semanaFechas(w);
+    const hecho = carrerasEntre(a, b).some(c => slot.tipos.includes(c.tipo));
+    if (hecho) return 'si';
+    if (w < n) return 'no';
+    if (w === n) return 'actual';
+    return '';
+  };
+  const resumenFase = f => {
+    let total = 0, hechos = 0;
+    for (let w = f.desde; w <= Math.min(f.hasta, n); w++) {
+      SLOTS.forEach(s => { total++; if (estado(w, s) === 'si') hechos++; });
+    }
+    return { total, hechos, pct: total ? Math.round((hechos / total) * 100) : null };
+  };
+  return `
+    <section class="panel tracker-run">
+      <div class="tracker-scroll">
+        <div class="tracker-grid" style="--semanas:${SEMANAS_RUN}">
+          <span></span>
+          ${FASES_RUN.map(f => `<span class="tr-fase ${n >= f.desde && n <= f.hasta ? 'actual' : ''}" style="grid-column: span ${f.hasta - f.desde + 1}">Fase ${f.numero} · ${f.nombre}</span>`).join('')}
+          <span></span>
+          ${Array.from({ length: SEMANAS_RUN }, (_, i) => `<span class="tr-num ${i + 1 === n ? 'actual' : ''}">${i + 1}</span>`).join('')}
+          ${SLOTS.map(slot => `
+            <span class="tr-fila">${slot.titulo}</span>
+            ${Array.from({ length: SEMANAS_RUN }, (_, i) => {
+              const e = estado(i + 1, slot);
+              return `<i class="tr-celda ${e}" title="Semana ${i + 1} · ${slot.titulo}${e === 'si' ? ': hecho' : e === 'no' ? ': no hecho' : ''}"></i>`;
+            }).join('')}`).join('')}
+        </div>
+      </div>
+      <div class="tr-leyenda"><span><i class="tr-celda si"></i>Hecho</span><span><i class="tr-celda no"></i>No hecho</span><span><i class="tr-celda actual"></i>Esta semana</span><span><i class="tr-celda"></i>Pendiente</span></div>
+      <div class="tr-fases">
+        ${FASES_RUN.map(f => {
+          const r = resumenFase(f);
+          return `
+          <div class="tr-resumen ${n >= f.desde && n <= f.hasta ? 'actual' : ''}">
+            <div><b>Fase ${f.numero}</b><span>${f.nombre}</span></div>
+            <div class="progreso"><i style="width:${r.pct ?? 0}%"></i></div>
+            <small>${r.pct == null ? `Semanas ${f.desde}–${f.hasta}` : `${r.hechos} de ${r.total} entrenos · ${r.pct}%`}</small>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+}
+
 /* ============================== SEMANA ============================== */
 export function renderSemanaRun(cont) {
   const hoy = hoyISO();
@@ -118,23 +168,8 @@ export function renderSemanaRun(cont) {
       }).join('')}
     </div>
 
-    <div class="titulo-seccion"><h3>Las 27 semanas</h3><span class="tenue">Series, larga y easy</span></div>
-    <section class="panel mapa-semanas">
-      ${FASES_RUN.map(f => `
-        <div class="fase-fila">
-          <h4>Fase ${f.numero}: ${f.nombre}<span>semanas ${f.desde}–${f.hasta}</span></h4>
-          <div class="puntos-semanas">
-            ${Array.from({ length: f.hasta - f.desde + 1 }, (_, k) => {
-              const w = f.desde + k;
-              const [a, b] = semanaFechas(w);
-              const cs = carrerasEntre(a, b);
-              return `<span class="semana-pt ${w === n ? 'actual' : ''}" title="Semana ${w}">
-                ${SLOTS.map(s => `<i class="${cs.some(c => s.tipos.includes(c.tipo)) ? 'si' : ''}"></i>`).join('')}
-              </span>`;
-            }).join('')}
-          </div>
-        </div>`).join('')}
-    </section>`;
+    <div class="titulo-seccion"><h3>Tu seguimiento</h3><span class="tenue">27 semanas · 3 entrenos por semana</span></div>
+    ${trackerRun(n)}`;
 
   cont.onclick = ev => {
     const b = ev.target.closest('button');
