@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lumen · Sistema de diseño</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--fondo); color: var(--tinta);
+      font-family: var(--fuente); font-size: var(--t-cuerpo); line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 { margin: 0; font-stretch: var(--ancho-titulo); font-weight: var(--peso-titulo); letter-spacing: -0.03em; line-height: 1.02; }
+    p { margin: 0; }
+    .envoltura { max-width: 1080px; margin: 0 auto; padding: 0 var(--e-4); }
+
+    /* ---------- Portada con el momento interactivo ---------- */
+    .escena { height: 260vh; position: relative; }
+    .fijo {
+      position: sticky; top: 0; height: 100vh; display: grid;
+      grid-template-columns: 1fr auto; align-items: center; gap: var(--e-7);
+      max-width: 1080px; margin: 0 auto; padding: 0 var(--e-4);
+    }
+    .marca-nombre { font-size: var(--t-gigante); }
+    .lema { margin-top: var(--e-4); font-size: var(--t-subtitulo); color: var(--tinta-2); max-width: 22ch; line-height: 1.3; }
+    .pista { margin-top: var(--e-6); font-size: var(--t-pequeno); color: var(--tinta-3); }
+    .fases { margin-top: var(--e-5); display: flex; gap: var(--e-2); flex-wrap: wrap; }
+    .fase {
+      padding: 6px 14px; border-radius: var(--r-pildora); font-size: var(--t-pequeno); font-weight: var(--peso-medio);
+      background: var(--fondo-2); color: var(--tinta-3);
+      transition: background var(--medio) var(--curva), color var(--medio) var(--curva);
+    }
+    .fase.on[data-m="estudio"] { background: var(--estudio); color: var(--estudio-fuerte); }
+    .fase.on[data-m="nutricion"] { background: var(--nutricion); color: var(--nutricion-fuerte); }
+    .fase.on[data-m="deporte"] { background: var(--deporte); color: var(--deporte-fuerte); }
+    .fase.on[data-m="diario"] { background: var(--diario); color: var(--diario-fuerte); }
+
+    /* ---------- Móvil con la pantalla Hoy ---------- */
+    .movil {
+      width: 320px; height: 660px; border-radius: 52px; padding: 12px;
+      background: var(--tinta); box-shadow: 0 40px 80px -30px rgba(16, 6, 159, .45);
+    }
+    .pantalla {
+      height: 100%; border-radius: 41px; background: var(--fondo); overflow: hidden;
+      padding: 48px 20px 20px; display: flex; flex-direction: column; gap: var(--e-3);
+    }
+    .hoy-fecha { font-size: var(--t-pequeno); color: var(--tinta-3); }
+    .hoy-titulo { font-size: 30px; }
+    .disco { position: relative; width: 190px; height: 190px; margin: 0 auto; isolation: isolate; }
+    .disco svg, .disco-centro { position: relative; z-index: 1; }
+    .disco svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .disco .pista-arco { fill: none; stroke: var(--fondo-2); stroke-width: 14; }
+    .disco .arco { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke-dashoffset var(--medio) var(--curva); }
+    .disco-centro { position: absolute !important; inset: 0; display: grid; place-content: center; text-align: center; }
+    .disco-centro b { font-size: 44px; font-stretch: var(--ancho-titulo); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .disco-centro span { font-size: var(--t-pequeno); color: var(--tinta-2); }
+    .halo {
+      position: absolute; inset: 30px; border-radius: 50%; background: var(--luz);
+      filter: blur(34px); opacity: 0; transition: opacity var(--lento) var(--curva); z-index: 0;
+    }
+    .disco.lleno .halo { opacity: .7; }
+
+    .tareas { display: flex; flex-direction: column; gap: var(--e-2); }
+    .tarea {
+      display: flex; align-items: center; gap: var(--e-3); padding: 12px 14px; border: 0; width: 100%;
+      background: var(--fondo-2); border-radius: var(--r-medio); text-align: left; cursor: pointer;
+      font: inherit; color: inherit; font-size: 14px;
+    }
+    .tarea small { display: block; color: var(--tinta-3); font-size: 12px; }
+
+    /* ---------- El check que rebota ---------- */
+    .check {
+      flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+      border: 2px solid var(--linea); transition: background var(--rapido), border-color var(--rapido);
+    }
+    .check svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 3; fill: none; opacity: 0; transform: scale(.4); }
+    .hecho .check { background: var(--c, var(--marca)); border-color: var(--c, var(--marca)); animation: rebote var(--medio) var(--curva-rebote); }
+    .hecho .check svg { opacity: 1; transform: scale(1); transition: all var(--medio) var(--curva-rebote); }
+    .hecho .tarea-texto { color: var(--tinta-3); text-decoration: line-through; text-decoration-color: var(--tinta-3); }
+    @keyframes rebote { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+    /* ---------- Secciones del sistema ---------- */
+    .seccion { padding: var(--e-8) 0; border-top: 1px solid var(--linea); }
+    .seccion h2 { font-size: var(--t-titulo); margin-bottom: var(--e-2); }
+    .seccion > .envoltura > p { color: var(--tinta-2); max-width: 60ch; margin-bottom: var(--e-6); }
+
+    .paleta { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--e-4); }
+    .muestra { border-radius: var(--r-grande); overflow: hidden; background: var(--fondo-2); }
+    .muestra i { display: block; height: 96px; }
+    .muestra div { padding: var(--e-3) var(--e-4) var(--e-4); font-size: var(--t-pequeno); }
+    .muestra b { display: block; font-size: 14px; }
+    .muestra code { color: var(--tinta-3); font-size: 12px; }
+
+    .tipos { display: flex; flex-direction: column; gap: var(--e-5); }
+    .tipo { display: grid; grid-template-columns: 140px 1fr; gap: var(--e-4); align-items: baseline; }
+    .tipo small { color: var(--tinta-3); font-size: 12px; }
+
+    .piezas { display: flex; flex-wrap: wrap; gap: var(--e-3); align-items: center; }
+    .btn {
+      font: inherit; font-weight: var(--peso-medio); border: 0; cursor: pointer; min-height: 50px; padding: 0 var(--e-5);
+      border-radius: var(--r-medio); transition: transform var(--rapido) var(--curva), background var(--rapido);
+    }
+    .btn:active { transform: scale(.96); }
+    .btn-principal { background: var(--marca); color: #fff; }
+    .btn-principal:hover { background: var(--marca-hover); }
+    .btn-suave { background: var(--fondo-2); color: var(--tinta); }
+    .chip { padding: 8px 16px; border-radius: var(--r-pildora); font-size: 14px; font-weight: var(--peso-medio); }
+    .campo { min-height: 50px; padding: 0 var(--e-4); border-radius: var(--r-medio); border: 1px solid transparent; background: var(--fondo-2); font: inherit; color: inherit; width: 240px; }
+    .campo:focus, .btn:focus-visible, .tarea:focus-visible { outline: 3px solid var(--marca); outline-offset: 2px; }
+
+    footer { padding: var(--e-7) 0; color: var(--tinta-3); font-size: var(--t-pequeno); }
+
+    @media (max-width: 820px) {
+      .escena { height: auto; }
+      .fijo { position: static; height: auto; grid-template-columns: 1fr; padding-top: var(--e-8); padding-bottom: var(--e-7); justify-items: center; text-align: center; }
+      .lema { margin-inline: auto; }
+      .fases { justify-content: center; }
+      .pista { display: none; }
+      .movil { width: 300px; height: 620px; }
+      .tipo { grid-template-columns: 1fr; gap: var(--e-1); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Portada: al deslizar, el día se va llenando de luz -->
+  <section class="escena" id="escena">
+    <div class="fijo">
+      <div>
+        <h1 class="marca-nombre">Lumen</h1>
+        <p class="lema">Estudio, comida, entreno y recuerdos. Tu día entero, en un solo sitio.</p>
+        <div class="fases" id="fases">
+          <span class="fase" data-m="estudio">Estudio</span>
+          <span class="fase" data-m="nutricion">Nutrición</span>
+          <span class="fase" data-m="deporte">Deporte</span>
+          <span class="fase" data-m="diario">Diario</span>
+        </div>
+        <p class="pista">Desliza hacia abajo para completar el día, o toca las tareas del móvil.</p>
+      </div>
+
+      <div class="movil" aria-label="Vista previa de la pantalla Hoy">
+        <div class="pantalla">
+          <div>
+            <p class="hoy-fecha" id="hoy-fecha"></p>
+            <h2 class="hoy-titulo">Hoy</h2>
+          </div>
+          <div class="disco" id="disco">
+            <div class="halo"></div>
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <circle class="pista-arco" cx="100" cy="100" r="86"/>
+              <circle class="arco" data-m="estudio"   cx="100" cy="100" r="86" stroke="var(--estudio-fuerte)"/>
+              <circle class="arco" data-m="nutricion" cx="100" cy="100" r="86" stroke="var(--nutricion-fuerte)"/>
+              <circle class="arco" data-m="deporte"   cx="100" cy="100" r="86" stroke="var(--deporte-fuerte)"/>
+              <circle class="arco" data-m="diario"    cx="100" cy="100" r="86" stroke="var(--diario-fuerte)"/>
+            </svg>
+            <div class="disco-centro"><b id="porcentaje">0%</b><span>del día completado</span></div>
+          </div>
+          <div class="tareas" id="tareas">
+            <button class="tarea" data-m="estudio" style="--c: var(--estudio-fuerte)"><span class="check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="tarea-texto">Repasar Bioestadística<small>45 min · Estudio</small></span></button>
+            <button class="tarea" data-m="nutricion" style="--c: var(--nutricion-fuerte)"><span class="check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="tarea-texto">Comida: 42 g de proteína<small>Nutrición</small></span></button>
+            <button class="tarea" data-m="deporte" style="--c: var(--deporte-fuerte)"><span class="check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="tarea-texto">Pierna · Semana 3<small>6 ejercicios · Deporte</small></span></button>
+            <button class="tarea" data-m="diario" style="--c: var(--diario-fuerte)"><span class="check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="tarea-texto">Foto de progreso<small>Diario</small></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="envoltura">
+      <h2>Color</h2>
+      <p>Un azul eléctrico para todo lo que se pulsa, un amarillo de luz para lo completado y un tono suave por módulo. Todo se cambia en <code>css/tokens.css</code>.</p>
+      <div class="paleta" id="paleta"></div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="envoltura">
+      <h2>Tipografía</h2>
+      <p>Una sola familia, Archivo. Ancha y pesada en títulos y números, para el carácter juvenil; normal en el texto, para que se lea sin esfuerzo.</p>
+      <div class="tipos">
+        <div class="tipo"><small>Gigante · web</small><h1 style="font-size: clamp(40px, 7vw, 80px)">Lumen</h1></div>
+        <div class="tipo"><small>Título · 34 px</small><h2 style="font-size: var(--t-titulo)">Semana 3 de 12</h2></div>
+        <div class="tipo"><small>Subtítulo · 22 px</small><h3 style="font-size: var(--t-subtitulo)">Tu progreso de octubre</h3></div>
+        <div class="tipo"><small>Cuerpo · 16 px</small><p>Has entrenado tres días seguidos y te quedan dos temas para el examen del viernes.</p></div>
+        <div class="tipo"><small>Pequeño · 13 px</small><p style="font-size: var(--t-pequeno); color: var(--tinta-2)">Actualizado hace 2 minutos</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="envoltura">
+      <h2>Piezas</h2>
+      <p>Botones, etiquetas y campos. Todos responden al tocarlos: se encogen un poco al pulsar, como un botón físico.</p>
+      <div class="piezas">
+        <button class="btn btn-principal">Empezar entreno</button>
+        <button class="btn btn-suave">Ver plan</button>
+        <span class="chip" style="background: var(--estudio); color: var(--estudio-fuerte)">Estudio</span>
+        <span class="chip" style="background: var(--nutricion); color: var(--nutricion-fuerte)">Nutrición</span>
+        <span class="chip" style="background: var(--deporte); color: var(--deporte-fuerte)">Deporte</span>
+        <span class="chip" style="background: var(--diario); color: var(--diario-fuerte)">Diario</span>
+        <input class="campo" placeholder="Añadir tarea">
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="envoltura">Propuesta de sistema de diseño · Lumen · Página de trabajo, no pública.</div></footer>
+
+  <script>
+    // Fecha de hoy en la pantalla del móvil
+    document.getElementById('hoy-fecha').textContent =
+      new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Paleta generada desde tokens.css, así siempre muestra los valores reales
+    const colores = [
+      ['Marca', '--marca'], ['Luz', '--luz'], ['Estudio', '--estudio'], ['Nutrición', '--nutricion'],
+      ['Deporte', '--deporte'], ['Diario', '--diario'], ['Tinta', '--tinta'], ['Fondo 2', '--fondo-2'],
+    ];
+    const estilo = getComputedStyle(document.documentElement);
+    document.getElementById('paleta').innerHTML = colores.map(([nombre, v]) =>
+      `<div class="muestra"><i style="background: var(${v})"></i><div><b>${nombre}</b><code>${v} · ${estilo.getPropertyValue(v).trim()}</code></div></div>`
+    ).join('');
+
+    // El disco: cuatro arcos, uno por módulo, cada uno ocupa un cuarto
+    const modulos = ['estudio', 'nutricion', 'deporte', 'diario'];
+    const C = 2 * Math.PI * 86, cuarto = C / 4, hueco = 6;
+    const hechos = new Set();
+    document.querySelectorAll('.arco').forEach((arco, i) => {
+      arco.style.strokeDasharray = `0 ${C}`;
+      arco.style.transform = `rotate(${i * 90}deg)`;
+      arco.style.transformOrigin = '100px 100px';
+    });
+
+    function pintar() {
+      modulos.forEach(m => {
+        const arco = document.querySelector(`.arco[data-m="${m}"]`);
+        arco.style.strokeDasharray = hechos.has(m) ? `${cuarto - hueco} ${C}` : `0 ${C}`;
+        document.querySelector(`.tarea[data-m="${m}"]`).classList.toggle('hecho', hechos.has(m));
+        document.querySelector(`.fase[data-m="${m}"]`).classList.toggle('on', hechos.has(m));
+      });
+      document.getElementById('porcentaje').textContent = `${hechos.size * 25}%`;
+      document.getElementById('disco').classList.toggle('lleno', hechos.size === 4);
+    }
+
+    // Tocar una tarea la marca o desmarca
+    document.querySelectorAll('.tarea').forEach(t => t.addEventListener('click', () => {
+      const m = t.dataset.m;
+      hechos.has(m) ? hechos.delete(m) : hechos.add(m);
+      modoScroll = false;
+      pintar();
+    }));
+
+    // Al deslizar por la portada, el día se va completando solo
+    let modoScroll = true;
+    const escena = document.getElementById('escena');
+    addEventListener('scroll', () => {
+      if (!modoScroll || innerWidth <= 820) return;
+      const r = escena.getBoundingClientRect();
+      const avance = Math.min(1, Math.max(0, -r.top / (r.height - innerHeight)));
+      hechos.clear();
+      modulos.slice(0, Math.round(avance * 4)).forEach(m => hechos.add(m));
+      pintar();
+    }, { passive: true });
+    pintar();
+  </script>
+</body>
+</html>

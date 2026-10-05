@@ -1,0 +1,110 @@
+/* =====================================================================
+   LUMEN · Archivo de diseño central
+   ---------------------------------------------------------------------
+   Este es el ÚNICO sitio donde se decide el aspecto de la app y de la web.
+   Cambia un valor aquí y cambia en todas partes.
+
+   Cómo editarlo sin programar:
+   - Colores: cambia el código hexadecimal (#10069F). Puedes elegirlos en
+     https://htmlcolorcodes.com y pegar el código.
+   - Tamaños: px = píxeles. Más número, más grande.
+   - Si algo se rompe, en GitHub puedes volver a la versión anterior.
+   ===================================================================== */
+
+:root {
+  /* ---------- Marca ---------- */
+  --marca: #10069F;          /* Azul eléctrico (Pantone 072 C): botones, enlaces, foco */
+  --marca-hover: #2A1FD1;    /* Al pasar el ratón o pulsar */
+  --luz: #FFE45C;            /* "Lumen": el brillo de lo completado */
+
+  /* ---------- Módulos: cada uno tiene su tono ---------- */
+  --estudio: #CFCDF9;        /* Pervinca */
+  --nutricion: #C6F0D8;      /* Menta */
+  --deporte: #FFD0C2;        /* Melocotón */
+  --diario: #FFE7A8;         /* Mantequilla */
+  /* Versión intensa de cada tono, para iconos y texto sobre su color */
+  --estudio-fuerte: #3D33C9;
+  --nutricion-fuerte: #12805A;
+  --deporte-fuerte: #C2452D;
+  --diario-fuerte: #9A6A00;
+
+  /* ---------- Neutros ---------- */
+  --fondo: #FFFFFF;          /* Fondo principal */
+  --fondo-2: #F4F4F7;        /* Paneles y zonas agrupadas */
+  --linea: #E6E6EC;          /* Bordes finos */
+  --tinta: #14163A;          /* Texto principal (azul noche, no negro) */
+  --tinta-2: #5B5F7E;        /* Texto secundario */
+  --tinta-3: #9A9DB5;        /* Texto de apoyo, iconos apagados */
+
+  /* ---------- Estados ---------- */
+  --ok: #12805A;
+  --aviso: #9A6A00;
+  --error: #C2384A;
+
+  /* ---------- Tipografía (Archivo, con eje de anchura) ---------- */
+  --fuente: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ancho-titulo: 125%;      /* Títulos anchos: el toque juvenil. 100% = normal */
+  --ancho-texto: 100%;
+
+  --t-gigante: clamp(48px, 9vw, 112px);  /* Portada de la web */
+  --t-titulo: 34px;
+  --t-subtitulo: 22px;
+  --t-cuerpo: 16px;
+  --t-pequeno: 13px;
+
+  --peso-titulo: 800;
+  --peso-texto: 400;
+  --peso-medio: 600;
+
+  /* ---------- Forma ---------- */
+  --r-grande: 28px;          /* Tarjetas grandes y hojas */
+  --r-medio: 16px;           /* Botones y campos */
+  --r-pildora: 999px;        /* Chips y etiquetas */
+
+  /* ---------- Espaciado (escala de 4 en 4) ---------- */
+  --e-1: 4px;  --e-2: 8px;  --e-3: 12px; --e-4: 16px;
+  --e-5: 24px; --e-6: 32px; --e-7: 48px; --e-8: 72px;
+
+  /* ---------- Movimiento ---------- */
+  --rapido: 160ms;           /* Pulsar, marcar */
+  --medio: 320ms;            /* Abrir, cambiar de pantalla */
+  --lento: 700ms;            /* Solo en la web de presentación */
+  --curva: cubic-bezier(.2, .8, .2, 1);        /* Salida suave, estilo Apple */
+  --curva-rebote: cubic-bezier(.34, 1.56, .64, 1); /* Rebote del check */
+
+  color-scheme: light;
+}
+
+/* ---------- Modo oscuro (automático según el móvil) ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --marca: #8F87FF;
+    --marca-hover: #A9A3FF;
+    --fondo: #0E0F24;
+    --fondo-2: #181A36;
+    --linea: #2A2D4E;
+    --tinta: #F2F2F8;
+    --tinta-2: #B4B6CF;
+    --tinta-3: #7C7FA0;
+    --estudio: #2E2A6E;   --estudio-fuerte: #C9C5FF;
+    --nutricion: #173F2E; --nutricion-fuerte: #8FE3B5;
+    --deporte: #4A2318;   --deporte-fuerte: #FFB29C;
+    --diario: #43361A;    --diario-fuerte: #FFD872;
+    color-scheme: dark;
+  }
+}
+:root[data-tema="oscuro"] {
+  --marca: #8F87FF; --marca-hover: #A9A3FF;
+  --fondo: #0E0F24; --fondo-2: #181A36; --linea: #2A2D4E;
+  --tinta: #F2F2F8; --tinta-2: #B4B6CF; --tinta-3: #7C7FA0;
+  --estudio: #2E2A6E;   --estudio-fuerte: #C9C5FF;
+  --nutricion: #173F2E; --nutricion-fuerte: #8FE3B5;
+  --deporte: #4A2318;   --deporte-fuerte: #FFB29C;
+  --diario: #43361A;    --diario-fuerte: #FFD872;
+  color-scheme: dark;
+}
+
+/* Si el usuario tiene desactivadas las animaciones en su móvil, se respetan */
+@media (prefers-reduced-motion: reduce) {
+  :root { --rapido: 0ms; --medio: 0ms; --lento: 0ms; }
+}
