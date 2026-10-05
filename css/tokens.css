@@ -13,8 +13,10 @@
 
 :root {
   /* ---------- Marca ---------- */
-  --marca: #10069F;          /* Azul eléctrico (Pantone 072 C): botones, enlaces, foco */
-  --marca-hover: #2A1FD1;    /* Al pasar el ratón o pulsar */
+  --marca: #1F4FD1;          /* Azul tinta: botones, enlaces, agujas del reloj */
+  --marca-hover: #0C3084;    /* Azul profundo: al pulsar, sombras azules */
+  --marca-profundo: #0C3084; /* Azul profundo */
+  --acero: #B4B6BA;          /* Gris acero: caja del reloj, detalles metálicos */
   --luz: #FFE45C;            /* "Lumen": el brillo de lo completado */
 
   /* ---------- Módulos: cada uno tiene su tono ---------- */
@@ -29,10 +31,10 @@
   --diario-fuerte: #9A6A00;
 
   /* ---------- Neutros ---------- */
-  --fondo: #FFFFFF;          /* Fondo principal */
+  --fondo: #FAFAF8;          /* Blanco pared: fondo principal */
   --fondo-2: #F4F4F7;        /* Paneles y zonas agrupadas */
   --linea: #E6E6EC;          /* Bordes finos */
-  --tinta: #14163A;          /* Texto principal (azul noche, no negro) */
+  --tinta: #0E1A3F;          /* Texto principal (azul noche, no negro) */
   --tinta-2: #5B5F7E;        /* Texto secundario */
   --tinta-3: #9A9DB5;        /* Texto de apoyo, iconos apagados */
 

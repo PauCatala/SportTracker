@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es" data-tema="claro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lumen · Organiza tu día entero</title>
+  <meta name="description" content="Estudio, nutrición, entreno y diario visual en una sola app.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--fondo); color: var(--tinta);
+      font-family: var(--fuente); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+
+    /* =================================================================
+       ESCENA DEL RELOJ
+       Toda la animación depende de cuánto has deslizado (de 0 a 1).
+       Altura de la escena = cuánto dura la animación al deslizar.
+       ================================================================= */
+    .escena { height: 520vh; position: relative; }
+    .marco {
+      position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
+      display: grid; place-items: center; perspective: 1400px;
+    }
+
+    /* ---------- La pared de papel que se rasga ---------- */
+    .pared {
+      position: absolute; inset: 0; z-index: 5; pointer-events: none;
+      filter: drop-shadow(0 0 18px rgba(14, 26, 63, .16));
+    }
+    .mitad {
+      position: absolute; top: -2%; bottom: -2%; width: 52%;
+      background: var(--fondo);
+      /* Textura de papel muy sutil */
+      background-image:
+        radial-gradient(rgba(14, 26, 63, .025) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,.6), rgba(0,0,0,.015));
+      background-size: 3px 3px, 100% 100%;
+      will-change: transform;
+    }
+    .mitad.izq { left: 0; }
+    .mitad.der { right: 0; }
+
+    .intro {
+      position: absolute; z-index: 6; top: 14vh; left: 0; right: 0; text-align: center;
+      pointer-events: none; will-change: opacity, transform;
+    }
+    .intro h1 {
+      margin: 0; font-size: clamp(56px, 12vw, 148px); font-stretch: 125%; font-weight: 800;
+      letter-spacing: -0.04em; line-height: .9; color: var(--tinta);
+    }
+    .intro p { margin: 18px 0 0; color: var(--tinta-2); font-size: 15px; }
+    .baja {
+      position: absolute; z-index: 6; bottom: 6vh; left: 50%; transform: translateX(-50%);
+      width: 26px; height: 42px; border: 2px solid var(--acero); border-radius: 14px;
+    }
+    .baja::after {
+      content: ""; position: absolute; left: 50%; top: 8px; width: 4px; height: 8px; margin-left: -2px;
+      border-radius: 2px; background: var(--marca); animation: rueda 1.6s var(--curva) infinite;
+    }
+    @keyframes rueda { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(14px); } }
+
+    /* ---------- El reloj ---------- */
+    .reloj {
+      position: relative; width: min(64vmin, 440px); aspect-ratio: 1;
+      transform-style: preserve-3d; will-change: transform;
+    }
+    /* Brazalete: eslabones de acero arriba y abajo */
+    .brazalete {
+      position: absolute; left: 22%; right: 22%; height: 70%;
+      background:
+        repeating-linear-gradient(180deg, transparent 0 22%, rgba(0,0,0,.08) 22% 23%),
+        linear-gradient(90deg, #9EA1A7 0%, #D9DBDF 18%, #B4B6BA 32%, #EDEEF0 50%, #B4B6BA 68%, #D9DBDF 82%, #9EA1A7 100%);
+    }
+    .brazalete.arriba { bottom: 72%; border-radius: 10px 10px 0 0; -webkit-mask: linear-gradient(0deg, #000 60%, transparent); mask: linear-gradient(0deg, #000 60%, transparent); }
+    .brazalete.abajo { top: 72%; border-radius: 0 0 10px 10px; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
+
+    .caja {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(from 210deg, #8E9197, #E9EAEC, #A7AAB0, #F4F5F6, #9EA1A7, #DADCDF, #8E9197);
+      box-shadow: 0 50px 90px -40px rgba(12, 48, 132, .45), 0 20px 40px -20px rgba(14, 26, 63, .35);
+    }
+    .corona {
+      position: absolute; right: -4.5%; top: 50%; width: 7%; height: 13%; transform: translateY(-50%);
+      border-radius: 4px;
+      background: repeating-linear-gradient(180deg, #CFD1D4 0 2px, #8E9197 2px 4px);
+    }
+    .bisel {
+      position: absolute; inset: 6%; border-radius: 50%;
+      background: radial-gradient(circle, #F7F7F8 0 60%, #C9CBCF 62%, #EEF0F1 72%, #A7AAB0 100%);
+    }
+    .esfera {
+      position: absolute; inset: 11%; border-radius: 50%; background: #FDFDFB;
+      box-shadow: inset 0 6px 18px rgba(14, 26, 63, .12);
+    }
+    .esfera-marca {
+      position: absolute; top: 22%; left: 0; right: 0; text-align: center;
+      font-stretch: 125%; font-weight: 800; letter-spacing: -0.02em; color: var(--marca-profundo);
+      font-size: clamp(14px, 3.4vmin, 22px);
+    }
+    .esfera-sub { display: block; font-stretch: 100%; font-weight: 500; font-size: .5em; letter-spacing: .02em; color: var(--acero); margin-top: 2px; }
+    .fecha {
+      position: absolute; left: 50%; top: 64%; transform: translateX(-50%);
+      min-width: 13%; padding: 1.2% 2%; text-align: center; background: #fff;
+      border: 1px solid #D6D8DC; border-radius: 3px; font-weight: 700; color: var(--tinta);
+      font-size: clamp(11px, 2.6vmin, 17px); font-variant-numeric: tabular-nums;
+    }
+    .marcas { position: absolute; inset: 0; }
+    .marcas i {
+      position: absolute; left: 50%; top: 3%; width: 2px; height: 3%; margin-left: -1px;
+      background: #C9CBCF; transform-origin: 50% calc(47% / 0.03 * 1px);
+    }
+    .aguja {
+      position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%;
+      border-radius: 4px; background: var(--marca);
+    }
+    .aguja.hora { width: 2.6%; height: 26%; margin-left: -1.3%; }
+    .aguja.min { width: 1.8%; height: 38%; margin-left: -.9%; }
+    .aguja.seg { width: .7%; height: 42%; margin-left: -.35%; background: var(--marca-profundo); }
+    .aguja.seg::after { /* contrapeso */
+      content: ""; position: absolute; left: 50%; bottom: -16%; width: 260%; height: 16%;
+      transform: translateX(-50%); background: inherit; border-radius: 4px;
+    }
+    .eje {
+      position: absolute; left: 50%; top: 50%; width: 5%; height: 5%; transform: translate(-50%, -50%);
+      border-radius: 50%; background: var(--marca-profundo); box-shadow: 0 0 0 2px #fff;
+    }
+    .cristal {
+      position: absolute; inset: 11%; border-radius: 50%; pointer-events: none;
+      background: linear-gradient(135deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 38%, rgba(255,255,255,0) 70%, rgba(255,255,255,.18) 100%);
+    }
+
+    /* ---------- Las horas que vuelan a su sitio ---------- */
+    .horas { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+    .horas span {
+      position: absolute; left: 0; top: 0; will-change: transform;
+      font-stretch: 125%; font-weight: 800; color: var(--marca); line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Frase final ---------- */
+    .frase {
+      position: absolute; z-index: 6; left: 0; right: 0; bottom: 7vh; text-align: center;
+      opacity: 0; will-change: opacity, transform; pointer-events: none;
+    }
+    .frase p, .frase small { text-shadow: 0 0 14px var(--fondo), 0 0 28px var(--fondo); }
+    .frase p { margin: 0; font-size: clamp(18px, 2.6vw, 28px); font-stretch: 115%; font-weight: 700; letter-spacing: -0.02em; }
+    .frase small { display: block; margin-top: 8px; color: var(--tinta-2); font-size: 14px; }
+
+    /* ---------- Lo que viene después (provisional) ---------- */
+    .despues { padding: 18vh 16px; text-align: center; }
+    .despues h2 { margin: 0 auto; max-width: 16ch; font-size: clamp(36px, 6vw, 72px); font-stretch: 125%; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
+    .despues p { margin: 20px auto 32px; max-width: 46ch; color: var(--tinta-2); font-size: 18px; line-height: 1.5; }
+    .boton {
+      display: inline-flex; align-items: center; min-height: 54px; padding: 0 28px; border-radius: var(--r-pildora);
+      background: var(--marca); color: #fff; font-weight: 600; text-decoration: none;
+      transition: background var(--rapido), transform var(--rapido) var(--curva);
+    }
+    .boton:hover { background: var(--marca-profundo); }
+    .boton:active { transform: scale(.96); }
+    .boton:focus-visible { outline: 3px solid var(--marca); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+
+  <section class="escena" id="escena">
+    <div class="marco" id="marco">
+
+      <!-- Reloj (detrás de la pared) -->
+      <div class="reloj" id="reloj" aria-label="Reloj de Lumen">
+        <div class="brazalete arriba"></div>
+        <div class="brazalete abajo"></div>
+        <div class="caja"></div>
+        <div class="corona"></div>
+        <div class="bisel"></div>
+        <div class="esfera" id="esfera">
+          <div class="marcas" id="marcas"></div>
+          <div class="esfera-marca">Lumen<span class="esfera-sub">organiza tu tiempo</span></div>
+          <div class="fecha" id="fecha"></div>
+          <div class="aguja hora" id="a-hora"></div>
+          <div class="aguja min" id="a-min"></div>
+          <div class="aguja seg" id="a-seg"></div>
+          <div class="eje"></div>
+        </div>
+        <div class="cristal"></div>
+      </div>
+
+      <!-- Las 12 horas, desordenadas al principio -->
+      <div class="horas" id="horas" aria-hidden="true"></div>
+
+      <!-- Pared blanca que se rasga -->
+      <div class="pared" aria-hidden="true">
+        <div class="mitad izq" id="izq"></div>
+        <div class="mitad der" id="der"></div>
+      </div>
+
+      <div class="intro" id="intro">
+        <h1>Lumen</h1>
+        <p>Desliza para abrir</p>
+      </div>
+      <div class="baja" id="baja" aria-hidden="true"></div>
+
+      <div class="frase" id="frase">
+        <p>Time matters. And there's still time.</p>
+        <small>Estudio, comida, entreno y recuerdos, por fin en su sitio.</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="despues">
+    <h2>Tu día entero, en una sola app.</h2>
+    <p>Planifica tus estudios, tus comidas y tus entrenos, y guarda tu progreso en fotos. Todo conectado, todo en orden.</p>
+    <a class="boton" href="#">Apúntate a la lista de espera</a>
+  </section>
+
+  <script>
+    // -------------------------------------------------------------
+    // Utilidades
+    // -------------------------------------------------------------
+    const $ = id => document.getElementById(id);
+    const limitar = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+    // Progreso de un tramo: 0 antes de "desde", 1 después de "hasta"
+    const tramo = (p, desde, hasta) => limitar((p - desde) / (hasta - desde));
+    const suave = t => 1 - Math.pow(1 - t, 3);                       // salida suave
+    const suaveIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const sinMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // -------------------------------------------------------------
+    // Momentos de la escena (de 0 a 1 según lo deslizado)
+    // Cambia estos números para que cada parte dure más o menos.
+    // -------------------------------------------------------------
+    const MOMENTOS = {
+      rasgar:   [0.02, 0.30],  // la pared se abre
+      salir:    [0.05, 0.38],  // el reloj sale hacia ti
+      ordenar:  [0.30, 0.78],  // las horas vuelan a su sitio
+      arrancar: 0.80,          // el reloj se pone en marcha
+      frase:    [0.84, 0.96],  // aparece el texto
+    };
+
+    // -------------------------------------------------------------
+    // Bordes rasgados: cada mitad recibe un borde irregular
+    // -------------------------------------------------------------
+    function bordeRasgado(lado) {
+      const puntos = [];
+      const pasos = 46;
+      for (let i = 0; i <= pasos; i++) {
+        const y = (i / pasos) * 100;
+        // Más irregular en el centro, como un papel rasgado a mano
+        const amplitud = 1.2 + 2.6 * Math.sin((i / pasos) * Math.PI);
+        const x = 100 - (Math.random() * amplitud);
+        puntos.push(lado === 'izq' ? `${x}% ${y}%` : `${100 - x}% ${y}%`);
+      }
+      return lado === 'izq'
+        ? `polygon(0 0, ${puntos.join(', ')}, 0 100%)`
+        : `polygon(100% 0, 100% 100%, ${puntos.reverse().join(', ')})`;
+    }
+    $('izq').style.clipPath = bordeRasgado('izq');
+    $('der').style.clipPath = bordeRasgado('der');
+
+    // -------------------------------------------------------------
+    // Esfera: marcas de minutos y fecha de hoy
+    // -------------------------------------------------------------
+    for (let i = 0; i < 60; i++) {
+      const m = document.createElement('i');
+      const grande = i % 5 === 0;
+      m.style.cssText = `transform: rotate(${i * 6}deg); transform-origin: 50% ${grande ? 1567 : 1567}%;` +
+        (grande ? 'background: #A7AAB0; width: 3px; margin-left: -1.5px;' : '');
+      $('marcas').appendChild(m);
+    }
+    $('fecha').textContent = new Date().getDate();
+
+    // -------------------------------------------------------------
+    // Horas: posición desordenada inicial (por toda la pantalla)
+    // -------------------------------------------------------------
+    const horas = [];
+    for (let n = 1; n <= 12; n++) {
+      const s = document.createElement('span');
+      s.textContent = n;
+      $('horas').appendChild(s);
+      horas.push({
+        el: s, n,
+        // Desorden inicial, en % de la pantalla, con giro y tamaño propios
+        x: 0.08 + Math.random() * 0.84,
+        y: 0.12 + Math.random() * 0.76,
+        giro: (Math.random() - 0.5) * 120,
+        escala: 1.4 + Math.random() * 1.6,
+        retraso: Math.random() * 0.35,   // cada una sale en un momento distinto
+      });
+    }
+
+    // -------------------------------------------------------------
+    // Agujas: hora real, y segundero que arranca poco a poco
+    // -------------------------------------------------------------
+    let marcha = 0;          // 0 = parado, 1 = velocidad normal
+    let segundero = 0;       // ángulo acumulado del segundero
+    let ultimo = performance.now();
+
+    function agujas(ahora) {
+      const d = new Date();
+      const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds() + d.getMilliseconds() / 1000;
+      $('a-hora').style.transform = `rotate(${(h + m / 60) * 30}deg)`;
+      $('a-min').style.transform = `rotate(${(m + s / 60) * 6}deg)`;
+
+      // El segundero acelera hasta su ritmo real (6° por segundo)
+      const dt = (ahora - ultimo) / 1000; ultimo = ahora;
+      segundero += dt * 6 * marcha;
+      $('a-seg').style.transform = `rotate(${segundero}deg)`;
+    }
+
+    // -------------------------------------------------------------
+    // Pintar la escena según lo deslizado
+    // -------------------------------------------------------------
+    let objetivoMarcha = 0;
+
+    function escena(p) {
+      const W = innerWidth, H = innerHeight;
+
+      // 1. La pared se rasga y se abre hacia los lados
+      const r = suaveIO(tramo(p, ...MOMENTOS.rasgar));
+      const apertura = W < 700 ? 82 : 62;   // en móvil se abre más
+      $('izq').style.transform = `translateX(${-r * apertura}%) rotate(${-r * 2}deg)`;
+      $('der').style.transform = `translateX(${r * apertura}%) rotate(${r * 2}deg)`;
+      $('intro').style.opacity = 1 - tramo(p, 0, 0.1);
+      $('intro').style.transform = `translateY(${-tramo(p, 0, 0.1) * 30}px)`;
+      $('baja').style.opacity = 1 - tramo(p, 0, 0.04);
+
+      // 2. El reloj sale de la pared hacia ti, enderezándose
+      const s = suave(tramo(p, ...MOMENTOS.salir));
+      $('reloj').style.transform =
+        `translateZ(${-600 + s * 600}px) rotateX(${(1 - s) * 28}deg) rotateY(${(1 - s) * -18}deg) scale(${0.7 + s * 0.3})`;
+
+      // 3. Las horas vuelan desde el desorden hasta su sitio en la esfera
+      const esfera = $('esfera').getBoundingClientRect();
+      const cx = esfera.left + esfera.width / 2, cy = esfera.top + esfera.height / 2;
+      const radio = esfera.width * 0.385;
+      const tamanoFinal = esfera.width * 0.085;
+      const [o1, o2] = MOMENTOS.ordenar;
+
+      horas.forEach(h => {
+        const inicio = o1 + h.retraso * (o2 - o1) * 0.6;
+        const t = suaveIO(tramo(p, inicio, inicio + (o2 - o1) * 0.55));
+        const ang = (h.n * 30 - 90) * Math.PI / 180;
+        const fx = cx + Math.cos(ang) * radio, fy = cy + Math.sin(ang) * radio;
+        const ix = h.x * W, iy = h.y * H;
+        const x = ix + (fx - ix) * t, y = iy + (fy - iy) * t;
+        const escala = h.escala + (1 - h.escala) * t;
+        const giro = h.giro * (1 - t);
+        h.el.style.fontSize = `${tamanoFinal}px`;
+        h.el.style.transform =
+          `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${giro}deg) scale(${escala})`;
+        // Al principio están tapadas por la pared; aparecen al rasgarse
+        h.el.style.opacity = tramo(p, 0.12, 0.26);
+      });
+
+      // 4. El reloj arranca cuando todas las horas están en su sitio
+      objetivoMarcha = p >= MOMENTOS.arrancar ? 1 : 0;
+
+      // 5. La frase final
+      const f = suave(tramo(p, ...MOMENTOS.frase));
+      $('frase').style.opacity = f;
+      $('frase').style.transform = `translateY(${(1 - f) * 20}px)`;
+    }
+
+    function progreso() {
+      const e = $('escena').getBoundingClientRect();
+      return limitar(-e.top / (e.height - innerHeight));
+    }
+
+    // Bucle de animación: suave y sincronizado con la pantalla
+    function bucle(ahora) {
+      // El segundero gana velocidad poco a poco (y se frena si vuelves atrás)
+      marcha += (objetivoMarcha - marcha) * 0.02;
+      escena(sinMovimiento ? 1 : progreso());
+      agujas(ahora);
+      requestAnimationFrame(bucle);
+    }
+    if (sinMovimiento) objetivoMarcha = 1;
+    requestAnimationFrame(bucle);
+  </script>
+</body>
+</html>
