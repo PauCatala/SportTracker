@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v11';
+const CACHE = 'lumen-v12';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/tokens.css', './css/styles.css', './css/app.css', './css/pulido.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
@@ -36,7 +36,7 @@ self.addEventListener('fetch', ev => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.hostname.endsWith('supabase.co')) return;   // tus datos: siempre directo a Supabase
-  if (url.pathname.startsWith('/api/')) return;        // calendarios: siempre directo, sin copia
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/media/')) return;   // calendarios y vídeos: siempre directo, sin copia
 
   if (url.origin === location.origin) {
     // Archivos de la app: primero internet (para ver siempre la última versión), si falla, la copia

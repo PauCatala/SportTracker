@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="es" data-tema="claro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lumen · Organiza tu día entero</title>
+  <meta name="description" content="Estudio, nutrición, entreno y diario visual en una sola app.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/landing-escena.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--fondo); color: var(--tinta);
+      font-family: var(--fuente); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+
+    /* =================================================================
+       ESCENA DEL RELOJ
+       Toda la animación depende de cuánto has deslizado (de 0 a 1).
+       Altura de la escena = cuánto dura la animación al deslizar.
+       Los dibujos (pared, reloj, persona, portátil) están en css/landing-escena.css
+       ================================================================= */
+    .escena { height: 650vh; position: relative; }
+    .marco {
+      position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
+      display: grid; place-items: center; perspective: 1400px;
+    }
+
+    .intro {
+      position: absolute; z-index: 6; top: 14vh; left: 0; right: 0; text-align: center;
+      pointer-events: none; will-change: opacity, transform;
+    }
+    .intro h1 {
+      margin: 0; font-size: clamp(56px, 12vw, 148px); font-stretch: 125%; font-weight: 800;
+      letter-spacing: -0.04em; line-height: .9; color: var(--tinta);
+    }
+    .intro p { margin: 18px 0 0; color: var(--tinta-2); font-size: 15px; }
+    .baja {
+      position: absolute; z-index: 6; bottom: 6vh; left: 50%; transform: translateX(-50%);
+      width: 26px; height: 42px; border: 2px solid var(--acero); border-radius: 14px;
+    }
+    .baja::after {
+      content: ""; position: absolute; left: 50%; top: 8px; width: 4px; height: 8px; margin-left: -2px;
+      border-radius: 2px; background: var(--marca); animation: rueda 1.6s var(--curva) infinite;
+    }
+    @keyframes rueda { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(14px); } }
+
+    /* ---------- Frase: Today / Tomorrow tachado ---------- */
+    .frase {
+      position: absolute; z-index: 6; left: 0; right: 0; bottom: 7vh; text-align: center;
+      opacity: 0; will-change: opacity, transform; pointer-events: none;
+    }
+    .frase p { text-shadow: 0 0 14px var(--fondo), 0 0 28px var(--fondo); }
+    /* En pantallas anchas va a la izquierda, sobre el papel, para no tapar el reloj */
+    @media (min-width: 900px) {
+      .frase { left: 7vw; right: auto; bottom: auto; top: 50%; margin-top: -60px; text-align: left; }
+    }
+    .frase .hoy, .frase .manana {
+      margin: 0; font-stretch: 125%; font-weight: 800; letter-spacing: -0.035em; line-height: 1;
+      font-size: clamp(30px, 4.6vw, 54px);
+    }
+    .frase .manana { position: relative; display: inline-block; color: var(--tinta-3); margin-top: 6px; }
+    /* Tachón de tinta azul, como hecho a mano (se dibuja de izquierda a derecha) */
+    .frase .manana i {
+      position: absolute; left: -6%; right: -6%; top: 34%; height: .36em; clip-path: inset(0 100% 0 0);
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M3 13 C40 9 80 12 120 8 C150 5 175 9 197 6' fill='none' stroke='%232B4FB0' stroke-width='4.2' stroke-linecap='round'/%3E%3Cpath d='M10 15 C60 12 110 13 190 9' fill='none' stroke='%232B4FB0' stroke-width='1.6' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    }
+
+    .app-real { display: block; width: 100%; height: 100%; border: 0; border-radius: 12px; background: var(--fondo); }
+    .cara.frente .app-real { pointer-events: none; }
+    .app-web .app-real { border-radius: 0; }
+
+    /* Modo automático: la animación se reproduce sola, como un vídeo */
+    .controles-auto {
+      position: absolute; z-index: 12; right: 16px; bottom: 16px; display: none; gap: 8px;
+    }
+    .modo-auto .controles-auto { display: flex; }
+    .controles-auto button, .controles-auto a {
+      min-height: 40px; padding: 0 16px; border-radius: var(--r-pildora); border: 1px solid var(--linea);
+      background: rgba(255, 255, 255, .92); color: var(--tinta); font: inherit; font-size: 14px; font-weight: 600;
+      display: inline-flex; align-items: center; text-decoration: none; cursor: pointer;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .modo-auto .escena { height: 100vh; height: 100svh; }
+    .modo-auto .baja { display: none; }
+
+    /* La app a pantalla completa: la "web normal" del final */
+    .app-web {
+      position: absolute; inset: 0; z-index: 9; opacity: 0; pointer-events: none;
+      background: var(--fondo);
+    }
+
+    /* ---------- Lo que viene después (provisional) ---------- */
+    .despues { padding: 18vh 16px; text-align: center; }
+    .despues h2 { margin: 0 auto; max-width: 16ch; font-size: clamp(36px, 6vw, 72px); font-stretch: 125%; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
+    .despues p { margin: 20px auto 32px; max-width: 46ch; color: var(--tinta-2); font-size: 18px; line-height: 1.5; }
+    .boton {
+      display: inline-flex; align-items: center; min-height: 54px; padding: 0 28px; border-radius: var(--r-pildora);
+      background: var(--marca); color: #fff; font-weight: 600; text-decoration: none;
+      transition: background var(--rapido), transform var(--rapido) var(--curva);
+    }
+    .boton:hover { background: var(--marca-profundo); }
+    .boton:active { transform: scale(.96); }
+    .boton:focus-visible { outline: 3px solid var(--marca); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+
+  <section class="escena" id="escena">
+    <div class="marco" id="marco">
+
+      <!-- Hueco que queda detrás del papel y sombra que el reloj proyecta -->
+      <div class="hueco" id="hueco" aria-hidden="true"></div>
+      <div class="sombra-reloj" id="sombra-reloj" aria-hidden="true"></div>
+
+      <!-- Reloj (empieza detrás de la pared) -->
+      <div class="reloj" id="reloj" aria-label="Reloj de Lumen">
+        <div class="brazalete arriba"><i class="eslabon"></i><i class="eslabon centro"></i><i class="eslabon"></i></div>
+        <div class="brazalete abajo"><i class="eslabon"></i><i class="eslabon centro"></i><i class="eslabon"></i></div>
+        <div class="asa arriba"></div>
+        <div class="asa abajo"></div>
+        <div class="corona"></div>
+        <div class="caja"></div>
+        <div class="bisel"></div>
+        <div class="anillo"></div>
+        <div class="esfera" id="esfera">
+          <div class="marcas" id="marcas"></div>
+          <div class="esfera-marca">LUMEN<small>ORGANIZA TU TIEMPO</small></div>
+          <div class="fecha" id="ventana-fecha"><span id="fecha"></span></div>
+          <div class="lupa" id="lupa"></div>
+          <div class="horas" id="horas" aria-hidden="true"></div>
+
+          <!-- Sombras de las agujas (mismo dibujo, desplazado y desenfocado) -->
+          <div class="aguja hora sombra" id="s-hora"><svg viewBox="0 0 7 27"><g class="tinta">
+            <path d="M3.55 29.4 C3.5 20 3.62 11.6 3.42 4.9" fill="none" stroke-width="1.8"/>
+            <path d="M3.4 0 C2.6 2 1.6 3.9 .6 6 C1.8 5.4 2.7 5.2 3.45 5.3 C4.2 5.2 5.2 5.5 6.3 6.1 C5.2 4 4.3 2 3.4 0 Z" stroke-width=".3"/></g></svg></div>
+          <div class="aguja min sombra" id="s-min"><svg viewBox="0 0 5 38"><g class="tinta">
+            <path d="M2.5 41.4 C2.6 28 2.36 17.6 2.55 4.3" fill="none" stroke-width="1.15"/>
+            <path d="M2.55 0 C2 1.6 1.5 3 .9 4.7 C1.9 4.3 3.1 4.3 4.2 4.7 C3.6 3 3.1 1.6 2.55 0 Z" stroke-width=".25"/></g></svg></div>
+          <div class="aguja seg sombra" id="s-seg"><svg viewBox="0 0 3 44"><g class="tinta" stroke-width=".32">
+            <path d="M1.5 50.5 L1.5 1.5"/><circle cx="1.5" cy="48.4" r="1"/></g></svg></div>
+
+          <!-- Agujas de tinta. Dentro llevan escondido el perfil del portátil -->
+          <div class="aguja hora" id="a-hora">
+            <div class="perfil"></div>
+            <svg viewBox="0 0 7 27"><g class="tinta">
+              <path d="M3.55 29.4 C3.5 20 3.62 11.6 3.42 4.9" fill="none" stroke-width="1.8"/>
+              <path d="M3.4 0 C2.6 2 1.6 3.9 .6 6 C1.8 5.4 2.7 5.2 3.45 5.3 C4.2 5.2 5.2 5.5 6.3 6.1 C5.2 4 4.3 2 3.4 0 Z" stroke-width=".3"/></g></svg>
+          </div>
+          <div class="aguja min" id="a-min">
+            <div class="perfil"></div>
+            <svg viewBox="0 0 5 38"><g class="tinta">
+              <path d="M2.5 41.4 C2.6 28 2.36 17.6 2.55 4.3" fill="none" stroke-width="1.15"/>
+              <path d="M2.55 0 C2 1.6 1.5 3 .9 4.7 C1.9 4.3 3.1 4.3 4.2 4.7 C3.6 3 3.1 1.6 2.55 0 Z" stroke-width=".25"/></g></svg>
+          </div>
+          <div class="aguja seg" id="a-seg"><svg viewBox="0 0 3 44"><g class="tinta" stroke-width=".32">
+            <path d="M1.5 50.5 L1.5 1.5"/><circle cx="1.5" cy="48.4" r="1"/></g></svg></div>
+          <div class="eje" id="eje"></div>
+        </div>
+        <div class="cristal"></div>
+
+        <!-- Persona: sentada en un taburete, de perfil, escribiendo en el portátil -->
+        <div class="persona" id="persona" aria-hidden="true">
+          <svg viewBox="0 -10 75 125">
+            <defs>
+              <linearGradient id="p-piel" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#EFCBAE"/><stop offset=".55" stop-color="#E2B796"/><stop offset="1" stop-color="#C99673"/>
+              </linearGradient>
+              <linearGradient id="p-brazo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#EFCBAE"/><stop offset=".45" stop-color="#E2B796"/><stop offset="1" stop-color="#C99673"/>
+              </linearGradient>
+              <linearGradient id="p-camiseta" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#F7F5F0"/><stop offset="1" stop-color="#E3DED3"/>
+              </linearGradient>
+              <linearGradient id="p-vaquero" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#6B8AB3"/><stop offset=".4" stop-color="#4F6F9A"/><stop offset="1" stop-color="#3A5578"/>
+              </linearGradient>
+              <linearGradient id="p-pelo" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5A4232"/><stop offset=".6" stop-color="#3B2A20"/>
+              </linearGradient>
+              <linearGradient id="p-pantalla" gradientUnits="userSpaceOnUse" x1="35" y1="0" x2="45" y2="0">
+                <stop offset="0" stop-color="#DCE8F3" stop-opacity=".55"/><stop offset="1" stop-color="#DCE8F3" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="p-asiento" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#E6E1D7"/><stop offset="1" stop-color="#B9B4AA"/>
+              </linearGradient>
+              <radialGradient id="p-suelo">
+                <stop offset="0" stop-color="#1D2538" stop-opacity=".26"/><stop offset="1" stop-color="#1D2538" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+
+            <!-- Sombra en el suelo -->
+            <ellipse cx="40" cy="104" rx="31" ry="2.4" fill="url(#p-suelo)"/>
+
+            <!-- Taburete -->
+            <g stroke-linecap="round" fill="none">
+              <path d="M51.5 72.5 L50 102.8 M60 72.5 L61.4 102.8" stroke="#CDC9C0" stroke-width="1"/>
+              <path d="M48.6 72.5 L45 103.4 M63 72.5 L66.6 103.4" stroke="#9E9B93" stroke-width="1.15"/>
+              <path d="M46.9 89 L64.8 89" stroke="#9E9B93" stroke-width=".9"/>
+            </g>
+            <rect x="45" y="70.4" width="21.4" height="2.8" rx="1.3" fill="url(#p-asiento)"/>
+
+            <!-- Pierna de atrás -->
+            <g transform="translate(-2.4 -.9)">
+              <path d="M58.5 63.2 C52 62.6 34 62.4 23.6 62.4 C20.6 62.4 19.6 64.4 19.9 66.8 C20.3 76 20.6 86 20.8 96.6 L26 96.6 C26.2 88 26.4 78 26.6 69.6 C27 68.8 27.8 68.6 28.6 68.6 C38 69.4 48 70.2 56.4 70.9 C60.2 70.9 61 66 58.5 63.2 Z" fill="#3A5578"/>
+              <path d="M26.4 96.2 C26.9 98.2 27 100.4 26.6 101.9 L14.2 101.9 C12.9 101.9 12.4 100.8 13 99.9 C14.4 98.6 17.2 98 19.8 97.1 C20.4 96.8 20.8 96.4 21 96.2 Z" fill="#DAD6CD"/>
+            </g>
+
+            <!-- Brazo de atrás -->
+            <path d="M41.5 49.4 C35 48.2 28 46.4 22 45.2 L21.6 48 C28 49.4 35 51.4 40.8 53.2 Z" fill="#C99673"/>
+            <path d="M22.4 45.6 C19 45.6 15 46.2 12 47.4 C10.8 47.9 10.6 48.8 11.6 49 C14.6 49 18 48.6 21.8 48.2 Z" fill="#C99673"/>
+
+            <!-- Camiseta blanca -->
+            <path d="M42.6 27 C45.6 25.6 50.4 25.6 53.2 27.4 C56.6 29.8 57.6 35 57.8 41.4 C58 49 58.8 56.4 58.6 64 C54 64.4 49.6 64.6 45.4 64.4 C43.4 59.8 42 52.4 41 45 C40.2 38.6 40.4 31.6 42.6 27 Z" fill="url(#p-camiseta)"/>
+            <g fill="none" stroke="#E3DED3" stroke-linecap="round">
+              <path d="M56 30.5 C57.4 38 57.6 48 58.1 63" stroke-width="1.5" opacity=".8"/>
+              <path d="M44.8 58.4 C48 59.6 52 59.6 56.4 58.6" stroke-width=".6"/>
+              <path d="M45.6 61.6 C49 62.2 53 62.2 57.6 61.3" stroke-width=".5"/>
+              <path d="M42.4 40 C43.6 44 44.4 48 45 52" stroke-width=".5" opacity=".7"/>
+              <path d="M43.3 27.4 C45.4 28.9 47.4 29 49.6 28.1" stroke-width=".8"/>
+            </g>
+
+            <!-- Pierna de delante: vaquero con costura y pliegues -->
+            <path d="M58.5 63.2 C52 62.6 34 62.4 23.6 62.4 C20.6 62.4 19.6 64.4 19.9 66.8 C20.3 76 20.6 86 20.8 96.6 L26 96.6 C26.2 88 26.4 78 26.6 69.6 C27 68.8 27.8 68.6 28.6 68.6 C38 69.4 48 70.2 56.4 70.9 C60.2 70.9 61 66 58.5 63.2 Z" fill="url(#p-vaquero)"/>
+            <g fill="none" stroke-linecap="round">
+              <path d="M55 63.5 C44 63.1 34 63 24.2 63.2" stroke="#6B8AB3" stroke-width=".7" opacity=".8"/>
+              <path d="M57.4 66.9 C46 66.5 36 66.3 25.4 66.7 C23.6 67.3 23.2 70 23.4 74 L23.7 96" stroke="#3A5578" stroke-width=".35"/>
+              <path d="M57.4 67.5 C46 67.1 36 66.9 25.8 67.3 C24.3 67.9 24 70.5 24.1 74 L24.4 96" stroke="#C9A56E" stroke-width=".22" stroke-dasharray=".6 .5" opacity=".75"/>
+              <path d="M27 69.4 C28.4 70.6 28.9 72.2 28.6 74.2" stroke="#3A5578" stroke-width=".5"/>
+              <path d="M20.6 67.6 C21.4 66.2 22.6 65.6 24 65.6" stroke="#6B8AB3" stroke-width=".5"/>
+              <path d="M20.9 92.6 C22.6 93.4 24.4 93.2 26 92.5" stroke="#3A5578" stroke-width=".45"/>
+              <path d="M20.9 94.8 C22.8 95.6 24.6 95.4 26 94.8" stroke="#3A5578" stroke-width=".45"/>
+            </g>
+            <!-- Zapatilla blanca -->
+            <path d="M26.4 96.2 C26.9 98.2 27 100.4 26.6 101.9 L14.2 101.9 C12.9 101.9 12.4 100.8 13 99.9 C14.4 98.6 17.2 98 19.8 97.1 C20.4 96.8 20.8 96.4 21 96.2 Z" fill="#F5F3EE"/>
+            <path d="M12.7 101.1 L27 101.1 L27 102.9 C22 103.3 16 103.3 13.6 102.9 C12.8 102.7 12.5 101.8 12.7 101.1 Z" fill="#DAD6CD"/>
+            <g fill="none" stroke="#DAD6CD" stroke-linecap="round" stroke-width=".4">
+              <path d="M19.8 97.6 L22.2 99.1 M21.5 97 L23.7 98.6"/><path d="M13.6 100.2 C15 99.6 16.4 99.6 17.3 100.5"/>
+            </g>
+
+            <!-- Cuello y cabeza -->
+            <path d="M44.4 21.6 C46.8 21.8 49.6 21.6 51.8 20.6 L52.4 27.2 C49.6 28.4 46.4 28.4 44.2 27.4 Z" fill="#D7A887"/>
+            <g transform="translate(0 2)">
+              <path d="M46 3.6 C51.5 3.6 54.6 7.4 54.4 12.6 C54.2 16.2 53 18.8 52 21 L44.4 21.6 L43.6 22.4 C42 22.6 40.2 22.2 39.2 21.2 C38.6 20.4 38.6 19.4 38.4 18.6 C37.8 18.4 37.6 17.8 37.9 17.3 C37.5 16.9 37.4 16.6 37.6 16.3 C36.6 16.1 35.6 15.6 35.9 15 C36.5 14 37.3 13.2 37.7 12.4 C37.9 11.2 38 10 38.6 8.4 C40 5.2 42.8 3.6 46 3.6 Z" fill="url(#p-piel)"/>
+              <path d="M46 3.6 C51.5 3.6 54.6 7.4 54.4 12.6 C54.2 16.2 53 18.8 52 21 L44.4 21.6 L43.6 22.4 C42 22.6 40.2 22.2 39.2 21.2 C38.6 20.4 38.6 19.4 38.4 18.6 C37.8 18.4 37.6 17.8 37.9 17.3 C37.5 16.9 37.4 16.6 37.6 16.3 C36.6 16.1 35.6 15.6 35.9 15 C36.5 14 37.3 13.2 37.7 12.4 C37.9 11.2 38 10 38.6 8.4 C40 5.2 42.8 3.6 46 3.6 Z" fill="url(#p-pantalla)"/>
+              <!-- Sombra bajo la mandíbula y barba de pocos días -->
+              <path d="M52.2 16.6 C51 19.4 47.8 21.4 43.6 22.2 C46.8 22.8 50.4 21.8 52.4 20.2 Z" fill="#C99673" opacity=".6"/>
+              <path d="M38.7 18.4 C39.4 20.8 41.4 22.2 44 22.2 C47.4 22 50.2 20.4 51.6 17.4 C49.6 18.8 46.6 19.4 43.8 19 C42 18.8 40.6 18 39.4 16.8 Z" fill="#3B2A20" opacity=".09"/>
+              <path d="M37.9 16.6 C38.7 16.9 39.7 16.8 40.6 16.4" fill="none" stroke="#3B2A20" stroke-width=".8" opacity=".14" stroke-linecap="round"/>
+              <!-- Oreja -->
+              <ellipse cx="48.6" cy="13" rx="1.7" ry="2.6" fill="#D9A684"/>
+              <path d="M48.2 11.4 C49.2 11.8 49.4 13.6 48.6 14.6" fill="none" stroke="#C08A68" stroke-width=".4" stroke-linecap="round"/>
+              <!-- Ojo, ceja, nariz y boca -->
+              <path d="M39.4 11.9 C40 11.3 40.9 11.3 41.6 11.8" fill="none" stroke="#3B2A20" stroke-width=".45" stroke-linecap="round"/>
+              <ellipse cx="40.05" cy="12.15" rx=".42" ry=".5" fill="#2A1E17"/>
+              <path d="M38.9 10.2 C40 9.6 41.6 9.5 42.8 9.9" fill="none" stroke="#3B2A20" stroke-width=".7" stroke-linecap="round"/>
+              <path d="M37.6 12.6 C37 13.8 36.4 14.6 36.2 15.1" fill="none" stroke="#C99673" stroke-width=".35" stroke-linecap="round"/>
+              <path d="M38.1 17.7 C38.6 17.9 39.2 17.9 39.8 17.6" fill="none" stroke="#B57F62" stroke-width=".4" stroke-linecap="round"/>
+              <!-- Pelo corto ondulado, peinado hacia atrás -->
+              <path d="M38.8 8.4 C38.4 4.8 41.4 1.4 46.4 1.2 C52 1 55.6 4.4 55.2 10.2 C55 13.4 54 15.8 52.8 17.4 C52.4 15.6 51.6 14.6 50.4 14.4 C50.6 12.4 49.4 10.8 47.6 10.6 L47.1 15 C46.4 14 46.2 12 46.2 10.6 C44 9.6 41.4 9.4 38.8 8.4 Z" fill="url(#p-pelo)"/>
+              <g fill="none" stroke-linecap="round">
+                <path d="M40.2 7.4 C43 4.6 48 3.4 53 5.6" stroke="#5A4232" stroke-width=".5"/>
+                <path d="M41.8 8.6 C45 6.6 49.6 6.2 54.2 8.6" stroke="#5A4232" stroke-width=".4" opacity=".9"/>
+                <path d="M43.2 3.8 C46.6 2.4 50.6 2.6 53.8 4.8" stroke="#6E5442" stroke-width=".35"/>
+                <path d="M47.6 6.2 C50 6.8 52.2 8.4 53.4 11" stroke="#2C1F17" stroke-width=".4" opacity=".8"/>
+                <path d="M44.4 5.6 C45.6 6.4 46 7.4 45.8 8.6" stroke="#2C1F17" stroke-width=".35" opacity=".7"/>
+              </g>
+            </g>
+
+            <!-- Brazo de delante: manga, brazo y mano sobre el teclado -->
+            <path d="M45.4 39.6 C44.6 44 43 48.4 40.6 50.4 C35 48.8 28 46.8 21.8 46 L21.2 50 C27.6 51.2 34.4 53 39.6 55 C42.2 55.4 44.4 54.6 45.8 53 C48.4 49.6 51.4 45 53.2 40.2 Z" fill="url(#p-brazo)"/>
+            <g fill="none" stroke-linecap="round">
+              <path d="M38 50.1 C32 48.9 27 47.9 22.4 47.2" stroke="#EFCBAE" stroke-width=".6" opacity=".8"/>
+              <path d="M51 43.6 C49.8 46.8 48.2 49.6 46 51.8" stroke="#C99673" stroke-width=".45" opacity=".55"/>
+              <path d="M40.8 51.2 C41.6 52.2 42.6 52.8 43.6 53" stroke="#C99673" stroke-width=".4" opacity=".6"/>
+            </g>
+            <path d="M21.8 46.4 C19 46.2 16.4 46.6 14.4 47.2 C12.6 47.8 11.2 48.6 10.2 49.4 C9.6 49.9 9.9 50.4 10.6 50.2 L14.2 49.6 C16.6 49.8 19 50.2 21.4 50.2 Z" fill="url(#p-brazo)"/>
+            <g fill="none" stroke="#C99673" stroke-linecap="round" stroke-width=".3">
+              <path d="M13.4 48 L11.4 49.7 M15 47.8 L13.2 49.8"/><path d="M17.8 49.7 C16.2 50.2 15 50.4 14 50.2" stroke-width=".35"/>
+            </g>
+            <path d="M46 27.2 C50.6 26.6 54 28.4 54.6 32 C55 35 54.6 38 53.6 40.2 C51 41 47.6 41 45 40.2 C44 36.4 44.2 31 46 27.2 Z" fill="url(#p-camiseta)"/>
+            <g fill="none" stroke="#E3DED3" stroke-linecap="round">
+              <path d="M45.2 39.6 C48 40.6 51 40.6 53.6 39.8" stroke-width=".7"/>
+              <path d="M47.4 30 C48.6 32.6 49.2 35.4 49 38.2" stroke-width=".45" opacity=".8"/>
+              <path d="M53.6 30.4 C54.4 33 54.4 36 53.8 38.6" stroke-width=".9" opacity=".8"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Pared de papel que se agrieta y se rasga -->
+      <div class="pared" id="pared" aria-hidden="true"><svg id="pared-svg"></svg></div>
+
+      <div class="intro" id="intro">
+        <h1>Lumen</h1>
+        <p>Desliza para abrir · <a href="?auto" style="color: var(--marca); pointer-events: auto">verlo como vídeo</a></p>
+      </div>
+      <div class="baja" id="baja" aria-hidden="true"></div>
+
+      <div class="frase" id="frase">
+        <p class="hoy">Today.</p>
+        <p class="manana">Tomorrow.<i id="tachon"></i></p>
+      </div>
+
+      <!-- Portátil: sale de la aguja, gira hacia ti y se acerca hasta que su pantalla es la tuya -->
+      <div class="portatil" id="portatil" aria-hidden="true">
+        <div class="tapa" id="tapa">
+          <div class="cara dorso"><b>Lumen</b></div>
+          <div class="canto izq"></div><div class="canto der"></div>
+          <div class="cara frente">
+            <iframe class="app-real" src="index.html#hoy" title="Lumen en el portátil" tabindex="-1" loading="eager"></iframe>
+            <div class="reflejo-pantalla" id="reflejo"></div>
+          </div>
+        </div>
+        <div class="teclado" id="teclado">
+          <div class="sombra-base"></div>
+          <div class="altavoz izq"></div><div class="altavoz der"></div>
+          <div class="teclas" id="teclas"></div>
+          <div class="trackpad"></div>
+          <div class="muesca"></div>
+          <div class="canto izq"></div><div class="canto der"></div>
+          <div class="frente-base"></div>
+        </div>
+      </div>
+
+      <!-- Controles del modo automático -->
+      <div class="controles-auto" id="controles-auto">
+        <button id="btn-repetir">Repetir</button>
+        <a href="landing.html">Ver con scroll</a>
+      </div>
+
+      <!-- La app a pantalla completa (lo que queda al final) -->
+      <div class="app-web" id="app-web"><iframe class="app-real" src="index.html#hoy" title="Lumen"></iframe></div>
+    </div>
+  </section>
+
+  <script src="js/landing-pared.js"></script>
+  <script src="js/landing-reloj.js"></script>
+  <script>
+    // -------------------------------------------------------------
+    // Utilidades
+    // -------------------------------------------------------------
+    const $ = id => document.getElementById(id);
+    const limitar = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+    // Progreso de un tramo: 0 antes de "desde", 1 después de "hasta"
+    const tramo = (p, desde, hasta) => limitar((p - desde) / (hasta - desde));
+    const suave = t => 1 - Math.pow(1 - t, 3);                       // salida suave
+    const suaveIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    // Salida con un pequeño rebote al final (el reloj "se asienta")
+    const asentar = t => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+    const sinMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // -------------------------------------------------------------
+    // Momentos de la escena (de 0 a 1 según lo deslizado)
+    // Cambia estos números para que cada parte dure más o menos.
+    // -------------------------------------------------------------
+    const MOMENTOS = {
+      // Duración total ≈ 13,5 s en modo vídeo. Cada par es [empieza, termina] sobre 1.
+      // Las fases se solapan a propósito: así todo es un único movimiento continuo.
+      grietas:  [0.000, 0.060], // la pared se agrieta (gris)
+      rasgar:   [0.040, 0.160], // la pared se abre
+      salir:    [0.050, 0.200], // el reloj sale hacia ti
+      ordenar:  [0.120, 0.310], // las horas vuelan a su sitio
+      arrancar: 0.300,          // el reloj se pone en marcha
+      frase:    [0.290, 0.350], // aparece "Today. Tomorrow."
+      tachar:   [0.340, 0.400], // se tacha "Tomorrow"
+      adelantar:[0.390, 0.580], // las agujas corren hasta las 3:55 (≈2,6 s)
+      fraseFin: [0.450, 0.500], // la frase se va mientras el tiempo corre
+      portatil: [0.550, 0.620], // las agujas toman forma de portátil
+      persona:  [0.570, 0.640], // aparece la persona
+      girar:    [0.620, 0.800], // el portátil gira hacia ti
+      acercar:  [0.740, 0.920], // te acercas (empieza antes de terminar el giro)
+      fundir:   [0.900, 0.940], // se funde con la app real
+    };
+
+    // -------------------------------------------------------------
+    // Preparar las piezas: textura de papel, pared, esfera y teclado
+    // -------------------------------------------------------------
+    const grano = Pared.crearGrano();
+    document.documentElement.style.setProperty('--grano', `url(${grano})`);
+    Pared.montar($('pared-svg'), grano);
+    let anchoAntes = innerWidth, altoAntes = innerHeight;
+    addEventListener('resize', () => {
+      // La pared se vuelve a dibujar solo si cambia de verdad el tamaño
+      if (Math.abs(innerWidth - anchoAntes) > 40 || Math.abs(innerHeight - altoAntes) > 120) {
+        anchoAntes = innerWidth; altoAntes = innerHeight;
+        Pared.montar($('pared-svg'), grano);
+      }
+    });
+    Reloj.montarMarcas($('marcas'));
+    Reloj.montarTeclas($('teclas'));
+    const horas = Reloj.montarHoras($('horas'));
+    $('fecha').textContent = new Date().getDate();
+
+    // -------------------------------------------------------------
+    // Agujas: hora real, y segundero que arranca poco a poco
+    // -------------------------------------------------------------
+    let marcha = 0;          // 0 = parado, 1 = velocidad normal
+    let formaPortatil = 0;   // 0 = reloj normal, 1 = agujas en forma de portátil
+    let adelanto = 0;        // 0 = hora real, 1 = las 3:55
+    let fueraAgujas = 1;     // las agujas se van cuando el portátil 3D toma el relevo
+    // Gira por el camino más corto entre dos ángulos
+    function mezclarAngulo(a, b, t) {
+      const d = ((b - a) % 360 + 540) % 360 - 180;
+      return a + d * t;
+    }
+    let segundero = 0;       // ángulo acumulado del segundero
+    let ultimo = performance.now();
+    const tintas = ['a-hora', 'a-min'].map(id => $(id).querySelector('svg'));
+    const perfiles = ['a-hora', 'a-min'].map(id => $(id).querySelector('.perfil'));
+
+    function agujas(ahora) {
+      const d = new Date();
+      const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds() + d.getMilliseconds() / 1000;
+      // Minutos dentro de las 12 horas del reloj
+      const real = h * 60 + m + s / 60;
+      // Las agujas corren hacia delante hasta las 3:55 (235 min), como el tiempo pasando deprisa
+      let salto = ((235 - real) % 720 + 720) % 720;
+      if (salto < 180) salto += 720;               // que siempre den varias vueltas
+      const T = real + salto * adelanto;
+      const anguloHora = (T / 720) * 360, anguloMin = (T % 60) * 6;
+
+      // El segundero acelera hasta su ritmo real (6° por segundo)
+      const dt = (ahora - ultimo) / 1000; ultimo = ahora;
+      segundero += dt * 6 * marcha;
+
+      // k = 0: hora · k = 1: forma de portátil (teclado horizontal a la derecha, pantalla casi vertical)
+      const k = formaPortatil;
+      const giros = { hora: mezclarAngulo(anguloHora, 90, k), min: mezclarAngulo(anguloMin, -12, k), seg: segundero };
+      // Sombra de cada aguja: desplazada abajo a la derecha (la luz viene de arriba a la izquierda)
+      const D = $('esfera').offsetWidth, ox = D * .009, oy = D * .014;
+      for (const n of ['hora', 'min', 'seg']) {
+        $('a-' + n).style.transform = `rotate(${giros[n]}deg)`;
+        $('s-' + n).style.transform = `translate(${ox}px, ${oy}px) rotate(${giros[n]}deg)`;
+      }
+      // La tinta se desvanece y aparece el perfil de aluminio del portátil
+      tintas.forEach(t => { t.style.opacity = 1 - k; });
+      perfiles.forEach(p => { p.style.opacity = k; });
+      $('a-hora').style.opacity = $('a-min').style.opacity = fueraAgujas;
+      $('s-hora').style.opacity = $('s-min').style.opacity = fueraAgujas * (1 - k);
+      $('a-seg').style.opacity = $('s-seg').style.opacity = 1 - adelanto;
+      $('eje').style.opacity = 1 - k;
+      // La ventana de la fecha se aparta para que se lea bien el teclado
+      $('ventana-fecha').style.opacity = $('lupa').style.opacity = 1 - k;
+    }
+
+    // -------------------------------------------------------------
+    // Pintar la escena según lo deslizado
+    // -------------------------------------------------------------
+    let objetivoMarcha = 0;
+
+    function escena(p) {
+      const W = innerWidth, H = innerHeight;
+
+      // 0-1. La pared se agrieta y luego se rasga por la grieta principal
+      const gr = tramo(p, ...MOMENTOS.grietas);
+      const r = tramo(p, ...MOMENTOS.rasgar);
+      Pared.pintar(gr, r);
+      $('intro').style.opacity = 1 - tramo(p, 0, 0.06);
+      $('intro').style.transform = `translateY(${-tramo(p, 0, 0.06) * 30}px)`;
+      $('baja').style.opacity = 1 - tramo(p, 0, 0.04);
+
+      // Cámara: un acercamiento lento y continuo mientras el reloj está en pantalla
+      const camaraReloj = 1 + 0.08 * suaveIO(tramo(p, MOMENTOS.salir[1], MOMENTOS.girar[0]));
+
+      // 2. El reloj sale de la pared hacia ti, enderezándose y asentándose
+      const s0 = tramo(p, ...MOMENTOS.salir);
+      const s = asentar(s0);
+      $('reloj').style.transform =
+        `translateZ(${-520 + s * 520}px) rotateX(${(1 - s) * 26}deg) rotateY(${(1 - s) * -16}deg) scale(${(0.72 + s * 0.28) * camaraReloj})`;
+      // Los reflejos del metal se mueven mientras el reloj gira
+      $('reloj').style.setProperty('--luz', `${(1 - s) * 46}deg`);
+      // Primero está dentro del hueco; a mitad de camino ya ha cruzado la pared
+      const delante = s0 > 0.45;
+      $('reloj').style.zIndex = delante ? 7 : 2;
+      $('sombra-reloj').style.zIndex = delante ? 6 : 1;
+      // Su sombra: pegada y nítida cuando está al fondo; amplia y desplazada cuando sale
+      const sr = suave(s0);
+      $('sombra-reloj').style.transform =
+        `translate(${W * (.004 + .022 * sr)}px, ${H * (.008 + .04 * sr)}px) scale(${(0.5 + 0.62 * sr) * camaraReloj})`;
+      $('sombra-reloj').style.opacity = (0.55 - 0.2 * sr) * tramo(p, 0.04, 0.08);
+      // Profundidad de campo: la pared se desenfoca un poco cuando el reloj ya está delante
+      $('pared').style.filter = p > MOMENTOS.salir[1] - 0.04 ? `blur(${(1.6 * tramo(p, MOMENTOS.salir[1] - 0.04, MOMENTOS.salir[1] + 0.03)).toFixed(2)}px)` : 'none';
+
+      // 3. Las horas vuelan desde el montón desordenado hasta su sitio en la esfera
+      const D = $('esfera').offsetWidth;
+      const [o1, o2] = MOMENTOS.ordenar;
+      horas.forEach(h => {
+        const inicio = o1 + h.retraso * (o2 - o1) * 0.6;
+        const t = suaveIO(tramo(p, inicio, inicio + (o2 - o1) * 0.5));
+        const ang = (h.n * 30 - 90) * Math.PI / 180;
+        const fx = .5 + Math.cos(ang) * .385, fy = .5 + Math.sin(ang) * .385;
+        // Vuelo en arco: se levanta un poco a mitad de camino
+        const arco = Math.sin(t * Math.PI) * .07;
+        const x = (h.x + (fx - h.x) * t) * D;
+        const y = (h.y + (fy - h.y) * t - arco) * D;
+        const alto = h.tam * D;
+        const escala = (h.escala + (1 - h.escala) * t) * (1 + .22 * Math.sin(t * Math.PI));
+        const giro = h.giro + (h.giroFinal - h.giro) * t;
+        h.el.style.height = `${alto}px`;
+        h.el.style.width = `${alto * h.ancho / 18}px`;
+        h.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${giro}deg) scale(${escala})`;
+      });
+
+      // 4. El reloj arranca cuando todas las horas están en su sitio
+      objetivoMarcha = p >= MOMENTOS.arrancar ? 1 : 0;
+
+      // 5. "Today." aparece y "Tomorrow." se tacha; luego la frase se va
+      const f = suave(tramo(p, ...MOMENTOS.frase)) * (1 - tramo(p, ...MOMENTOS.fraseFin));
+      $('frase').style.opacity = f;
+      $('frase').style.transform = `translateY(${(1 - f) * 20}px)`;
+      $('tachon').style.clipPath = `inset(0 ${100 - 100 * suaveIO(tramo(p, ...MOMENTOS.tachar))}% 0 0)`;
+
+      // 6. Las agujas se convierten en un portátil y aparece la persona
+      adelanto = suaveIO(tramo(p, ...MOMENTOS.adelantar));
+      formaPortatil = suaveIO(tramo(p, ...MOMENTOS.portatil));
+      const pe = suave(tramo(p, ...MOMENTOS.persona));
+      $('persona').style.opacity = pe;
+      $('persona').style.transform = `translateX(${(1 - pe) * 4}%)`;
+
+      // 7. El portátil sale de la aguja y gira hacia ti; el reloj se difumina detrás
+      const g = suaveIO(tramo(p, ...MOMENTOS.girar));
+      const desvanecer = 1 - tramo(p, MOMENTOS.girar[0] + 0.02, MOMENTOS.girar[1]);
+      $('reloj').style.opacity = desvanecer;
+      const fueraPared = 1 - tramo(p, ...MOMENTOS.girar);
+      $('pared').style.opacity = fueraPared;
+      $('hueco').style.opacity = fueraPared;
+      $('sombra-reloj').style.opacity *= desvanecer;
+      $('reloj').style.filter = g > 0 ? `blur(${(g * 8).toFixed(2)}px)` : 'none';
+      if (g > 0) $('reloj').style.transform += ` scale(${1 - g * 0.12})`;
+
+      // El portátil nace de perfil justo encima de las agujas: de lado, un portátil abierto es una "L"
+      // (la pantalla = aguja de minutos, el teclado = aguja de horas). Luego gira hacia ti.
+      const esf = $('esfera').getBoundingClientRect();
+      const bx = esf.left + esf.width / 2, by = esf.top + esf.height / 2;   // bisagra = eje del reloj
+      const s0p = $('a-min').offsetHeight / 600;                             // tapa = largo de la aguja
+      const sFrente = Math.min(0.85, (W * 0.78) / 1010, (H * 0.6) / 640);
+      // En ordenador, la pantalla del portátil acaba exactamente del tamaño de la tuya (sin doble imagen al fundirse)
+      const cubrir = W >= 900 ? W / 936 : Math.max(W / 936, H / 576) * 1.03;
+
+      // 8. Te acercas hasta que la pantalla es la tuya
+      const z = suaveIO(tramo(p, ...MOMENTOS.acercar));
+      const sGiro = s0p + (sFrente - s0p) * g;
+      const escala = sGiro + (cubrir - sGiro) * z;
+
+      // Dónde está la bisagra en pantalla en cada momento
+      const hxFrente = W / 2, hyFrente = H / 2 + 300 * sFrente * 0.82;
+      const hyCubrir = W >= 900 ? 588 * cubrir : H / 2 + 288 * cubrir;   // borde superior de su pantalla = el de la tuya
+      const hxGiro = bx + (hxFrente - bx) * g, hyGiro = by + (hyFrente - by) * g;
+      const hx = hxGiro + (W / 2 - hxGiro) * z;
+      const hy = hyGiro + (hyCubrir - hyGiro) * z;
+
+      const giroY = 90 * (1 - g);                       // de perfil (90°) a de frente (0°)
+      const camara = -14 * suave(g) * (1 - z);          // mirando un poco desde arriba
+      const inclinacion = 12 * (1 - z);                 // la tapa reclinada, como la aguja
+
+      $('portatil').style.opacity =
+        tramo(g, 0, 0.12) * (1 - tramo(p, ...MOMENTOS.fundir));
+      $('portatil').style.transform =
+        `translate(${hx - W / 2}px, ${hy - (H / 2 + 300)}px) scale(${escala}) rotateX(${camara}deg) rotateY(${giroY}deg)`;
+      $('tapa').style.transform = `rotateX(${inclinacion}deg)`;
+      $('tapa').style.setProperty('--brillo', `${100 - g * 100}%`);   // el reflejo del aluminio se desliza al girar
+      $('teclado').style.opacity = 1 - tramo(z, 0, 0.45);
+      $('reflejo').style.opacity = 1 - tramo(z, 0.3, 0.9);
+
+      // Las agujas desaparecen mientras el portátil ocupa su lugar
+      fueraAgujas = 1 - tramo(g, 0.06, 0.3);
+
+      // 9. Fusión: la pantalla del portátil se convierte en la web a pantalla completa
+      const fu = tramo(p, ...MOMENTOS.fundir);
+      $('app-web').style.opacity = fu;
+      $('app-web').style.pointerEvents = fu > 0.99 ? 'auto' : 'none';   // ya puedes usar la app
+    }
+
+    // ?auto en la dirección = la animación se reproduce sola (dura DURACION milisegundos)
+    const AUTO = new URLSearchParams(location.search).has('auto');
+    const DURACION = 13500;
+    let inicioAuto = performance.now() + 400;   // pequeña pausa antes de empezar
+    if (AUTO) {
+      document.documentElement.classList.add('modo-auto');
+      document.querySelector('.intro p').textContent = '';
+      $('btn-repetir').onclick = () => { inicioAuto = performance.now() + 600; segundero = 0; };
+    }
+
+    function progreso() {
+      if (AUTO) return limitar((performance.now() - inicioAuto) / DURACION);
+      const e = $('escena').getBoundingClientRect();
+      return limitar(-e.top / (e.height - innerHeight));
+    }
+
+    // Bucle de animación: suave y sincronizado con la pantalla
+    function bucle(ahora) {
+      // El segundero gana velocidad poco a poco (y se frena si vuelves atrás)
+      marcha += (objetivoMarcha - marcha) * 0.02;
+      escena(sinMovimiento ? 1 : progreso());
+      agujas(ahora);
+      requestAnimationFrame(bucle);
+    }
+    // En ordenador, la app del portátil se dibuja al ancho de tu pantalla y se encoge:
+    // así, al fundirse, lo que ves en el portátil y la app final coinciden.
+    function ajustarPantallaPortatil() {
+      const f = document.querySelector('.cara.frente .app-real');
+      if (innerWidth >= 900) {
+        const k = 936 / innerWidth;
+        Object.assign(f.style, { width: `${innerWidth}px`, height: `${innerHeight}px`, transform: `scale(${k})`, transformOrigin: '0 0', borderRadius: `${12 / k}px` });
+      } else {
+        Object.assign(f.style, { width: '', height: '', transform: '', borderRadius: '' });
+      }
+    }
+    ajustarPantallaPortatil();
+    addEventListener('resize', ajustarPantallaPortatil);
+
+    if (sinMovimiento) objetivoMarcha = 1;
+    requestAnimationFrame(bucle);
+  </script>
+</body>
+</html>
