@@ -1,18 +1,18 @@
 // Estilo común de todas las gráficas (Chart.js) y utilidades para crearlas.
 
 export const C = {
-  // Mismos colores que css/tokens.css
-  electrico: '#1F4FD1',
-  electricoSuave: 'rgba(31, 79, 209, .12)',
-  pervinca: '#C9D7FF',
-  pervinca2: '#E4EBFF',
-  medio: '#5B7FE6',
-  acero: '#B4B6BA',
-  tinta: '#0E1A3F',
-  tinta2: '#5B6380',
-  tinta3: '#9A9FB3',
-  linea: '#E6E7EA',
-  ok: '#1E9E62',
+  // Mismos colores que css/tokens.css (paleta pastel mate)
+  electrico: '#2D3B5C',
+  electricoSuave: 'rgba(45, 59, 92, .10)',
+  pervinca: '#BBD3E8',
+  pervinca2: '#DCE8F3',
+  medio: '#8DB2D6',
+  acero: '#CDC9C0',
+  tinta: '#1D2538',
+  tinta2: '#5A6070',
+  tinta3: '#9A9A96',
+  linea: '#E3DED3',
+  ok: '#4E9576',
 };
 
 let configurado = false;
@@ -20,7 +20,7 @@ export function hayChart() {
   if (typeof Chart === 'undefined') return false;
   if (!configurado) {
     Chart.defaults.locale = 'es-ES';
-    Chart.defaults.font.family = "'Archivo', system-ui, sans-serif";
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif";
     Chart.defaults.font.size = 12;
     Chart.defaults.color = C.tinta3;
     Chart.defaults.borderColor = C.linea;

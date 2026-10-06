@@ -1,0 +1,335 @@
+/* =====================================================================
+   LUMEN · Escena animada de la portada (pared, reloj, persona, portátil)
+   Luz única: suave, desde arriba a la izquierda.
+   ===================================================================== */
+
+:root {
+  --tinta-reloj: #2B4FB0;     /* Tinta azul de los números y agujas */
+  --sombra-calida: 46, 40, 30; /* Color de las sombras sobre el papel (rgb) */
+}
+
+/* ---------- Hueco detrás de la pared (se ve al rasgarse) ---------- */
+.hueco {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 65% at 50% 46%, #E6E0D5 0%, #DCD5C8 60%, #D2CABB 100%);
+}
+
+/* ---------- Pared de papel (SVG en píxeles reales) ---------- */
+.pared { position: absolute; inset: 0; z-index: 5; pointer-events: none; will-change: opacity; }
+.pared svg { display: block; width: 100%; height: 100%; }
+
+/* ---------- Sombra que el reloj proyecta sobre la pared ---------- */
+.sombra-reloj {
+  position: absolute; z-index: 1; left: 50%; top: 50%;
+  width: min(64vmin, 440px); aspect-ratio: 1; margin: calc(min(64vmin, 440px) / -2) 0 0 calc(min(64vmin, 440px) / -2);
+  border-radius: 50%; pointer-events: none; will-change: transform, opacity;
+  background: radial-gradient(closest-side, rgba(var(--sombra-calida), .42) 0%, rgba(var(--sombra-calida), .30) 70%, rgba(var(--sombra-calida), .10) 88%, transparent 100%);
+}
+.sombra-reloj::before { /* el brazalete */
+  content: ""; position: absolute; left: 24%; right: 24%; top: -95%; bottom: -95%;
+  background: linear-gradient(90deg, transparent, rgba(var(--sombra-calida), .22) 18% 82%, transparent);
+  -webkit-mask: linear-gradient(180deg, transparent, #000 30% 70%, transparent);
+          mask: linear-gradient(180deg, transparent, #000 30% 70%, transparent);
+}
+
+/* =====================================================================
+   EL RELOJ
+   ===================================================================== */
+.reloj {
+  position: relative; z-index: 2; width: min(64vmin, 440px); aspect-ratio: 1;
+  will-change: transform; --luz: 0deg;   /* plano: las piezas se pintan en orden, sin cruces 3D */
+}
+
+/* ---------- Brazalete de tres eslabones (acero cepillado, cantos pulidos) ---------- */
+/* Se dobla hacia atrás con su propia perspectiva (eslabones más cortos cuanto más lejos) */
+.brazalete {
+  position: absolute; left: 26.5%; right: 26.5%; height: 80%;
+  display: flex; gap: 1.5px; background: #4A4F56;
+}
+.brazalete.arriba { bottom: 86%; transform-origin: 50% 100%; transform: perspective(520px) rotateX(34deg);
+  -webkit-mask: linear-gradient(0deg, #000 40%, transparent 97%); mask: linear-gradient(0deg, #000 40%, transparent 97%); }
+.brazalete.abajo { top: 86%; transform-origin: 50% 0; transform: perspective(520px) rotateX(-34deg);
+  -webkit-mask: linear-gradient(180deg, #000 40%, transparent 97%); mask: linear-gradient(180deg, #000 40%, transparent 97%); }
+.eslabon {
+  flex: 1.2;
+  background:
+    /* cada eslabón es un poco abombado: luz arriba, sombra en la junta */
+    linear-gradient(180deg, rgba(25,27,31,.55) 0, rgba(255,255,255,.7) 2%, rgba(255,255,255,.12) 10%, rgba(255,255,255,0) 45%, rgba(0,0,0,.10) 88%, rgba(0,0,0,.35) 99%) 0 0 / 100% 20%,
+    /* cepillado a lo largo del brazalete */
+    repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 1px, rgba(0,0,0,.035) 1px 2px, transparent 2px 3px),
+    linear-gradient(90deg, #6F747B 0%, #A9ADB3 7%, #D3D6DA 22%, #E4E6E9 45%, #CBCED2 70%, #9DA1A7 90%, #6F747B 100%);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.8), inset -1px 0 0 rgba(0,0,0,.25);
+}
+.eslabon.centro {
+  flex: .9;
+  background:
+    linear-gradient(180deg, rgba(25,27,31,.55) 0, rgba(255,255,255,.85) 2%, rgba(255,255,255,.15) 10%, rgba(255,255,255,0) 45%, rgba(0,0,0,.08) 88%, rgba(0,0,0,.3) 99%) 0 50% / 100% 20%,
+    repeating-linear-gradient(90deg, rgba(255,255,255,.1) 0 1px, rgba(0,0,0,.03) 1px 2px, transparent 2px 3px),
+    linear-gradient(90deg, #8E9399 0%, #D5D8DC 14%, #F3F4F5 45%, #DADDE0 75%, #8E9399 100%);
+  box-shadow: inset 1.5px 0 0 rgba(255,255,255,.95), inset -1.5px 0 0 rgba(0,0,0,.2), -1px 0 2px rgba(0,0,0,.25), 1px 0 2px rgba(0,0,0,.25);
+}
+/* Sombreado: el brazalete se curva y se aleja de la luz */
+.brazalete::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(0deg, rgba(0,0,0,.22) 0%, rgba(0,0,0,0) 10%, rgba(20,22,26,.06) 40%, rgba(20,22,26,.30) 100%);
+}
+.brazalete.abajo::after { background: linear-gradient(180deg, rgba(0,0,0,.30) 0%, rgba(0,0,0,0) 12%, rgba(20,22,26,.14) 40%, rgba(20,22,26,.40) 100%); }
+
+/* ---------- Asas (los "cuernos" de la caja) y pieza final del brazalete ---------- */
+.asa {
+  position: absolute; left: 20%; right: 20%; height: 19%;
+  background: linear-gradient(90deg, #6A6F76 0%, #C9CCD0 6%, #F4F5F6 11%, #A9ADB3 17%, #555A61 22%, #555A61 78%, #A9ADB3 83%, #F4F5F6 89%, #C9CCD0 94%, #6A6F76 100%);
+}
+.asa.arriba { top: -4.5%; border-radius: 22% 22% 0 0 / 55% 55% 0 0; }
+.asa.abajo { bottom: -4.5%; border-radius: 0 0 22% 22% / 0 0 55% 55%; }
+.asa::after {
+  content: ""; position: absolute; left: 16%; right: 16%; height: 78%;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,0) 30%),
+    linear-gradient(90deg, #7C8188, #CDD0D4 18%, #ECEEF0 50%, #C3C6CB 82%, #7C8188);
+}
+.asa.arriba::after { top: 0; }
+.asa.abajo::after { bottom: 0; transform: scaleY(-1); }
+
+/* ---------- Caja: canto exterior pulido ---------- */
+.caja {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    conic-gradient(from calc(190deg + var(--luz)), rgba(255,255,255,.0), rgba(255,255,255,.35) 12%, rgba(255,255,255,0) 25%, rgba(0,0,0,.12) 50%, rgba(255,255,255,.25) 70%, rgba(255,255,255,0) 85%),
+    linear-gradient(140deg, #ECEEF0 0%, #B4B8BD 38%, #7A7F86 70%, #5B6067 100%);
+  box-shadow: 0 0 0 1px rgba(30,32,36,.35), 0 18px 28px -12px rgba(var(--sombra-calida), .55), 0 4px 6px -2px rgba(var(--sombra-calida), .35);
+}
+/* Corona a las 3 */
+.corona {
+  position: absolute; right: -3.2%; top: 50%; width: 5.4%; height: 13.5%; transform: translateY(-50%);
+  border-radius: 2px 35% 35% 2px / 2px 18% 18% 2px;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,.32) 0 1px, rgba(255,255,255,.45) 1px 2px, transparent 2px 3.4px),
+    linear-gradient(180deg, #62676E 0%, #F4F5F6 28%, #C9CCD0 52%, #8E9399 78%, #555A61 100%);
+  box-shadow: 2px 3px 4px rgba(var(--sombra-calida), .35);
+}
+.corona::before { /* tubo */
+  content: ""; position: absolute; left: -38%; width: 42%; top: 22%; bottom: 22%;
+  background: linear-gradient(180deg, #7E838A, #ECEEF0 40%, #A3A7AD 80%);
+}
+
+/* ---------- Bisel liso, satinado y abombado (luz arriba a la izquierda) ---------- */
+.bisel {
+  position: absolute; inset: 3.2%; border-radius: 50%;
+  background:
+    radial-gradient(closest-side, transparent 0 83.6%, rgba(255,255,255,.95) 84.1%, rgba(255,255,255,0) 86%),
+    radial-gradient(closest-side, transparent 0 85%, rgba(255,255,255,.30) 91%, rgba(255,255,255,0) 96%, rgba(0,0,0,.28) 100%),
+    conic-gradient(from calc(200deg + var(--luz)), rgba(255,255,255,.35), rgba(0,0,0,.10) 18%, rgba(255,255,255,.45) 36%, rgba(0,0,0,.05) 52%, rgba(0,0,0,.22) 72%, rgba(255,255,255,.1) 88%, rgba(255,255,255,.35)),
+    linear-gradient(140deg, #FFFFFF 0%, #E6E8EB 18%, #B8BCC1 46%, #82878E 74%, #5F646B 100%);
+  box-shadow: 0 0 0 1px rgba(30,32,36,.3);
+}
+/* Anillo interior pulido y fino (bajo el bisel) */
+.anillo {
+  position: absolute; inset: 11%; border-radius: 50%;
+  background: linear-gradient(140deg, #8A8F95 0%, #F7F8F9 30%, #C3C7CC 55%, #FFFFFF 75%, #9DA1A7 100%);
+  box-shadow: inset 2px 3px 3px rgba(0,0,0,.35), 0 0 0 1px rgba(40,42,46,.45);
+}
+
+/* ---------- Esfera: laca blanca mate ---------- */
+.esfera {
+  position: absolute; inset: 13%; border-radius: 50%; container-type: size;
+  background: radial-gradient(circle at 38% 30%, #FFFFFF 0%, #FAF9F6 48%, #EFEDE7 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 2px 4px 9px rgba(var(--sombra-calida), .22);
+}
+.esfera::before { /* grano de la laca */
+  content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: .35;
+  background: var(--grano) 0 0 / 160px;
+}
+.marcas { position: absolute; inset: 0; }
+.marcas i { position: absolute; left: 50%; top: 2.2%; height: 47.8%; width: 0; transform-origin: 50% 100%; }
+.marcas i::before {
+  content: ""; position: absolute; top: 0; left: -.5px; width: 1px; height: 2.6%; background: #B5BDCB;
+}
+.marcas i.g::before { left: -.9px; width: 1.8px; height: 5%; background: #7F8DAD; border-radius: 1px; }
+
+.esfera-marca {
+  position: absolute; top: 24%; left: 0; right: 0; text-align: center;
+  font-family: var(--fuente-titulo); font-weight: 600; font-size: 4.3cqw; letter-spacing: .34em; text-indent: .34em;
+  color: #26314D;
+}
+.esfera-marca small { display: block; margin-top: 1.2cqw; font-size: .48em; font-weight: 500; letter-spacing: .3em; color: #8A93A6; }
+
+/* Ventana de la fecha (a las 3) con su cristal de aumento plano */
+.fecha {
+  position: absolute; left: 62.2%; top: 46.1%; width: 12%; height: 7.8%;
+  display: grid; place-items: center; background: #FFFFFF; border-radius: .5cqw;
+  box-shadow: inset 1px 1.6px 2px rgba(0,0,0,.38), 0 0 0 1px #A9AEB6, 0 0 0 2px #F2F3F5;
+  font-family: var(--fuente); font-weight: 600; font-size: 5.4cqw; color: #1D2538; font-variant-numeric: tabular-nums;
+}
+.fecha span { transform: scale(1.18); }   /* el cristal de encima lo aumenta un poco */
+.lupa {
+  position: absolute; left: 60.9%; top: 44.8%; width: 14.6%; height: 10.4%; border-radius: 1.3cqw; pointer-events: none;
+  background: linear-gradient(158deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.14) 28%, rgba(255,255,255,0) 52%, rgba(255,255,255,.2) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), inset -1px -1.5px 0 rgba(110,120,140,.28), 1px 2px 3px rgba(var(--sombra-calida), .2);
+}
+
+/* ---------- Números de tinta ---------- */
+.horas { position: absolute; inset: 0; pointer-events: none; }
+.cifra {
+  position: absolute; left: 0; top: 0; overflow: visible; will-change: transform;
+  fill: none; stroke: var(--tinta-reloj); stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ---------- Agujas dibujadas a mano ---------- */
+.aguja { position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%; }
+.aguja svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.aguja.hora { width: 7%; height: 27%; margin-left: -3.5%; }
+.aguja.min  { width: 5%; height: 38%; margin-left: -2.5%; }
+.aguja.seg  { width: 3%; height: 44%; margin-left: -1.5%; }
+.tinta { fill: var(--tinta-reloj); stroke: var(--tinta-reloj); stroke-linecap: round; }
+.seg .tinta { fill: none; stroke: #2D3B5C; }
+/* Sombras de las agujas: siempre hacia abajo a la derecha */
+.aguja.sombra svg { filter: blur(1.2px); }
+.aguja.sombra .tinta, .aguja.sombra .seg .tinta { fill: rgba(var(--sombra-calida), .32); stroke: rgba(var(--sombra-calida), .32); }
+.aguja.sombra.seg .tinta { fill: none; }
+.eje {
+  position: absolute; left: 50%; top: 50%; width: 4.6%; height: 4.6%; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #7E9BE0 0%, #2B4FB0 45%, #1C3274 100%);
+  box-shadow: 1px 2px 3px rgba(var(--sombra-calida), .35);
+}
+.eje::after { content: ""; position: absolute; inset: 34%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F4F5F7, #9EA3AA); }
+
+/* Perfil del portátil escondido en cada aguja (aparece al convertirse en "L") */
+.perfil { position: absolute; bottom: 0; opacity: 0; }
+/* Base: cuña de aluminio (gruesa en la bisagra, fina delante) */
+.hora .perfil {
+  left: 50%; width: 46%; height: 89%;
+  clip-path: polygon(0 0, 40% 0, 100% 95%, 100% 100%, 0 100%);
+  background: linear-gradient(90deg, #FFFFFF 0%, #C9CCD0 12%, #9A9EA4 50%, #5F646B 88%, #34383E 100%);
+}
+.hora .perfil::before { /* puertos */
+  content: ""; position: absolute; left: 22%; width: 30%; bottom: 12%; height: 6%; border-radius: 3px;
+  background: #2E3238; box-shadow: 0 -180% 0 #2E3238;
+}
+/* Tapa: aluminio por detrás y cristal negro delante, con la luz de la pantalla */
+.min .perfil {
+  left: 34%; width: 32%; height: 100%; border-radius: 4px 4px 1px 1px;
+  background: linear-gradient(90deg, #7D8288 0%, #E6E8EA 22%, #B0B4BA 50%, #1E2229 56%, #0E1015 100%);
+  box-shadow: 8px 0 18px -4px rgba(141, 178, 214, .9), 2px 0 0 rgba(187, 211, 232, .9);
+}
+
+/* ---------- Cristal de zafiro abombado ---------- */
+.cristal {
+  position: absolute; inset: 11%; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(120% 85% at 26% 6%, rgba(255,255,255,.42) 0%, rgba(255,255,255,.1) 40%, rgba(255,255,255,0) 54%),
+    linear-gradient(128deg, rgba(255,255,255,0) 60%, rgba(255,255,255,.22) 64.5%, rgba(255,255,255,0) 70%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55), inset 0 0 14px rgba(255,255,255,.3), inset -4px -6px 12px rgba(40,50,70,.08);
+}
+.cristal::before { /* arco de luz arriba a la izquierda */
+  content: ""; position: absolute; inset: 2.2%; border-radius: 50%;
+  box-shadow: inset 9px 12px 0 -6px rgba(255,255,255,.85);
+  -webkit-mask: linear-gradient(135deg, #000 20%, transparent 55%); mask: linear-gradient(135deg, #000 20%, transparent 55%);
+  filter: blur(1.4px);
+}
+.cristal::after { /* brillo puntual */
+  content: ""; position: absolute; left: 20%; top: 13%; width: 16%; height: 7%; border-radius: 50%;
+  transform: rotate(-38deg); background: radial-gradient(closest-side, rgba(255,255,255,.75), rgba(255,255,255,0));
+}
+
+/* =====================================================================
+   LA PERSONA (ilustración original, de perfil)
+   viewBox en % del reloj: la bisagra del portátil está en (0, 50)
+   ===================================================================== */
+.persona {
+  position: absolute; left: 50%; top: -10%; width: 75%; height: 125%;
+  opacity: 0; pointer-events: none; will-change: opacity, transform;
+}
+.persona svg { width: 100%; height: 100%; overflow: visible; }
+
+/* =====================================================================
+   EL PORTÁTIL 3D (aluminio anodizado, sin logotipos)
+   ===================================================================== */
+.portatil {
+  position: absolute; z-index: 8; left: 50%; top: 50%;
+  width: 960px; height: 600px; margin: -300px 0 0 -480px;
+  opacity: 0; pointer-events: none; transform-style: preserve-3d;
+  transform-origin: 480px 600px;   /* la bisagra: todo gira alrededor de ella */
+}
+.tapa { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 100%; --brillo: 0%; }
+.cara { position: absolute; inset: 0; border-radius: 22px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.cara.frente {
+  padding: 12px; background: #0B0D12; overflow: hidden;   /* 12px: lo usa el cálculo de la fusión (936 = 960 - 2·12) */
+  box-shadow: 0 0 0 2px #C3C6CB, 0 0 0 3px #8D9298, 0 70px 120px -50px rgba(29, 37, 56, .55);
+}
+.cara.frente::before { /* cámara */
+  content: ""; position: absolute; z-index: 1; top: 4px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: radial-gradient(circle at 40% 35%, #3B4660, #10131A 70%);
+}
+.reflejo-pantalla {
+  position: absolute; inset: 0; pointer-events: none; border-radius: 22px;
+  background: linear-gradient(118deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.03) 32%, rgba(255,255,255,0) 46%);
+}
+/* Dorso: aluminio con brillo que se desliza al girar */
+.cara.dorso {
+  transform: translateZ(-12px) rotateY(180deg); display: grid; place-items: center;
+  background:
+    linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.55) 45%, rgba(255,255,255,0) 60%) var(--brillo) 0 / 300% 100% no-repeat,
+    repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, #E4E6E8 0%, #D3D6D9 40%, #C2C5C9 100%);
+  box-shadow: inset 0 0 0 1.5px #A9ADB2, inset 0 0 0 4px rgba(255,255,255,.45);
+}
+.cara.dorso b {
+  font-family: var(--fuente-titulo); font-weight: 600; font-size: 28px; letter-spacing: .02em;
+  color: rgba(70, 76, 88, .16); text-shadow: 0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(0,0,0,.05);
+}
+/* Cantos de la tapa (se ven al girar) */
+.canto { position: absolute; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.tapa .canto { top: 10px; bottom: 0; width: 12px; background: linear-gradient(90deg, #15181E 0%, #2A2E36 30%, #B9BCC1 40%, #ECEEF0 70%, #A3A7AD 100%); border-radius: 6px; }
+.tapa .canto.izq { left: 0; transform-origin: 0 50%; transform: rotateY(90deg); }
+.tapa .canto.der { right: 0; transform-origin: 100% 50%; transform: rotateY(-90deg); }
+
+/* Base con teclado (tumbada delante de la pantalla) */
+.teclado {
+  position: absolute; left: 0; right: 0; top: 100%; height: 380px;
+  transform-origin: 50% 0; transform: rotateX(90deg); transform-style: preserve-3d;
+  border-radius: 0 0 24px 24px;
+  background: linear-gradient(180deg, #C8CBCF 0%, #E3E5E8 22%, #DDE0E3 70%, #D2D5D9 100%);
+  box-shadow: inset 0 0 0 1px #A9ADB2, inset 0 2px 0 rgba(255,255,255,.5);
+}
+.teclas {
+  position: absolute; left: 118px; right: 118px; top: 24px; height: 198px;
+  display: flex; flex-direction: column; gap: 5px; padding: 6px; border-radius: 9px;
+  background: #B9BCC1; box-shadow: inset 0 1px 2px rgba(0,0,0,.25);
+}
+.teclas .fila { display: flex; gap: 5px; min-height: 0; }
+.teclas b, .teclas .flechas b {
+  display: block; border-radius: 4px;
+  background: linear-gradient(180deg, #2C2E34, #17181C);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 0 rgba(255,255,255,.35);
+}
+.teclas .flechas { display: flex; gap: 5px; align-items: flex-end; }
+.teclas .flechas > b { flex: 1; height: 48%; }
+.teclas .flechas > span { flex: 1; display: flex; flex-direction: column; gap: 3px; height: 100%; }
+.teclas .flechas > span b { flex: 1; }
+.altavoz {
+  position: absolute; top: 26px; width: 74px; height: 194px; border-radius: 4px;
+  background: radial-gradient(circle, rgba(40,42,48,.5) 0 .8px, transparent 1.3px) 0 0 / 5px 5px;
+}
+.altavoz.izq { left: 26px; } .altavoz.der { right: 26px; }
+.trackpad {
+  position: absolute; left: 50%; top: 238px; width: 372px; height: 124px; margin-left: -186px; border-radius: 12px;
+  background: linear-gradient(180deg, #D1D4D8, #DCDFE2);
+  box-shadow: inset 0 0 0 1px #AEB2B7, inset 0 1px 3px rgba(0,0,0,.08), 0 1px 0 rgba(255,255,255,.6);
+}
+.muesca { position: absolute; left: 50%; bottom: 0; width: 120px; height: 7px; margin-left: -60px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, #B6BABF, #9EA2A8); }
+/* Cantos de la base: cuña (gruesa atrás, fina delante) con puertos */
+.teclado .canto { top: 0; height: 100%; width: 24px; clip-path: polygon(0 0, 100% 0, 42% 100%, 0 100%);
+  background: linear-gradient(90deg, #EEF0F2 0%, #C9CCD0 30%, #9CA0A6 100%); }
+.teclado .canto::before { content: ""; position: absolute; left: 6px; top: 40px; width: 6px; height: 22px; border-radius: 3px; background: #3A3E46; box-shadow: 0 34px 0 #3A3E46; }
+.teclado .canto.izq { left: 0; transform-origin: 0 50%; transform: rotateY(90deg); }
+.teclado .canto.der { right: 0; transform-origin: 100% 50%; transform: rotateY(-90deg); }
+.teclado .frente-base { position: absolute; left: 0; right: 0; top: 100%; height: 10px; transform-origin: 50% 0; transform: rotateX(-90deg);
+  background: linear-gradient(180deg, #E9EBED, #A9ADB3); border-radius: 0 0 6px 6px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+/* Sombra de contacto en el "suelo", bajo la base */
+.sombra-base {
+  position: absolute; left: -12%; right: -12%; top: -6%; bottom: -14%; transform: translateZ(-34px);
+  background: radial-gradient(closest-side, rgba(29,37,56,.30), rgba(29,37,56,.12) 60%, rgba(29,37,56,0));
+}

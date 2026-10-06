@@ -117,7 +117,7 @@ let turno = 0;
 // Pinta la sección y después añade las interacciones (intro, apariciones, píldoras, carruseles)
 function pintar() {
   const resultado = pintarVista();
-  indicador($('secciones'), true);
+  indicador($('secciones'));
   indicador($('subbloques'));
   indicador($('tabs'));
   const grupo = grupoActual();
@@ -146,6 +146,10 @@ function pintarVista() {
   const esSalud = seccion === 'salud';
   $('subbloques').classList.toggle('oculto', !esSalud);
   $('tabs').classList.add('oculto');
+  // El título y el lema entran con suavidad cada vez que cambias de sección
+  if ($('titulo-bloque').textContent !== sec.titulo) {
+    for (const el of [$('titulo-bloque'), $('lema')]) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+  }
   $('titulo-bloque').textContent = sec.titulo;
   $('lema').textContent = sec.lema || '';
 
@@ -509,7 +513,7 @@ window.addEventListener('navegar', ev => {
 
 // Al hacer scroll, la cabecera se compacta (como los títulos grandes de iOS)
 addEventListener('scroll', () => document.querySelector('.cabecera').classList.toggle('compacta', scrollY > 30), { passive: true });
-addEventListener('resize', () => { indicador($('secciones'), true); indicador($('subbloques')); indicador($('tabs')); });
+addEventListener('resize', () => { indicador($('secciones')); indicador($('subbloques')); indicador($('tabs')); });
 
 // ---------- Conexión ----------
 function pintarRed() {

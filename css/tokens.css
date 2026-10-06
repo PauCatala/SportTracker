@@ -12,46 +12,60 @@
    ===================================================================== */
 
 :root {
-  /* =========== PALETA: blanco, grises y azules =========== */
+  /* =========== PALETA: pastel mate =========== 
+     Cuatro protagonistas, todos mates y suaves:
+     hueso/crema (fondos), gris mate (detalles), azul cielo (acentos suaves) y azul marino (texto y botones). */
 
-  /* ---------- Azules ---------- */
-  --marca: #1F4FD1;          /* Azul fuerte: botones, enlaces, agujas, letras destacadas */
-  --marca-hover: #0C3084;    /* Azul profundo: al pulsar */
-  --marca-profundo: #0C3084; /* Azul profundo: títulos con peso, detalles oscuros */
-  --azul-medio: #5B7FE6;     /* Azul intermedio: gráficos, segundas series */
-  --azul-pastel: #E4EBFF;    /* Azul pastel: fondos de tarjetas activas, chips */
-  --azul-pastel-2: #C9D7FF;  /* Azul pastel más vivo: barras, rellenos */
-  --luz: #FFE45C;            /* "Lumen": el brillo del reloj al arrancar (solo en la web) */
+  /* ---------- Los cuatro colores base ---------- */
+  --hueso: #F4F0E8;          /* Blanco hueso-crema: fondo de toda la app */
+  --hueso-2: #ECE7DC;        /* Hueso más hondo: zonas agrupadas, pistas */
+  --crema: #FBF9F5;          /* Crema casi blanca: tarjetas */
+  --gris-mate: #CDC9C0;      /* Gris mate: bordes, iconos apagados, marcos */
+  --gris-mate-2: #9E9B93;    /* Gris mate oscuro: textos de apoyo */
+  --cielo: #BBD3E8;          /* Azul cielo pastel: acentos, rellenos */
+  --cielo-2: #DCE8F3;        /* Azul cielo muy suave: fondos activos, chips */
+  --cielo-3: #8DB2D6;        /* Azul cielo intenso (aún mate): gráficos */
+  --marino: #2D3B5C;         /* Azul marino mate: botones, títulos con peso */
+  --marino-2: #43567E;       /* Marino algo más claro: hover, segundas series */
 
-  /* ---------- Grises ---------- */
-  --acero: #B4B6BA;          /* Gris acero: reloj, grietas de la pared, marcos */
-  --gris-claro: #E6E7EA;     /* Bordes de cuadros y tarjetas */
-  --gris-medio: #8E9197;     /* Iconos apagados, detalles metálicos */
+  /* ---------- Nombres que usa la app (apuntan a la paleta) ---------- */
+  --marca: var(--marino);
+  --marca-hover: #1F2A44;
+  --marca-profundo: #1F2A44;
+  --azul-medio: var(--cielo-3);
+  --azul-pastel: var(--cielo-2);
+  --azul-pastel-2: var(--cielo);
+  --luz: #F3E3B5;            /* Brillo cálido del reloj (solo en la web) */
 
-  /* ---------- Secciones: todas en la familia de los azules ----------
-     (el nombre de cada variable es la sección; el valor, su tono) */
-  --estudio: #E4EBFF;        --estudio-fuerte: #1F4FD1;     /* Estudios y trabajo */
-  --nutricion: #DDEBFB;      --nutricion-fuerte: #1F6FC7;   /* Nutrición */
-  --deporte: #DFE4FA;        --deporte-fuerte: #2F3FB8;     /* Salud / deporte */
-  --diario: #ECEEF2;         --diario-fuerte: #4A5876;      /* Imagen (gris azulado) */
-  --personal: #E2F0FF;       --personal-fuerte: #0C5BA8;    /* Personal */
+  --acero: #C4C0B7;
+  --gris-claro: #E3DED3;
+  --gris-medio: var(--gris-mate-2);
+
+  /* ---------- Secciones (todas dentro de la paleta) ---------- */
+  --estudio: var(--cielo-2);   --estudio-fuerte: var(--marino);
+  --nutricion: #E4EDF2;        --nutricion-fuerte: #4F7392;
+  --deporte: #DDE6F0;          --deporte-fuerte: #3D5A86;
+  --diario: var(--hueso-2);    --diario-fuerte: #6B6860;
+  --personal: #E2EBF4;         --personal-fuerte: #34507A;
 
   /* ---------- Neutros ---------- */
-  --fondo: #FAFAF8;          /* Blanco pared: fondo principal */
-  --fondo-2: #F3F4F6;        /* Paneles y zonas agrupadas */
-  --linea: #E6E7EA;          /* Bordes finos */
-  --tinta: #0E1A3F;          /* Texto principal (azul noche, no negro) */
-  --tinta-2: #5B6380;        /* Texto secundario */
-  --tinta-3: #9A9FB3;        /* Texto de apoyo */
+  --fondo: var(--hueso);
+  --fondo-2: var(--hueso-2);
+  --superficie: var(--crema);
+  --linea: #E3DED3;
+  --tinta: #1D2538;          /* Texto principal: marino casi negro */
+  --tinta-2: #5A6070;        /* Texto secundario */
+  --tinta-3: #9A9A96;        /* Texto de apoyo */
 
-  /* ---------- Estados (verde y rojo solo para hábitos y avisos) ---------- */
-  --ok: #1E9E62;      --ok-suave: #DDF5E8;
-  --error: #D64545;   --error-suave: #FBE4E4;
-  --aviso: #9A6A00;
+  /* ---------- Estados (verde y rojo mates, solo hábitos y avisos) ---------- */
+  --ok: #4E9576;      --ok-suave: #E1EEE6;
+  --error: #C2615E;   --error-suave: #F5E3E0;
+  --aviso: #9A7A33;
 
-  /* ---------- Tipografía (Archivo, con eje de anchura) ---------- */
-  --fuente: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --ancho-titulo: 125%;      /* Títulos anchos: el toque juvenil. 100% = normal */
+  /* ---------- Tipografía: la del sistema (SF Pro en Apple) con Inter de respaldo ---------- */
+  --fuente: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --fuente-titulo: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --ancho-titulo: 100%;      /* Anchura normal, como apple.com */
   --ancho-texto: 100%;
 
   --t-gigante: clamp(48px, 9vw, 112px);  /* Portada de la web */
@@ -77,7 +91,8 @@
   --rapido: 160ms;           /* Pulsar, marcar */
   --medio: 320ms;            /* Abrir, cambiar de pantalla */
   --lento: 700ms;            /* Solo en la web de presentación */
-  --curva: cubic-bezier(.2, .8, .2, 1);            /* Salida suave, estilo Apple */
+  --curva: cubic-bezier(.25, .1, .25, 1);           /* La curva por defecto de Apple */
+  --curva-salida: cubic-bezier(.2, .8, .2, 1);            /* Salida suave, estilo Apple */
   --curva-rebote: cubic-bezier(.34, 1.56, .64, 1); /* Rebote del check */
 
   color-scheme: light;

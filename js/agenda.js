@@ -13,16 +13,16 @@ import { lunesDe, sumarDias } from './utils.js';
 
 // Tipos de evento y su color (dentro de la familia de azules, con algún matiz para distinguirlos)
 export const CATEGORIAS = {
-  clase:    { nombre: 'Clases',   color: '#1F4FD1' },
-  estudio:  { nombre: 'Estudio',  color: '#0C3084' },
-  trabajo:  { nombre: 'Trabajo',  color: '#4F6BD8' },
-  deporte:  { nombre: 'Deporte',  color: '#0A8BC4' },
-  hogar:    { nombre: 'Hogar',    color: '#7A8296' },
-  personal: { nombre: 'Personal', color: '#6E56CF' },
-  imagen:   { nombre: 'Imagen',   color: '#4A5876' },
+  clase:    { nombre: 'Clases',   color: '#2D3B5C' },
+  estudio:  { nombre: 'Estudio',  color: '#4F78A8' },
+  trabajo:  { nombre: 'Trabajo',  color: '#7D8DAE' },
+  deporte:  { nombre: 'Deporte',  color: '#6FA2CB' },
+  hogar:    { nombre: 'Hogar',    color: '#9E9B93' },
+  personal: { nombre: 'Personal', color: '#B39A78' },
+  imagen:   { nombre: 'Imagen',   color: '#6B7A88' },
 };
 // Colores a elegir para los calendarios importados
-export const COLORES_CAL = ['#1F4FD1', '#0A8BC4', '#6E56CF', '#0C3084', '#5B7FE6', '#7A8296', '#2F3FB8', '#3AA0E8'];
+export const COLORES_CAL = ['#2D3B5C', '#4F78A8', '#6FA2CB', '#8DB2D6', '#7D8DAE', '#B39A78', '#9E9B93', '#6B7A88'];
 
 export const AJUSTES_CAL = {
   gymHora: '18:00', gymMin: 75,
