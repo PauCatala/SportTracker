@@ -20,6 +20,8 @@ import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 import { revelar, indicador, abrirModal, carruseles, transicion } from './interaccion.js';
 import { introNutricion, introRunning, introGimnasio, introFlexibilidad } from './intros.js';
+import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportacion } from './calendario.js';
+import { activarPlan } from './agenda.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -72,6 +74,10 @@ const BLOQUES = {
 // Secciones principales. "c" es su color (de css/tokens.css).
 const SECCIONES = {
   hoy:      { titulo: 'Resumen', lema: 'Lo importante de hoy, de un vistazo.', icono: 'hoy', c: 'marca' },
+  calendario: {
+    titulo: 'Calendario', lema: 'Todo tu tiempo, en un solo sitio.', icono: 'calendario', c: 'marca',
+    vistas: [['mes', 'Calendario', renderCalendario]],
+  },
   salud:    { titulo: 'Salud', lema: 'Tu cuerpo, en orden.', icono: 'salud', c: 'deporte' },
   estudios: {
     titulo: 'Estudios y trabajo', lema: 'Cada entrega, a su tiempo.', corto: 'Estudios', icono: 'estudios', c: 'estudio',
@@ -335,6 +341,11 @@ function renderHoy(cont) {
       </div>`}
 
     <div class="resumen-grid">
+      <article class="tarjeta-hoy r-agenda" style="--c-fuerte: var(--marca); --c-suave: var(--azul-pastel)">
+        ${cab('calendario', 'calendario')}
+        <div class="ra-cuerpo" id="ra-cuerpo"></div>
+      </article>
+
       <article class="tarjeta-hoy r-salud" style="${estilo('salud')}">
         ${cab('salud', 'salud|nutricion|hoy')}
         <h4 class="r-sub">Comida</h4>
@@ -395,6 +406,9 @@ function renderHoy(cont) {
         </div>
       </article>
     </div>`;
+
+  // La agenda de los próximos 7 días (interactiva)
+  pintarAgendaResumen(cont.querySelector('#ra-cuerpo'));
 
   // Las tres ventanas de Imagen (las fotos se leen del dispositivo)
   pintarVentanasImagen(cont);
@@ -482,6 +496,8 @@ $('tabs').onclick = ev => {
   vistaDe[grupoActual()] = b.dataset.vista;
   transicion(() => pintar());
 };
+// Otras partes de la app pueden pedir ir a cualquier sitio: "sección|grupo|pestaña"
+window.addEventListener('ir-a', ev => irA(ev.detail));
 // Otras partes de la app pueden pedir ir a una pestaña: { bloque, vista }
 window.addEventListener('navegar', ev => {
   const d = typeof ev.detail === 'string' ? { bloque: 'gym', vista: ev.detail } : ev.detail;
@@ -539,6 +555,7 @@ function pintarCuenta() {
 
 async function entrar() {
   sesionIniciada = true;
+  avisarCuenta(true);
   cerrarLogin();
   pintarCuenta();
   pintar();
@@ -547,6 +564,8 @@ async function entrar() {
   await Promise.all([sincronizar(session.user.id), cargarTodo()]);
   await vaciarCola();
   datosCargados = true;
+  activarPlan(true);
+  actualizarExportacion();
   pintarRed();
   pintar();
 }

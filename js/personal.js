@@ -1,7 +1,7 @@
 // PERSONAL: hábitos (verde = hecho, rojo = no hecho), lista general de tareas y notas.
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
 import { icono } from './iconos.js';
-import { sumarDias, parseISO, lunesDe } from './utils.js';
+import { sumarDias, parseISO, lunesDe, fmtCorta } from './utils.js';
 import { grafica, ejeX, ejeY } from './graficos.js';
 
 // ============================== HÁBITOS ==============================
@@ -202,7 +202,7 @@ export function renderLista(cont) {
   const item = x => `
     <li class="item-lista ${x.hecho ? 'hecho' : ''}">
       <button class="caja-lista" data-marcar="${x.id}" aria-pressed="${x.hecho}" aria-label="${x.hecho ? 'Desmarcar' : 'Marcar como hecha'}">${icono('check')}</button>
-      <span>${escapar(x.texto)}</span>
+      <span>${escapar(x.texto)}${x.fecha ? ` <span class="fecha-tarea">${icono('calendario')}${fmtCorta(x.fecha)}${x.hora ? ` · ${x.hora}` : ''}</span>` : ''}</span>
       <button class="btn-icono" data-borrar="${x.id}" aria-label="Borrar">${icono('papelera')}</button>
     </li>`;
 
@@ -211,6 +211,7 @@ export function renderLista(cont) {
       <div class="panel-cab"><h3>Tu lista</h3><span class="tenue">${pendientes.length} por hacer</span></div>
       <form class="fila-anadir" id="l-form" autocomplete="off">
         <input name="texto" placeholder="Casa, compras, recados…" required>
+        <input name="fecha" type="date" aria-label="Día (opcional)" title="Día (opcional): aparecerá en tu calendario" class="fecha-lista">
         <button class="btn primario" type="submit">${icono('mas')}Añadir</button>
       </form>
       <ul class="lista-tareas">${pendientes.map(item).join('') || '<li class="tenue" style="padding:14px 0">Todo hecho. Buen trabajo.</li>'}</ul>
@@ -225,8 +226,9 @@ export function renderLista(cont) {
   form.onsubmit = ev => {
     ev.preventDefault();
     const texto = new FormData(form).get('texto').trim();
+    const fecha = new FormData(form).get('fecha') || null;
     if (!texto) return;
-    guardar('lista', [...leer('lista', []), { id: nuevoId(), texto, hecho: false }]);
+    guardar('lista', [...leer('lista', []), { id: nuevoId(), texto, hecho: false, fecha }]);
     renderLista(cont);
     cont.querySelector('#l-form input').focus();
   };

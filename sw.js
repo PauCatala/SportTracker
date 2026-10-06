@@ -1,14 +1,14 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v9';
+const CACHE = 'lumen-v10';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/tokens.css', './css/styles.css', './css/app.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
   './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
   './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
-  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/intros.js',
+  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/intros.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 
@@ -35,6 +35,7 @@ self.addEventListener('fetch', ev => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.hostname.endsWith('supabase.co')) return;   // tus datos: siempre directo a Supabase
+  if (url.pathname.startsWith('/api/')) return;        // calendarios: siempre directo, sin copia
 
   if (url.origin === location.origin) {
     // Archivos de la app: primero internet (para ver siempre la última versión), si falla, la copia
