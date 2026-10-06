@@ -19,7 +19,7 @@ import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.
 import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 import { revelar, indicador, abrirModal, carruseles, transicion } from './interaccion.js';
-import { introNutricion, introRunning } from './intros.js';
+import { introNutricion, introRunning, introGimnasio, introFlexibilidad } from './intros.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -102,6 +102,8 @@ const $ = id => document.getElementById(id);
 const INTROS = {
   nutricion: introNutricion,
   running: introRunning,
+  gym: introGimnasio,
+  flex: introFlexibilidad,
 };
 let ultimoGrupo = null;
 let turno = 0;

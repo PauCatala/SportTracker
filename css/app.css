@@ -787,3 +787,10 @@ body { background: #fff; }
 .mi-zapatilla .vista-zapa svg { width: 120px; }
 .mi-zapatilla > div:last-child { flex: 1 1 240px; display: grid; gap: 8px; }
 .mi-zapatilla .fila-botones { gap: 8px; }
+
+/* ---------- Gimnasio y Flexibilidad: figuras articuladas ---------- */
+.intro-figura { background: linear-gradient(180deg, #F5F7FC, #E4EBFF); }
+.intro-figura svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
+.intro-figura .impacto, .intro-figura .polvo { transform-box: fill-box; transform-origin: center; }
+.intro-figura .dedos { transition: opacity .15s; }
+.intro-flex { background: linear-gradient(180deg, #FFFFFF, #EEF2FB); }
