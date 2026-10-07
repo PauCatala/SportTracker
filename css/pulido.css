@@ -253,3 +253,8 @@ label.campo { font-size: 13px; font-weight: 500; color: var(--tinta-2); }
   .cabecera h1, .lema { animation: none; }
   .revela { opacity: 1; transform: none; }
 }
+
+/* Logo: bombilla con la mente encendida */
+.lateral-logo { display: flex; align-items: center; gap: 8px; }
+.logo-marca { width: 22px; height: auto; flex: none; }
+.logo-login { display: block; width: 56px; height: auto; margin: 0 0 12px; }
