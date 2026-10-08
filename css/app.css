@@ -739,17 +739,27 @@ body { background: #fff; }
   font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; backdrop-filter: blur(8px);
 }
 
-/* ---------- Running: vídeo de la zapatilla ---------- */
-.intro-run { background: #E9E4DB; }
+/* ---------- Running: vídeo de la zapatilla, a pantalla completa ---------- */
+.intro-anim.intro-run {
+  position: fixed; inset: 0; z-index: 30; height: auto; border-radius: 0; margin: 0;
+  background: linear-gradient(#C8C2B6, #D8CFC7); transition: opacity .75s cubic-bezier(.4, 0, .2, 1);
+}
+.intro-run.fundiendo { opacity: 0; pointer-events: none; }
+.con-intro-run { overflow: hidden; }
 .escena-run { position: absolute; inset: 0; }
-.run-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 52%; opacity: 0; transition: opacity .25s; }
-.run-video.visible { opacity: 1; }
-.run-colores { position: absolute; left: 14px; bottom: 14px; z-index: 5; display: flex; gap: 8px; padding: 6px; border-radius: var(--r-pildora); background: rgba(255, 255, 255, .7); backdrop-filter: blur(8px); }
-.run-color { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(29, 37, 56, .18); cursor: pointer; padding: 0; }
-.run-color.activo { box-shadow: 0 0 0 2px var(--marino); }
-.run-color[data-color="blanco"], .muestra.blanco { background: #F7F6F2; }
-.run-color[data-color="amarillo"], .muestra.amarillo { background: linear-gradient(160deg, #F7F6F2 30%, #D4E83E); }
-.run-color[data-color="rosa"], .muestra.rosa { background: linear-gradient(160deg, #C9B8E0 10%, #E8836B 60%, #F3C7A8); }
+.run-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 55%; }
+/* Móvil en vertical: la zapatilla entera, la tela se funde arriba y abajo con el color de fondo */
+@media (max-aspect-ratio: 1/1) {
+  .run-video {
+    inset: auto 0; top: 50%; height: auto; aspect-ratio: 16 / 9; transform: translate(5%, -50%) scale(1.42);
+    -webkit-mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+            mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+  }
+}
+.intro-run .intro-saltar { bottom: max(18px, env(safe-area-inset-bottom)); right: 18px; }
+.muestra.blanco { background: #F7F6F2; }
+.muestra.amarillo { background: linear-gradient(160deg, #F7F6F2 30%, #D4E83E); }
+.muestra.rosa { background: linear-gradient(160deg, #C9B8E0 10%, #E8836B 60%, #F3C7A8); }
 
 /* ---------- Tu zapatilla (ajuste en Running) ---------- */
 .mi-zapatilla { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
