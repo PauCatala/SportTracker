@@ -543,6 +543,21 @@ window.addEventListener('estado-red', pintarRed);
 function abrirLogin() {
   $('login').classList.remove('oculto');
   setTimeout(() => $('form-login').querySelector('input').focus(), 50);
+  rellenarGuardada();
+}
+// Si el navegador tiene guardados el email y la contraseña de Lumen, los rellena solos
+async function rellenarGuardada() {
+  if (!('PasswordCredential' in window) || $('login-email').value) return;
+  try {
+    const c = await navigator.credentials.get({ password: true, mediation: 'optional' });
+    if (c?.password) { $('login-email').value = c.id; $('login-password').value = c.password; }
+  } catch { /* el navegador no lo permite: se rellena a mano o con su propio autocompletado */ }
+}
+// Pide al navegador que guarde el email y la contraseña (Chrome, Edge, Android).
+// Safari y Firefox lo ofrecen solos al enviar el formulario gracias a los autocomplete.
+async function guardarCredenciales(email, password) {
+  if (!('PasswordCredential' in window)) return;
+  try { await navigator.credentials.store(new PasswordCredential({ id: email, password, name: email })); } catch { /* sin permiso: no pasa nada */ }
 }
 function cerrarLogin() { $('login').classList.add('oculto'); }
 $('btn-entrar').onclick = abrirLogin;
@@ -584,6 +599,7 @@ $('form-login').onsubmit = async ev => {
     email: datos.get('email'), password: datos.get('password'),
   });
   boton.disabled = false;
+  if (!error) guardarCredenciales(datos.get('email'), datos.get('password'));
   if (error) {
     $('login-error').textContent = /fetch|load failed/i.test(error.message)
       ? 'Sin conexión. Necesitas internet para iniciar sesión.'

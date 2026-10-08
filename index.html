@@ -81,9 +81,9 @@
         <h1 id="login-titulo">Lumen</h1>
         <p class="sub">Entra para guardar tus entrenos, tus estudios y tu progreso.</p>
       </div>
-      <form id="form-login" class="campos">
-        <label class="campo">Email <input type="email" name="email" autocomplete="username" required></label>
-        <label class="campo">Contraseña <input type="password" name="password" autocomplete="current-password" required></label>
+      <form id="form-login" class="campos" method="post" action="#" autocomplete="on">
+        <label class="campo">Email <input type="email" id="login-email" name="email" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+        <label class="campo">Contraseña <input type="password" id="login-password" name="password" autocomplete="current-password" required></label>
         <button class="btn primario ancho" type="submit">Entrar</button>
         <p id="login-error" class="error" role="alert"></p>
       </form>
