@@ -1,8 +1,8 @@
 // INTROS: pequeñas películas que se ven al entrar en un apartado, antes de mostrar su contenido.
 //  - Nutrición: un salero echa sal sobre un filete; la cámara vuela como un dron hasta debajo
 //    del salero, sigue un grano de sal… y "pum": aparece la pantalla de Nutrición.
-//  - Running: tu zapatilla (o una genérica) se inclina 45°, tiembla, aparece una pierna
-//    y sale corriendo hacia la izquierda: aparece tu semana de running.
+//  - Running: vídeo real de la zapatilla (Z1) expuesta que coge impulso y sale disparada;
+//    el color (blanco, amarillo, rosa) se elige en Running o durante la propia intro.
 //  - Gimnasio: una persona extiende el brazo, le llega volando una mancuerna, hace una sentadilla y sale de un salto.
 //  - Flexibilidad: un esqueleto se toca los pies, se abre de piernas contra el suelo y se desmonta.
 // Se pueden saltar tocándolas y no se reproducen si el sistema pide reducir el movimiento.
@@ -14,80 +14,58 @@ export { introGimnasio } from './intro-gym.js';
 export { introFlexibilidad } from './intro-flex.js';
 
 /* ============================== RUNNING ============================== */
-// Zapatilla genérica (diseño propio), de perfil y con la punta hacia la izquierda
-const ZAPATILLA_GENERICA = `
-  <g class="zapatilla-svg">
-    <path d="M52 168c-10 0-16-8-12-16l6-10h214c10 0 16 8 14 16l-2 4c-2 4-6 6-10 6z" fill="#FFFFFF" stroke="#B4B6BA" stroke-width="3"/>
-    <path d="M46 142c4-14 20-22 40-24l52-6c12-1 22-8 30-18l12-14c6-6 16-8 24-4l30 14c8 4 14 12 16 20l8 32z" fill="#1F4FD1"/>
-    <path d="M178 82l28 12c6 3 10 8 10 14v6l-36-6z" fill="#0C3084"/>
-    <path d="M96 128l34-16M108 136l34-16M120 144l34-16" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
-    <path d="M60 150h200" stroke="#C9D7FF" stroke-width="4"/>
-    <path d="M232 104c10 4 22 16 26 38" stroke="#5B7FE6" stroke-width="6" stroke-linecap="round" fill="none"/>
-  </g>`;
+// Vídeo real: la zapatilla expuesta sobre tela coge impulso y sale disparada.
+// Hay un vídeo por color con el MISMO movimiento: los tres suenan a la vez y solo se ve el elegido,
+// así el color se puede cambiar en cualquier momento sin saltos.
+export const MODELOS = {
+  z1: { nombre: 'Z1', colores: { blanco: 'Blanco', amarillo: 'Amarillo', rosa: 'Rosa' } },
+};
+export function zapatillaElegida() {
+  const z = leer('zapatilla', null);
+  const modelo = MODELOS[z?.modelo] ? z.modelo : 'z1';
+  const color = MODELOS[modelo].colores[z?.color] ? z.color : 'blanco';
+  return { modelo, color };
+}
+export const elegirZapatilla = (modelo, color) => guardar('zapatilla', { modelo, color });
 
-const escenaRun = foto => `
-  <div class="escena-run">
-    <div class="lineas-vel" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <div class="corredor">
-      <svg viewBox="0 0 300 200" aria-hidden="true">
-        <!-- Pierna: sale de la boca de la zapatilla -->
-        <g class="pierna">
-          <path d="M196 96c-6-40-4-90 6-150l40 4c4 52 2 104-10 146z" fill="#0E1A3F"/>
-          <path d="M198 92c10-6 24-6 34 2" stroke="#0E1A3F" stroke-width="10" stroke-linecap="round"/>
-        </g>
-        ${foto ? `<image class="zapatilla-foto" href="${foto}" x="30" y="60" width="250" height="120" preserveAspectRatio="xMidYMid meet"/>` : ZAPATILLA_GENERICA}
-      </svg>
-    </div>
-  </div>`;
+const video = (modelo, color, visible) => `
+  <video class="run-video${visible ? ' visible' : ''}" data-color="${color}" muted playsinline preload="auto" poster="media/${modelo}_${color}.jpg">
+    <source src="media/${modelo}_${color}.webm" type="video/webm">
+    <source src="media/${modelo}_${color}.mp4" type="video/mp4">
+  </video>`;
 
 export async function introRunning(cont) {
   if (sinMovimiento()) return;
-  const ajustes = leer('zapatilla', null);
-  const { intro, saltada } = montar(cont, 'intro-run', escenaRun(ajustes?.foto));
-  const corredor = intro.querySelector('.corredor');
-  const pierna = intro.querySelector('.pierna');
-  const lineas = intro.querySelector('.lineas-vel');
-  if (ajustes?.girar) corredor.querySelector('.zapatilla-foto')?.setAttribute('transform', 'translate(310 0) scale(-1 1)');
-  const anim = (el, frames, ops) => el.animate(frames, { fill: 'forwards', easing: 'cubic-bezier(.45, 0, .2, 1)', ...ops }).finished;
+  const { modelo, color } = zapatillaElegida();
+  const colores = Object.keys(MODELOS[modelo].colores);
+  const { intro, saltada } = montar(cont, 'intro-run', `
+    <div class="escena-run">${colores.map(c => video(modelo, c, c === color)).join('')}</div>
+    <div class="run-colores" role="group" aria-label="Color de la zapatilla">
+      ${colores.map(c => `<button class="run-color${c === color ? ' activo' : ''}" data-color="${c}" aria-label="${MODELOS[modelo].colores[c]}" aria-pressed="${c === color}"></button>`).join('')}
+    </div>`);
+  const videos = [...intro.querySelectorAll('.run-video')];
+  // Cambiar de color sin parar el vídeo (y sin que el toque cuente como "saltar")
+  intro.querySelector('.run-colores').addEventListener('click', ev => {
+    ev.stopPropagation();
+    const b = ev.target.closest('.run-color');
+    if (!b) return;
+    intro.querySelectorAll('.run-color').forEach(x => { x.classList.toggle('activo', x === b); x.setAttribute('aria-pressed', x === b); });
+    videos.forEach(v => v.classList.toggle('visible', v.dataset.color === b.dataset.color));
+    elegirZapatilla(modelo, b.dataset.color);
+  });
 
+  const listos = Promise.all(videos.map(v => v.readyState >= 3 ? 0 : new Promise(r => { v.addEventListener('canplaythrough', r, { once: true }); v.addEventListener('error', r, { once: true }); setTimeout(r, 2500); })));
   await reproducir([
-    // 1. La zapatilla, quieta, sin nadie dentro
-    () => espera(700),
-    // 2. Se inclina 45°: punta abajo a la izquierda, talón arriba a la derecha
-    () => anim(corredor, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(-45deg)' }], { duration: 650 }),
-    // 3. Tiembla… y aparece una pierna dentro
-    () => Promise.all([
-      anim(corredor, [0, 1, 2, 3, 4, 5, 6, 7].map(i => ({ transform: `rotate(${-45 + (i % 2 ? 2.5 : -2.5)}deg) translate(${i % 2 ? 2 : -2}px, ${i % 3 ? -1 : 1}px)` })).concat({ transform: 'rotate(-45deg)' }), { duration: 520, easing: 'linear' }),
-      anim(pierna, [{ transform: 'scaleY(0)', opacity: 0 }, { transform: 'scaleY(1)', opacity: 1 }], { duration: 460, delay: 120, easing: 'cubic-bezier(.2, .8, .2, 1)' }),
-    ]),
-    // 4. ¡Arranca a correr hacia la izquierda y desaparece!
-    () => Promise.all([
-      anim(lineas, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 700 }),
-      anim(corredor, [
-        { transform: 'rotate(-45deg) translate(0, 0)', filter: 'blur(0)' },
-        { transform: 'rotate(-30deg) translate(-20px, -14px)', offset: 0.25, filter: 'blur(0)' },
-        { transform: 'rotate(-38deg) translate(-150vw, 40px)', filter: 'blur(6px)' },
-      ], { duration: 700, easing: 'cubic-bezier(.5, 0, .9, .3)' }),
-    ]),
+    () => listos,
+    () => new Promise(r => {
+      const guia = videos.find(v => v.classList.contains('visible')) || videos[0];
+      videos.forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+      // Mantiene los tres vídeos sincronizados con el que se ve
+      const sync = setInterval(() => videos.forEach(v => { if (v !== guia && Math.abs(v.currentTime - guia.currentTime) > 0.06) v.currentTime = guia.currentTime; }), 250);
+      guia.addEventListener('ended', () => { clearInterval(sync); r(); }, { once: true });
+      setTimeout(() => { clearInterval(sync); r(); }, 6000);
+    }),
   ], saltada);
-
+  videos.forEach(v => v.pause());
   await cerrar(cont, intro);
-}
-
-/* ======================= TU ZAPATILLA ======================= */
-// Guarda la foto de la zapatilla del usuario (reducida a 600 px) para usarla en la intro
-export async function guardarZapatilla(archivo, girar = false) {
-  const img = await createImageBitmap(archivo);
-  const k = Math.min(1, 600 / Math.max(img.width, img.height));
-  const lienzo = document.createElement('canvas');
-  lienzo.width = Math.round(img.width * k);
-  lienzo.height = Math.round(img.height * k);
-  lienzo.getContext('2d').drawImage(img, 0, 0, lienzo.width, lienzo.height);
-  guardar('zapatilla', { foto: lienzo.toDataURL('image/jpeg', 0.85), girar });
-}
-export const zapatillaGuardada = () => leer('zapatilla', null);
-export const quitarZapatilla = () => guardar('zapatilla', null);
-export function girarZapatilla() {
-  const z = leer('zapatilla', null);
-  if (z) guardar('zapatilla', { ...z, girar: !z.girar });
 }

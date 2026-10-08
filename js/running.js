@@ -9,7 +9,7 @@ import { FASES_RUN, SEMANAS_RUN, faseDeSemana, proximoLunes } from './plan.js';
 import { bannerMigracion } from './gym.js';
 import { grafica, hayChart, ejeX, ejeY, C } from './graficos.js';
 import { icono } from './iconos.js';
-import { zapatillaGuardada, guardarZapatilla, quitarZapatilla, girarZapatilla } from './intros.js';
+import { MODELOS, zapatillaElegida, elegirZapatilla } from './intros.js';
 
 const TIPOS = { series: 'Series', larga: 'Tirada larga', easy: 'Easy', tempo: 'Tempo' };
 const SLOTS = [
@@ -99,31 +99,27 @@ function trackerRun(n) {
 }
 
 /* ======================= TU ZAPATILLA =======================
-   La foto de tu zapatilla protagoniza la animación de entrada de Running. */
+   El modelo y el color que eliges protagonizan la animación de entrada de Running. */
 function pintarZapatilla(el) {
-  const z = zapatillaGuardada();
+  const { modelo, color } = zapatillaElegida();
+  const m = MODELOS[modelo];
   el.innerHTML = `
     <div class="panel-cab"><h3>Tu zapatilla</h3><span class="tenue">Sale en la animación de Running</span></div>
     <div class="mi-zapatilla">
-      <div class="vista-zapa">${z?.foto ? `<img src="${z.foto}" alt="Tu zapatilla" style="${z.girar ? 'transform:scaleX(-1)' : ''}">` : icono('running')}</div>
+      <div class="vista-zapa"><img src="media/${modelo}_${color}.jpg" alt="${m.nombre} en ${m.colores[color].toLowerCase()}"></div>
       <div>
-        <p class="tenue">Haz una foto de perfil, sobre fondo blanco y con la punta hacia la izquierda. Si sale al revés, usa "Girar".</p>
-        <div class="fila-botones">
-          <label class="btn primario chico" style="cursor:pointer">${z?.foto ? 'Cambiar foto' : 'Subir foto'}<input type="file" accept="image/*" hidden data-zapa></label>
-          ${z?.foto ? '<button class="btn suave chico" data-zapa-girar>Girar</button><button class="btn chico" data-zapa-quitar>Usar la genérica</button>' : ''}
+        <p class="tenue">${m.nombre} · elige el color</p>
+        <div class="fila-botones" role="group" aria-label="Color de la zapatilla">
+          ${Object.entries(m.colores).map(([c, nombre]) => `<button class="chip-color${c === color ? ' activo' : ''}" data-color="${c}" aria-pressed="${c === color}"><i class="muestra ${c}"></i>${nombre}</button>`).join('')}
         </div>
       </div>
     </div>`;
-  el.onchange = async ev => {
-    if (!ev.target.matches('[data-zapa]') || !ev.target.files[0]) return;
-    await guardarZapatilla(ev.target.files[0]);
-    aviso('Zapatilla guardada: la verás al entrar en Running');
-    pintarZapatilla(el);
-  };
   el.onclick = ev => {
     ev.stopPropagation();
-    if (ev.target.closest('[data-zapa-girar]')) { girarZapatilla(); pintarZapatilla(el); }
-    if (ev.target.closest('[data-zapa-quitar]')) { quitarZapatilla(); pintarZapatilla(el); }
+    const b = ev.target.closest('[data-color]');
+    if (!b) return;
+    elegirZapatilla(modelo, b.dataset.color);
+    pintarZapatilla(el);
   };
 }
 
