@@ -1,0 +1,203 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+</head><body>
+<script type="module">
+// Herramienta (solo desarrollo): pasa las animaciones del maniquí (esqueleto tipo Mixamo)
+// al esqueleto de MakeHuman y crea los gestos de saludar y "me gusta".
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { datos, nombreHueso } from '../../../js/avatar/motor.js';
+
+const MAPA = {
+  Hips: 'root', Spine: 'spine04', Spine1: 'spine03', Spine2: 'spine01', Neck: 'neck01', Head: 'head',
+  LeftShoulder: 'clavicle.L', LeftArm: 'upperarm01.L', LeftForeArm: 'lowerarm01.L', LeftHand: 'wrist.L',
+  RightShoulder: 'clavicle.R', RightArm: 'upperarm01.R', RightForeArm: 'lowerarm01.R', RightHand: 'wrist.R',
+  LeftUpLeg: 'upperleg01.L', LeftLeg: 'lowerleg01.L', LeftFoot: 'foot.L',
+  RightUpLeg: 'upperleg01.R', RightLeg: 'lowerleg01.R', RightFoot: 'foot.R',
+};
+const DEDOS = { Thumb: 1, Index: 2, Middle: 3, Ring: 4, Pinky: 5 };
+for (const [lado, L] of [['Left', 'L'], ['Right', 'R']]) {
+  for (const [d, n] of Object.entries(DEDOS)) for (let k = 1; k <= 3; k++) MAPA[`${lado}Hand${d}${k}`] = `finger${n}-${k}.${L}`;
+}
+// Hijo de referencia en el maniquí para medir la dirección de cada hueso
+const HIJO = {
+  Hips: 'Spine', Spine: 'Spine1', Spine1: 'Spine2', Spine2: 'Neck', Neck: 'Head', Head: 'HeadTop_End',
+  LeftShoulder: 'LeftArm', LeftArm: 'LeftForeArm', LeftForeArm: 'LeftHand', LeftHand: 'LeftHandMiddle1',
+  RightShoulder: 'RightArm', RightArm: 'RightForeArm', RightForeArm: 'RightHand', RightHand: 'RightHandMiddle1',
+  LeftUpLeg: 'LeftLeg', LeftLeg: 'LeftFoot', LeftFoot: 'LeftToeBase', RightUpLeg: 'RightLeg', RightLeg: 'RightFoot', RightFoot: 'RightToeBase',
+};
+for (const lado of ['Left', 'Right']) for (const d of Object.keys(DEDOS)) for (let k = 1; k <= 3; k++) HIJO[`${lado}Hand${d}${k}`] = `${lado}Hand${d}${k + 1}`;
+
+window.retarget = async () => {
+  const D = await datos();
+  const cat = D.cat;
+  // Reposo de MakeHuman (forma por defecto): cabeza y cola de cada hueso
+  const P = D.base;
+  const media = (l) => { const v = new THREE.Vector3(); for (const i of l) v.add(new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])); return v.divideScalar(l.length); };
+  const mh = cat.huesos.map(h => ({ n: h.n, p: h.p, cab: media(D.art[h.h]), cola: media(D.art[h.t]) }));
+  const iMH = Object.fromEntries(mh.map((h, i) => [h.n, i]));
+
+  const g = await new GLTFLoader().loadAsync('../../../media/maniqui.glb');
+  const esc = g.scene; esc.updateMatrixWorld(true);
+  const hueso = n => esc.getObjectByName(`mixamorig${n}`) || esc.getObjectByName(`mixamorig:${n}`);
+  const qRep = {}, pRep = {};
+  for (const n of Object.keys(HIJO).concat(Object.keys(MAPA))) {
+    const b = hueso(n); if (!b) { console.warn('falta', n); continue; }
+    qRep[n] = b.getWorldQuaternion(new THREE.Quaternion());
+    pRep[n] = b.getWorldPosition(new THREE.Vector3());
+  }
+  const pHijo = n => hueso(HIJO[n])?.getWorldPosition(new THREE.Vector3());
+  // Alineación: lleva la dirección de reposo de MH a la del maniquí
+  const alin = {};
+  for (const [src, dst] of Object.entries(MAPA)) {
+    const h = mh[iMH[dst]]; const ph = pHijo(src);
+    if (!h || !ph || !pRep[src]) continue;
+    const dS = ph.clone().sub(pRep[src]).normalize();
+    const dT = h.cola.clone().sub(h.cab).normalize();
+    // Tronco y cabeza: ambos esqueletos están erguidos, no hace falta alinear
+    alin[src] = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head'].includes(src) ? new THREE.Quaternion() : new THREE.Quaternion().setFromUnitVectors(dT, dS);
+  }
+  const alturaX = pRep.Hips.y, alturaMH = mh[iMH.root].cab.y - Math.min(...Array.from({ length: P.length / 3 }, (_, i) => P[i * 3 + 1]));
+  const escalaY = alturaMH / alturaX;
+
+  const mixer = new THREE.AnimationMixer(esc);
+  const FPS = 30;
+  const salida = {};
+  const objetivos = Object.entries(MAPA).filter(([s]) => alin[s]).map(([s, d]) => [s, d]);
+  // Para pasar de rotación global a local hace falta la global del padre en MH:
+  // los huesos sin animación heredan la del padre (rotación local nula).
+  function locales(globalesMH) {
+    const out = {};
+    const glob = new Array(mh.length);
+    for (let i = 0; i < mh.length; i++) {
+      const h = mh[i];
+      const padre = h.p >= 0 ? glob[h.p] : new THREE.Quaternion();
+      if (globalesMH[h.n]) {
+        glob[i] = globalesMH[h.n];
+        out[h.n] = padre.clone().invert().multiply(globalesMH[h.n]);
+      } else {
+        glob[i] = padre;
+      }
+    }
+    return out;
+  }
+  for (const clip of g.animations) {
+    if (!['idle', 'walk', 'run', 'agree', 'headShake'].includes(clip.name)) continue;
+    mixer.stopAllAction();
+    const acc = mixer.clipAction(clip); acc.reset().play();
+    const n = Math.max(2, Math.round(clip.duration * FPS));
+    const pistas = {}; const raiz = [];
+    for (let f = 0; f <= n; f++) {
+      const t = (f / n) * clip.duration;
+      mixer.setTime(t); esc.updateMatrixWorld(true);
+      const glob = {};
+      for (const [s, d] of objetivos) {
+        const qs = hueso(s).getWorldQuaternion(new THREE.Quaternion());
+        glob[d] = qs.multiply(qRep[s].clone().invert()).multiply(alin[s]);
+      }
+      if (clip.name === 'idle') {
+        // Postura más natural: pies algo más juntos que en el clip original
+        for (const [l, a] of [['L', -0.1], ['R', 0.1]]) {
+          const rz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), a);
+          for (const b of [`upperleg01.${l}`, `lowerleg01.${l}`]) if (glob[b]) glob[b] = rz.clone().multiply(glob[b]);
+        }
+      }
+      const loc = locales(glob);
+      for (const [k, q] of Object.entries(loc)) (pistas[k] ||= []).push(...q.toArray().map(x => +x.toFixed(4)));
+      raiz.push(+((hueso('Hips').getWorldPosition(new THREE.Vector3()).y - pRep.Hips.y) * escalaY).toFixed(4));
+    }
+    salida[clip.name] = { d: +clip.duration.toFixed(3), n: n + 1, q: Object.fromEntries(Object.entries(pistas).map(([k, v]) => [nombreHueso(k), v])), y: raiz };
+  }
+
+  // ---- Gestos propios a partir de la pose de reposo ("idle", fotograma 0) ----
+  function poseIdle(f = 0) {
+    const c = salida.idle; const out = {};
+    for (const [k, v] of Object.entries(c.q)) out[k] = new THREE.Quaternion().fromArray(v, f * 4);
+    return out;
+  }
+  // Rotación global de cada hueso de MH desde una pose local
+  function globales(loc) {
+    const glob = new Array(mh.length);
+    for (let i = 0; i < mh.length; i++) {
+      const h = mh[i]; const padre = h.p >= 0 ? glob[h.p] : new THREE.Quaternion();
+      const l = loc[nombreHueso(h.n)] || new THREE.Quaternion();
+      glob[i] = padre.clone().multiply(l);
+    }
+    return glob;
+  }
+  const dirReposo = n => { const h = mh[iMH[n]]; return h.cola.clone().sub(h.cab).normalize(); };
+  // Apunta un hueso (en global) a una dirección, con giro opcional sobre su eje
+  function apuntar(loc, n, dir, giro = 0) {
+    const glob = globales(loc);
+    const i = iMH[n]; const padre = mh[i].p >= 0 ? glob[mh[i].p] : new THREE.Quaternion();
+    const d0 = dirReposo(n);
+    let q = new THREE.Quaternion().setFromUnitVectors(d0, dir.clone().normalize());
+    if (giro) q = q.multiply(new THREE.Quaternion().setFromAxisAngle(d0, giro));
+    loc[nombreHueso(n)] = padre.clone().invert().multiply(q);
+  }
+  function rotLocal(loc, n, eje, ang) {
+    const k = nombreHueso(n);
+    loc[k] = (loc[k] || new THREE.Quaternion()).clone().multiply(new THREE.Quaternion().setFromAxisAngle(eje, ang));
+  }
+  const suave = x => x * x * (3 - 2 * x);
+  function gesto(nombre, dur, pose) {
+    const n = Math.round(dur * FPS); const pistas = {}; const raiz = [];
+    for (let f = 0; f <= n; f++) {
+      const t = f / n * dur;
+      const base = poseIdle(f % (salida.idle.n - 1));
+      const fin = pose(t, poseIdle(f % (salida.idle.n - 1)));
+      // entrada y salida suaves
+      const e = Math.min(1, t / 0.35, (dur - t) / 0.4); const w = suave(Math.max(0, e));
+      for (const k of new Set([...Object.keys(base), ...Object.keys(fin)])) {
+        const a = base[k] || new THREE.Quaternion(), b = fin[k] || a;
+        const q = a.clone().slerp(b, w);
+        (pistas[k] ||= []).push(...q.toArray().map(x => +x.toFixed(4)));
+      }
+      raiz.push(salida.idle.y[f % (salida.idle.n - 1)]);
+    }
+    salida[nombre] = { d: dur, n: n + 1, q: pistas, y: raiz };
+  }
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // Saludar con la mano derecha (el lado derecho del avatar está en -X)
+  gesto('saludar', 2.6, (t, loc) => {
+    apuntar(loc, 'upperarm01.R', V(-0.75, 0.55, 0.2));
+    apuntar(loc, 'lowerarm01.R', V(-0.12, 1, 0.12));
+    apuntar(loc, 'wrist.R', V(-0.05 + 0.32 * Math.sin(t * 2 * Math.PI * 1.6), 1, 0.1));
+    for (const d of [2, 3, 4, 5]) for (const k of [1, 2, 3]) loc[nombreHueso(`finger${d}-${k}.R`)] = new THREE.Quaternion();
+    rotLocal(loc, 'head', V(0, 0, 1), -0.08);
+    return loc;
+  });
+  // "Me gusta": puño con el pulgar arriba delante del pecho
+  const cabMH = n => mh[iMH[n]].cab.clone(), colaMH = n => mh[iMH[n]].cola.clone();
+  const hR = dirReposo('wrist.R');
+  const aR = cabMH('finger2-1.R').sub(cabMH('finger5-1.R')).normalize();
+  const nR = new THREE.Vector3().crossVectors(hR, aR).normalize();
+  if (colaMH('finger1-3.R').sub(cabMH('wrist.R')).dot(nR) < 0) nR.negate();
+  gesto('megusta', 2.0, (t, loc) => {
+    apuntar(loc, 'upperarm01.R', V(-0.22, -0.8, 0.42));
+    apuntar(loc, 'lowerarm01.R', V(0.3, 0.12, 0.95));
+    // giro de la muñeca: palma hacia dentro y nudillos en vertical
+    const dir = V(0.25, 0.2, 0.95).normalize();
+    let mejor = 0, puntos = -9;
+    for (let g = 0; g < Math.PI * 2; g += Math.PI / 36) {
+      const q = new THREE.Quaternion().setFromUnitVectors(hR, dir).multiply(new THREE.Quaternion().setFromAxisAngle(hR, g));
+      const p = nR.clone().applyQuaternion(q).x + 0.6 * aR.clone().applyQuaternion(q).y;
+      if (p > puntos) { puntos = p; mejor = g; }
+    }
+    apuntar(loc, 'wrist.R', dir, mejor);
+    const q = new THREE.Quaternion().setFromUnitVectors(hR, dir).multiply(new THREE.Quaternion().setFromAxisAngle(hR, mejor));
+    const h2 = hR.clone().applyQuaternion(q), n2 = nR.clone().applyQuaternion(q);
+    const curva = a => h2.clone().multiplyScalar(Math.cos(a)).add(n2.clone().multiplyScalar(Math.sin(a)));
+    for (const d of [2, 3, 4, 5]) {
+      apuntar(loc, `finger${d}-1.R`, curva(1.45));
+      apuntar(loc, `finger${d}-2.R`, curva(3.0));
+      apuntar(loc, `finger${d}-3.R`, curva(4.1));
+    }
+    apuntar(loc, 'finger1-1.R', V(0.15, 0.55, 0.6)); apuntar(loc, 'finger1-2.R', V(0.05, 1, 0.15)); apuntar(loc, 'finger1-3.R', V(0, 1, 0.05));
+    rotLocal(loc, 'head', V(1, 0, 0), 0.12 * Math.sin(Math.min(1, t / 0.7) * Math.PI));
+    return loc;
+  });
+  return salida;
+};
+window.listo = true;
+</script></body></html>

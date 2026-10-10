@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#F1F2F4;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { crearAvatar } from '../../../js/avatar/motor.js';
+import { PERFILES } from '../../../js/avatar/parametros.js';
+import { crearAnimador } from '../../../js/avatar/animacion.js';
+const r = new THREE.WebGLRenderer({ antialias: true });
+r.setSize(innerWidth, innerHeight); r.setPixelRatio(1);
+r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.0;
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color('#F1F2F4');
+const pm = new THREE.PMREMGenerator(r); esc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+esc.environmentIntensity = 0.55;
+const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(-2, 5, 4); sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048); sol.shadow.camera.left = -2; sol.shadow.camera.right = 2; sol.shadow.camera.top = 3; sol.shadow.camera.bottom = -1; sol.shadow.bias = -0.0004; sol.shadow.normalBias = 0.02;
+esc.add(sol);
+const rel = new THREE.DirectionalLight(0xdfe8ff, 0.5); rel.position.set(3, 2, -3); esc.add(rel);
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.12 }));
+suelo.rotation.x = -Math.PI / 2; suelo.receiveShadow = true; esc.add(suelo);
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 50);
+const avs = [];
+window.montar = async (lista) => {
+  for (const a of avs) a.destruir(); avs.length = 0;
+  let x = -(lista.length - 1) * 0.45;
+  for (const p of lista) {
+    const a = await crearAvatar(typeof p === 'string' ? PERFILES[p] : p);
+    a.objeto.position.x = x; x += 0.9; esc.add(a.objeto); avs.push(a);
+    a.anim = await crearAnimador(a);
+  }
+  window.avs = avs;
+  return avs.map(a => a.altura());
+};
+window.vista = (px, py, pz, tx, ty, tz, fov = 30) => { cam.fov = fov; cam.updateProjectionMatrix(); cam.position.set(px, py, pz); cam.lookAt(tx, ty, tz); r.render(esc, cam); };
+window.girar = (ang) => { for (const a of avs) a.objeto.rotation.y = ang; };
+window.pose = (n, t) => { for (const a of avs) a.anim.fijar(n, t); };
+window.listo = true;
+</script></body></html>

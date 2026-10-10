@@ -12,7 +12,6 @@ import { objetivosDelDia, totalesDe } from './nutricion.js';
 import { fotosDe, avisoProgreso } from './fotos.js';
 import { AREAS, pintarPublicacion } from './inicio/publicaciones.js';
 import { soporta3D, crearRueda } from './inicio/rueda.js';
-import { MODELOS, ASPECTO_BASE, leerAspecto, guardarAspecto } from './inicio/avatar.js';
 
 let actual = null;          // la escena viva (para destruirla al salir)
 let urls = [];              // fotos abiertas como URL temporales
@@ -127,58 +126,8 @@ async function publicaciones(d) {
   return Promise.all(AREAS.map(area => pintarPublicacion({ area, ...datos[area.id] })));
 }
 
-// ---------- Editor del avatar ----------
-function abrirEditor(escenaEl, rueda) {
-  if (escenaEl.querySelector('.editor-avatar')) return;
-  const guardado = leerAspecto();
-  let a = { ...guardado };
-  const spec = MODELOS[a.modelo];
-  const panel = document.createElement('aside');
-  panel.className = 'editor-avatar';
-  panel.setAttribute('aria-label', 'Editor de tu avatar');
-  const pintar = () => {
-    panel.innerHTML = `
-      <div class="editor-cab"><h3>Tu avatar</h3><button data-cerrar aria-label="Cerrar sin guardar">${icono('x')}</button></div>
-      <div class="editor-cuerpo">
-        ${spec.opciones.map(o => `
-          <div class="editor-grupo"><h4>${o.nombre}</h4><div class="editor-opciones">
-            ${o.tipo === 'estilos' ? spec.estilos.map((e, i) => `<button class="op-texto" data-estilo="${i}">${e.nombre}</button>`).join('') : ''}
-            ${o.tipo === 'color' ? o.valores.map(c => `<button class="op-color ${a[o.id] === c ? 'activo' : ''}" style="--c:${c}" data-op="${o.id}" data-val="${c}" aria-label="${o.nombre} ${c}"></button>`).join('') : ''}
-            ${o.tipo === 'texto' ? o.valores.map(([v, n]) => `<button class="op-texto ${a[o.id] === v ? 'activo' : ''}" data-op="${o.id}" data-val="${v}">${n}</button>`).join('') : ''}
-          </div></div>`).join('')}
-        <p class="editor-nota">Arrastra sobre la escena para girar tu avatar y usa la rueda del ratón para acercarte. Pelo, ropa, zapatillas y tipo de cuerpo llegan con el personaje definitivo.</p>
-      </div>
-      <div class="editor-pie">
-        <button class="btn" data-reset>Restablecer</button>
-        <button class="btn primario" data-guardar>Guardar</button>
-      </div>`;
-  };
-  pintar();
-  escenaEl.append(panel);
-  if (innerWidth < 900) escenaEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  escenaEl.querySelector('.escena-pie')?.setAttribute('hidden', '');
-  rueda.modoEditor(true);
-
-  const cerrar = guardar => {
-    if (!guardar) rueda.aplicarAspecto(guardado);
-    panel.remove();
-    escenaEl.querySelector('.escena-pie')?.removeAttribute('hidden');
-    rueda.modoEditor(false);
-  };
-  panel.addEventListener('click', ev => {
-    const b = ev.target.closest('button');
-    if (!b) return;
-    if (b.dataset.cerrar !== undefined) return cerrar(false);
-    if (b.dataset.guardar !== undefined) { guardarAspecto(a); rueda.saludar(); return cerrar(true); }
-    if (b.dataset.reset !== undefined) a = { ...ASPECTO_BASE };
-    if (b.dataset.estilo !== undefined) { const e = spec.estilos[b.dataset.estilo]; a = { ...a, cuerpo: e.cuerpo, detalles: e.detalles, acabado: e.acabado }; }
-    if (b.dataset.op) a = { ...a, [b.dataset.op]: b.dataset.val };
-    rueda.aplicarAspecto(a);
-    pintar();
-  });
-  panel.addEventListener('keydown', ev => { if (ev.key === 'Escape') cerrar(false); });
-  panel.querySelector('button')?.focus();
-}
+// ---------- Crear / editar tu avatar (pantalla completa, se carga al abrirla) ----------
+const abrirAvatar = () => import('./avatar/creador.js').then(m => m.abrirCreador()).catch(e => console.warn('Creador de avatar', e));
 
 // ---------- La pantalla ----------
 export async function renderInicio(cont, ctx) {
@@ -263,7 +212,7 @@ export async function renderInicio(cont, ctx) {
         lienzos, areas: AREAS, quieto,
         alDestacar: marcarDestacada,
         alElegir: (area, listo) => entrar(area, listo),
-        alPulsarAvatar: () => abrirEditor(escenaEl, rueda),
+        alPulsarAvatar: abrirAvatar,
         alSobre: info => {
           if (!info) { tip.classList.remove('ver'); return; }
           const r = escenaEl.getBoundingClientRect();
@@ -293,12 +242,12 @@ export async function renderInicio(cont, ctx) {
   if (dActual) marcarDestacada(areaDe(dActual));
   else marcarDestacada(AREAS[0]);
 
-  // Abrir el editor desde el menú de perfil
-  const alPedirAvatar = () => rueda && abrirEditor(escenaEl, rueda);
-  window.addEventListener('abrir-avatar', alPedirAvatar);
+  // Cuando guardas tu avatar, el de la rueda se actualiza y te saluda
+  const alCambiarAvatar = ev => { rueda?.aplicarAspecto(ev.detail); setTimeout(() => rueda?.saludar(), 400); };
+  window.addEventListener('avatar-cambiado', alCambiarAvatar);
   const prevDestruir = rueda?.destruir;
-  if (rueda) rueda.destruir = () => { window.removeEventListener('abrir-avatar', alPedirAvatar); prevDestruir(); };
-  if (ctx.abrirAvatar) { ctx.abrirAvatar = false; alPedirAvatar(); }
+  if (rueda) rueda.destruir = () => { window.removeEventListener('avatar-cambiado', alCambiarAvatar); prevDestruir(); };
+  if (ctx.abrirAvatar) { ctx.abrirAvatar = false; abrirAvatar(); }
 
   // ---------- Clics ----------
   cont.onclick = ev => {

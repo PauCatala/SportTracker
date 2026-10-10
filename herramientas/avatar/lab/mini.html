@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#F1F2F4}</style>
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { crearAvatar } from '../../../js/avatar/motor.js';
+import { crearAnimador } from '../../../js/avatar/animacion.js';
+import { PERFILES, normalizar } from '../../../js/avatar/parametros.js';
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setPixelRatio(1); r.toneMapping = THREE.NeutralToneMapping;
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color('#F1F2F4');
+const pm = new THREE.PMREMGenerator(r); esc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; esc.environmentIntensity = 0.5;
+esc.add(new THREE.HemisphereLight(0xffffff, 0xe9ecf1, 0.55));
+const k = new THREE.DirectionalLight(0xfff6ee, 1.9); k.position.set(-1.6, 3.4, 3.2); k.castShadow = true; k.shadow.mapSize.set(2048, 2048);
+Object.assign(k.shadow.camera, { left: -1.4, right: 1.4, top: 2.4, bottom: -0.4 }); k.shadow.bias = -0.0003; k.shadow.normalBias = 0.015; esc.add(k);
+const c2 = new THREE.DirectionalLight(0xdfe9ff, 1.1); c2.position.set(2.2, 2.6, -2.8); esc.add(c2);
+const c3 = new THREE.DirectionalLight(0xffffff, 0.35); c3.position.set(2.5, 1.2, 2.5); esc.add(c3);
+const suelo = new THREE.Mesh(new THREE.CircleGeometry(3, 64), new THREE.ShadowMaterial({ opacity: 0.12 })); suelo.rotation.x = -Math.PI / 2; suelo.receiveShadow = true; esc.add(suelo);
+const cam = new THREE.PerspectiveCamera(26, 1, 0.05, 40);
+let av = null, an = null;
+window.foto = async (perfil, enc, w = 240, h = 240) => {
+  const p = normalizar(perfil);
+  if (!av) { av = await crearAvatar(p); an = await crearAnimador(av); esc.add(av.objeto); }
+  await av.aplicar(p);
+  an.fijar('idle', 0.4);
+  r.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
+  const hgt = av.altura(); const v = new THREE.Vector3(); av.punto('head', v);
+  const [ty, d, az, el] = { cara: [v.y + 0.04, 0.66, 0.0, 0.03], barba: [v.y + 0.02, 0.62, 0.3, 0.02], pelo: [v.y + 0.12, 0.95, 0.75, 0.12], arriba: [hgt * 0.7, 1.45, 0.3, 0.05], abajo: [hgt * 0.3, 1.9, 0.3, 0.05],
+    calzado: [0.07, 0.85, 0.55, 0.32], sombrero: [v.y + 0.16, 1.0, 0.5, 0.15], conjunto: [hgt * 0.55, 2.5, 0.3, 0.05], base: [hgt * 0.5, 4.3, 0.35, 0.04] }[enc];
+  cam.position.set(Math.sin(az) * d, ty + Math.sin(el) * d, Math.cos(az) * d); cam.lookAt(0, ty, 0);
+  r.render(esc, cam);
+  return r.domElement.toDataURL('image/webp', 0.86);
+};
+window.PERFILES = PERFILES;
+window.listo = true;
+</script></body></html>

@@ -390,7 +390,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     pausar(si) { pausado = si; if (avatar && !editor) avatar.poner(si ? 'quieto' : 'correr'); },
     modoEditor,
     aplicarAspecto: a => avatar?.aplicar(a),
-    saludar: () => avatar?.gesto('like'),
+    saludar: () => avatar?.gesto('saludar'),
     refrescar(i) { texturas[i].needsUpdate = true; tarjetas.filter(t => t.area === i).forEach(t => { t.texDentro.needsUpdate = true; }); },
     destruir() {
       cancelAnimationFrame(raf);
