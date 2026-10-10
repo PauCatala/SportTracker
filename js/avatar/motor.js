@@ -70,6 +70,21 @@ function textura(ruta, color = true) {
 // Nombres de huesos sin puntos (three los usa como separador en las animaciones)
 export const nombreHueso = n => n.replace(/\./g, '_');
 
+// Las prendas vienen en piezas con costuras (vértices repetidos en el mismo sitio):
+// se unen por posición para que las normales sean continuas y no se abran grietas
+function soldarPorPosicion(geo) {
+  if (geo.userData.soldada) return;
+  const p = geo.attributes.position.array, idx = geo.attributes._idx.array;
+  const canon = new Map(), mapa = new Map();
+  for (let i = 0; i < idx.length; i++) {
+    const k = `${Math.round(p[i * 3] * 5000)},${Math.round(p[i * 3 + 1] * 5000)},${Math.round(p[i * 3 + 2] * 5000)}`;
+    if (!canon.has(k)) canon.set(k, idx[i]);
+    mapa.set(idx[i], canon.get(k));
+  }
+  for (let i = 0; i < idx.length; i++) idx[i] = mapa.get(idx[i]);
+  geo.userData.soldada = true;
+}
+
 // ---------- Normales suaves sobre la malla soldada ----------
 function preparaNormales(geo, nSoldados) {
   const idx = geo.attributes._idx.array;
@@ -127,6 +142,51 @@ function materialTenible(opts) {
   return mat;
 }
 
+// Microtextura de piel (poros muy sutiles) generada aquí: un mapa de normales que se repite
+let microPiel = null;
+function texturaPoros() {
+  if (microPiel) return microPiel;
+  const L = 256, c = document.createElement('canvas'); c.width = c.height = L;
+  const x = c.getContext('2d'), img = x.createImageData(L, L);
+  const h = new Float32Array(L * L);
+  for (let i = 0; i < h.length; i++) h[i] = Math.random();
+  // suaviza un poco (poros, no ruido de televisor)
+  const g = new Float32Array(L * L);
+  for (let y = 0; y < L; y++) for (let xx = 0; xx < L; xx++) {
+    let s = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += h[((y + dy + L) % L) * L + ((xx + dx + L) % L)];
+    g[y * L + xx] = s / 9;
+  }
+  for (let y = 0; y < L; y++) for (let xx = 0; xx < L; xx++) {
+    const dx = g[y * L + (xx + 1) % L] - g[y * L + (xx - 1 + L) % L];
+    const dy = g[((y + 1) % L) * L + xx] - g[((y - 1 + L) % L) * L + xx];
+    const nx = -dx * 2.2, ny = -dy * 2.2, l = Math.hypot(nx, ny, 1);
+    const o = (y * L + xx) * 4;
+    img.data[o] = (nx / l * 0.5 + 0.5) * 255; img.data[o + 1] = (ny / l * 0.5 + 0.5) * 255; img.data[o + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  microPiel = new THREE.CanvasTexture(c);
+  microPiel.wrapS = microPiel.wrapT = THREE.RepeatWrapping;
+  microPiel.repeat.set(36, 36);
+  microPiel.colorSpace = THREE.NoColorSpace;
+  return microPiel;
+}
+
+// Piel: algo de terciopelo (sheen) para que la luz no la deje plastificada,
+// microtextura muy suave y un punto menos de saturación que la textura original
+function materialPiel() {
+  const m = new THREE.MeshPhysicalMaterial({
+    roughness: 0.56, metalness: 0, sheen: 0.4, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ffd8c8'),
+    normalMap: texturaPoros(), normalScale: new THREE.Vector2(0.09, 0.09), specularIntensity: 0.55,
+  });
+  m.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722))), diffuseColor.rgb, 0.86);`);
+  };
+  m.customProgramCacheKey = () => 'piel';
+  return m;
+}
+
 function hex(c) { return new THREE.Color(c); } // three ya convierte el hex sRGB a lineal
 
 // ---------- Avatar ----------
@@ -152,7 +212,7 @@ export async function crearAvatar(perfilInicial = PERFIL_BASE, { sombras = true 
   geoCuerpo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(geoCuerpo.attributes.position.count * 3), 3));
   const indiceCompleto = geoCuerpo.index.array.slice();
   const prepCuerpo = preparaNormales(geoCuerpo, NV);
-  const matPiel = new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0 });
+  const matPiel = materialPiel();
   const cuerpo = new THREE.SkinnedMesh(geoCuerpo, matPiel);
   cuerpo.name = 'cuerpo';
   cuerpo.frustumCulled = false;
@@ -250,19 +310,54 @@ export async function crearAvatar(perfilInicial = PERFIL_BASE, { sombras = true 
     }
     A.position.needsUpdate = true;
     calculaNormales(g, m.prep, sold);
+    // La ropa se separa un pelo de la piel para que no la atraviese al animarse
+    const holgura = { arriba: 0.003, conjunto: 0.003, abajo: 0.002 }[m.malla.name];
+    if (holgura) {
+      const N = A.normal.array;
+      for (let i = 0; i < pos.length; i++) pos[i] += N[i] * holgura;
+    }
     g.computeBoundingSphere();
   }
 
+  // Vecinos de cada vértice del cuerpo (para recortar el borde de lo que tapa la ropa)
+  let vecinos = null;
+  function prepararVecinos() {
+    const tri = prepCuerpo.tri, cuenta = new Uint32Array(NV + 1);
+    for (let i = 0; i < tri.length; i++) cuenta[tri[i] + 1] += 2;
+    for (let i = 0; i < NV; i++) cuenta[i + 1] += cuenta[i];
+    const lista = new Uint32Array(cuenta[NV]), pos = cuenta.slice(0, NV);
+    for (let i = 0; i < tri.length; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        const a = tri[i + k];
+        lista[pos[a]++] = tri[i + (k + 1) % 3]; lista[pos[a]++] = tri[i + (k + 2) % 3];
+      }
+    }
+    vecinos = { cuenta, lista };
+  }
+
   function aplicaOcultos() {
-    const oculto = new Uint8Array(NV);
+    let oculto = new Uint8Array(NV);
     for (const m of montados.values()) {
       for (const [a, b] of m.def.ocultar || []) oculto.fill(1, a, b + 1);
+    }
+    // Se deja visible una franja junto a los bordes de la ropa (mangas, bajo, cuello):
+    // así se ve el brazo por dentro de la manga en vez de un hueco
+    if (!vecinos) prepararVecinos();
+    const { cuenta, lista } = vecinos;
+    for (let paso = 0; paso < 2; paso++) {
+      const sig = oculto.slice();
+      for (let v = 0; v < NV; v++) {
+        if (!oculto[v]) continue;
+        for (let j = cuenta[v]; j < cuenta[v + 1]; j++) if (!oculto[lista[j]]) { sig[v] = 0; break; }
+      }
+      oculto = sig;
     }
     const tri = prepCuerpo.tri;
     const out = new Uint32Array(indiceCompleto.length);
     let n = 0;
     for (let i = 0; i < tri.length; i += 3) {
-      if (oculto[tri[i]] && oculto[tri[i + 1]] && oculto[tri[i + 2]]) continue;
+      // Basta un vértice cubierto para ocultar la cara: la piel no asoma por la ropa al moverse
+      if (oculto[tri[i]] || oculto[tri[i + 1]] || oculto[tri[i + 2]]) continue;
       out[n++] = indiceCompleto[i]; out[n++] = indiceCompleto[i + 1]; out[n++] = indiceCompleto[i + 2];
     }
     geoCuerpo.setIndex(new THREE.BufferAttribute(out.slice(0, n), 1));
@@ -338,7 +433,7 @@ export async function crearAvatar(perfilInicial = PERFIL_BASE, { sombras = true 
     if (def.tipo === 'ojos') {
       return new THREE.MeshPhysicalMaterial({ roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.05, metalness: 0, alphaTest: 0.5 });
     }
-    const mat = materialTenible({ map, normalMap, roughness: ranura === 'calzado' ? 0.55 : 0.85, metalness: 0, side: THREE.FrontSide });
+    const mat = materialTenible({ map, normalMap, roughness: ranura === 'calzado' ? 0.55 : 0.88, metalness: 0, side: ranura === 'calzado' ? THREE.FrontSide : THREE.DoubleSide });
     mat.userData.lum.value = def.lum ?? 0.4;
     if (normalMap) mat.normalScale.set(0.8, 0.8);
     return mat;
@@ -357,6 +452,7 @@ export async function crearAvatar(perfilInicial = PERFIL_BASE, { sombras = true 
     if (montados.get(ranura) !== prev) return false; // otro cambio llegó antes
     const geo = geoBase.clone();
     geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
+    soldarPorPosicion(geo);
     let maxIdx = 0;
     for (const v of geo.attributes._idx.array) if (v > maxIdx) maxIdx = v;
     const malla = new THREE.SkinnedMesh(geo, mat);

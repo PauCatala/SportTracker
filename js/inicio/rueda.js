@@ -7,7 +7,7 @@ import { cargarAvatar } from './avatar.js';
 
 const R = 2.6;            // radio de la rueda
 const W = 1.42;           // ancho (profundidad) de la banda
-const ALTURA_AVATAR = 1.9;
+const ALTURA_AVATAR = 2.45;
 const INCLINACION = -0.92; // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
 const VEL_BASE = 0.55;
 const GIRO_TEXTURA = -Math.PI / 2;    // rad/s cuando nadie la toca: un trote tranquilo
@@ -27,7 +27,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 0.92;
+  renderer.toneMappingExposure = 0.9;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const lienzo = renderer.domElement;
@@ -48,7 +48,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   camara.position.copy(cam.pos);
 
   // ---------- Luz: una ventana grande arriba a la izquierda y un relleno frío ----------
-  escena.add(new THREE.HemisphereLight(0xffffff, 0xe6ebf2, 0.9));
+  escena.add(new THREE.HemisphereLight(0xffffff, 0xe6ebf2, 0.65));
   const sol = new THREE.DirectionalLight(0xfffaf2, 2.1);
   sol.position.set(-2.2, 10, 5);
   sol.castShadow = true;
@@ -62,7 +62,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   escena.add(relleno);
 
   // Suelo invisible que solo recoge la sombra
-  const suelo = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.08 }));
+  const suelo = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.11 }));
   suelo.rotation.x = -Math.PI / 2;
   suelo.position.y = -R - 0.075;
   suelo.receiveShadow = true;
@@ -75,7 +75,8 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   const rueda = new THREE.Group();
   soporte.add(rueda);
 
-  const blanco = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.55, clearcoat: 0.6, clearcoatRoughness: 0.35 });
+  // Acabado de objeto de diseño: blanco satinado con un velo suave (sheen) y barniz fino
+  const blanco = new THREE.MeshPhysicalMaterial({ color: 0xf6f7f7, roughness: 0.42, clearcoat: 0.8, clearcoatRoughness: 0.22, sheen: 0.5, sheenColor: new THREE.Color('#e8ecff'), sheenRoughness: 0.5 });
   const banda = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.012, R + 0.012, W, 180, 1, true), blanco.clone());
   banda.material.side = THREE.DoubleSide;
   banda.rotation.x = Math.PI / 2;
@@ -83,9 +84,9 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   banda.castShadow = true;
   rueda.add(banda);
   for (const z of [-W / 2, W / 2]) {
-    const aro = new THREE.Mesh(new THREE.TorusGeometry(R + 0.012, 0.05, 20, 220), blanco);
+    const aro = new THREE.Mesh(new THREE.TorusGeometry(R + 0.012, 0.085, 28, 240), blanco);
     aro.position.z = z;
-    aro.castShadow = true;
+    aro.castShadow = true; aro.receiveShadow = true;
     rueda.add(aro);
   }
 
@@ -110,7 +111,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     const texFuera = texturas[a];
     const fuera = new THREE.Mesh(
       new THREE.CylinderGeometry(R + 0.03, R + 0.03, W * 0.84, 28, 1, true, t0, largo),
-      new THREE.MeshStandardMaterial({ map: texFuera, roughness: 0.62, emissive: 0x000000, envMapIntensity: 0.5 }),
+      new THREE.MeshStandardMaterial({ map: texFuera, roughness: 0.7, emissive: 0x000000, envMapIntensity: 0.35 }),
     );
     // Cara de dentro (la textura se refleja para que se lea bien)
     const texDentro = texFuera.clone();
@@ -120,7 +121,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     texDentro.needsUpdate = true;
     const dentro = new THREE.Mesh(
       new THREE.CylinderGeometry(R - 0.012, R - 0.012, W * 0.84, 28, 1, true, t0, largo),
-      new THREE.MeshStandardMaterial({ map: texDentro, side: THREE.BackSide, roughness: 0.62, emissive: 0x000000, envMapIntensity: 0.5 }),
+      new THREE.MeshStandardMaterial({ map: texDentro, side: THREE.BackSide, roughness: 0.7, emissive: 0x000000, envMapIntensity: 0.35 }),
     );
     for (const m of [fuera, dentro]) { m.receiveShadow = true; m.userData.tarjeta = i; }
     grupo.add(fuera, dentro);
@@ -362,7 +363,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     if (!editor) calcularDestacada();
     for (const t of tarjetas) {
       t.brillo += (t.brilloObj - t.brillo) * Math.min(1, dt * 6);
-      const e = 0.07 * t.brillo + (sobre === t.i ? 0.06 : 0);
+      const e = 0.035 * t.brillo + (sobre === t.i ? 0.06 : 0);
       t.fuera.material.emissive.setScalar(e);
       t.dentro.material.emissive.setScalar(e);
     }

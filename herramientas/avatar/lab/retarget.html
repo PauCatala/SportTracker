@@ -81,12 +81,72 @@ window.retarget = async () => {
     }
     return out;
   }
+  // ---- Reparto de rotaciones: el hombro acompaña al brazo y el antebrazo reparte el giro de la muñeca ----
+  // (con piel lineal, girar un solo hueso pellizca el hombro; repartir lo suaviza)
+  function repartir(glob) {
+    for (const l of ['L', 'R']) {
+      const cl = glob[`clavicle.${l}`] || glob['spine01'], ua = glob[`upperarm01.${l}`];
+      if (cl && ua) glob[`shoulder01.${l}`] = cl.clone().slerp(ua, 0.45);
+      const la = glob[`lowerarm01.${l}`], wr = glob[`wrist.${l}`];
+      if (ua && la) glob[`upperarm02.${l}`] = ua.clone().slerp(la, 0.15);
+      if (la && wr) glob[`lowerarm02.${l}`] = la.clone().slerp(wr, 0.45);
+      const ul = glob[`upperleg01.${l}`], ll = glob[`lowerleg01.${l}`];
+      if (ul && ll) glob[`upperleg02.${l}`] = ul.clone().slerp(ll, 0.15);
+      if (ul && glob.root) glob[`pelvis.${l}`] = glob.root.clone().slerp(ul, 0.2);
+    }
+    return glob;
+  }
+  const dirRep = n => { const h = mh[iMH[n]]; return h.cola.clone().sub(h.cab).normalize(); };
+  // Rotación global que lleva el hueso a "dir"; "giro" lo rota sobre su propio eje
+  const hacia = (n, dir, giro = 0) => {
+    const d0 = dirRep(n);
+    return new THREE.Quaternion().setFromUnitVectors(d0, dir.clone().normalize()).multiply(new THREE.Quaternion().setFromAxisAngle(d0, giro));
+  };
+  // Mano: puño relajado con la palma hacia el centro del cuerpo
+  const palma = {};
+  for (const l of ['L', 'R']) {
+    const h = dirRep(`wrist.${l}`);
+    const a = mh[iMH[`finger2-1.${l}`]].cab.clone().sub(mh[iMH[`finger5-1.${l}`]].cab).normalize();
+    const n = new THREE.Vector3().crossVectors(h, a).normalize();
+    if (mh[iMH[`finger1-3.${l}`]].cola.clone().sub(mh[iMH[`wrist.${l}`]].cab).dot(n) < 0) n.negate();
+    palma[l] = { h, n };
+  }
+  function brazoCarrera(glob, l, s) {
+    // s: -1 (brazo atrás) … 1 (brazo delante)
+    const lado = l === 'L' ? 1 : -1;
+    const a = s > 0 ? s * 0.62 : s * 0.5;                 // balanceo desde el hombro
+    const sup = new THREE.Vector3(lado * (0.16 - 0.06 * Math.max(0, s)), -Math.cos(a), Math.sin(a)).normalize();
+    const flex = 1.5 + 0.28 * s;                          // codo a ~90°, más cerrado delante
+    const fw = new THREE.Vector3(0, 0, 1);
+    const perp = fw.clone().sub(sup.clone().multiplyScalar(fw.dot(sup))).normalize();
+    const ant = sup.clone().multiplyScalar(Math.cos(flex)).add(perp.multiplyScalar(Math.sin(flex)));
+    ant.x -= lado * (0.22 + 0.12 * Math.max(0, s)); ant.normalize();   // manos hacia el centro
+    glob[`upperarm01.${l}`] = hacia(`upperarm01.${l}`, sup);
+    glob[`lowerarm01.${l}`] = hacia(`lowerarm01.${l}`, ant);
+    // muñeca: sigue al antebrazo; giro elegido para que la palma mire hacia dentro
+    let mejor = 0, puntos = -9;
+    for (let g = 0; g < Math.PI * 2; g += Math.PI / 24) {
+      const q = hacia(`wrist.${l}`, ant, g);
+      const p = palma[l].n.clone().applyQuaternion(q).x * -lado;
+      if (p > puntos) { puntos = p; mejor = g; }
+    }
+    const qm = hacia(`wrist.${l}`, ant, mejor);
+    glob[`wrist.${l}`] = qm;
+    const h2 = palma[l].h.clone().applyQuaternion(qm), n2 = palma[l].n.clone().applyQuaternion(qm);
+    const curva = x => h2.clone().multiplyScalar(Math.cos(x)).add(n2.clone().multiplyScalar(Math.sin(x)));
+    for (const d of [2, 3, 4, 5]) {
+      glob[`finger${d}-1.${l}`] = hacia(`finger${d}-1.${l}`, curva(1.2));
+      glob[`finger${d}-2.${l}`] = hacia(`finger${d}-2.${l}`, curva(2.4));
+      glob[`finger${d}-3.${l}`] = hacia(`finger${d}-3.${l}`, curva(3.1));
+    }
+  }
+
   for (const clip of g.animations) {
     if (!['idle', 'walk', 'run', 'agree', 'headShake'].includes(clip.name)) continue;
     mixer.stopAllAction();
     const acc = mixer.clipAction(clip); acc.reset().play();
     const n = Math.max(2, Math.round(clip.duration * FPS));
-    const pistas = {}; const raiz = [];
+    const pistas = {}; const raiz = []; const fotos = [];
     for (let f = 0; f <= n; f++) {
       const t = (f / n) * clip.duration;
       mixer.setTime(t); esc.updateMatrixWorld(true);
@@ -102,9 +162,29 @@ window.retarget = async () => {
           for (const b of [`upperleg01.${l}`, `lowerleg01.${l}`]) if (glob[b]) glob[b] = rz.clone().multiply(glob[b]);
         }
       }
-      const loc = locales(glob);
-      for (const [k, q] of Object.entries(loc)) (pistas[k] ||= []).push(...q.toArray().map(x => +x.toFixed(4)));
+      fotos.push(glob);
       raiz.push(+((hueso('Hips').getWorldPosition(new THREE.Vector3()).y - pRep.Hips.y) * escalaY).toFixed(4));
+    }
+    if (clip.name === 'run') {
+      // Brazos de corredor: codos a 90°, manos cerca del pecho, en oposición a las piernas.
+      // La fase sale del muslo contrario, así los brazos siempre van a contrapié de las piernas.
+      const adelante = l => fotos.map(gl => new THREE.Vector3(0, -1, 0).applyQuaternion(gl[`upperleg01.${l}`]).z);
+      const pl = { L: adelante('L'), R: adelante('R') };
+      const norm = v => { const lo = Math.min(...v), hi = Math.max(...v); return v.map(x => (2 * (x - lo)) / ((hi - lo) || 1) - 1); };
+      // brazo izquierdo delante cuando la pierna derecha va delante (y al revés), siempre en oposición
+      const sL = norm(pl.R.map((x, i) => x - pl.L[i])), sR = sL.map(x => -x);
+      fotos.forEach((gl, i) => {
+        brazoCarrera(gl, 'L', Math.max(-1, Math.min(1, sL[i])));
+        brazoCarrera(gl, 'R', Math.max(-1, Math.min(1, sR[i])));
+        // tronco algo inclinado hacia delante y cabeza alineada
+        const inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.07);
+        for (const b of ['spine04', 'spine03', 'spine01']) if (gl[b]) gl[b] = inc.clone().multiply(gl[b]);
+        for (const b of ['neck01', 'head']) if (gl[b]) gl[b] = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.05).multiply(gl[b]);
+      });
+    }
+    for (const glob of fotos) {
+      const loc = locales(repartir(glob));
+      for (const [k, q] of Object.entries(loc)) (pistas[k] ||= []).push(...q.toArray().map(x => +x.toFixed(4)));
     }
     salida[clip.name] = { d: +clip.duration.toFixed(3), n: n + 1, q: Object.fromEntries(Object.entries(pistas).map(([k, v]) => [nombreHueso(k), v])), y: raiz };
   }
@@ -140,12 +220,18 @@ window.retarget = async () => {
     loc[k] = (loc[k] || new THREE.Quaternion()).clone().multiply(new THREE.Quaternion().setFromAxisAngle(eje, ang));
   }
   const suave = x => x * x * (3 - 2 * x);
+  function repartirLoc(loc) {
+    const g = globales(loc); const mapa = {};
+    mh.forEach((h, i) => { mapa[h.n] = g[i]; });
+    const l2 = locales(repartir(mapa));
+    return Object.fromEntries(Object.entries(l2).map(([k, v]) => [nombreHueso(k), v]));
+  }
   function gesto(nombre, dur, pose) {
     const n = Math.round(dur * FPS); const pistas = {}; const raiz = [];
     for (let f = 0; f <= n; f++) {
       const t = f / n * dur;
       const base = poseIdle(f % (salida.idle.n - 1));
-      const fin = pose(t, poseIdle(f % (salida.idle.n - 1)));
+      const fin = repartirLoc(pose(t, poseIdle(f % (salida.idle.n - 1))));
       // entrada y salida suaves
       const e = Math.min(1, t / 0.35, (dur - t) / 0.4); const w = suave(Math.max(0, e));
       for (const k of new Set([...Object.keys(base), ...Object.keys(fin)])) {

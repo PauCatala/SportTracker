@@ -105,7 +105,7 @@ export const PERFILES = {
     ...BASE_COMUN, genero: 1, nombre: 'Base masculina',
     cejas: '009',
     pelo: { estilo: 'short02', color: '#4a3426' },
-    barba: { estilo: 'sombra', color: '#4a3426' },
+    barba: { estilo: 'ninguna', color: '#4a3426' },
     ropa: { arriba: 'male_casualsuit06-arriba', abajo: 'male_casualsuit06-abajo', conjunto: '', calzado: 'shoes06', sombrero: '', colores: { arriba: '#dceaf7', abajo: '#2b3142', calzado: '#f7f7f5' } },
   },
   mujer: {

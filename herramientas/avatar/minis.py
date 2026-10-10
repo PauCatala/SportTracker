@@ -8,7 +8,7 @@ try:
     b=p.chromium.launch(args=['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']); pg=b.new_page(); err=[]
     pg.on('pageerror',lambda e: err.append('PAGEERROR '+str(e)))
     pg.on('console',lambda m: err.append(m.type+': '+m.text) if m.type in ('error','warning') else None)
-    pg.goto('http://localhost:8784/herramientas/avatar/lab/mini.html'); pg.wait_for_function('window.listo')
+    pg.goto('http://localhost:8784/_lab/mini.html'); pg.wait_for_function('window.listo')
     P=pg.evaluate('PERFILES')
     def foto(nombre, perfil, enc, w=240, h=240):
         url=pg.evaluate('([p,e,w,h])=>foto(p,e,w,h)', [perfil, enc, w, h])

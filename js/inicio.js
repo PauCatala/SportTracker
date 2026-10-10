@@ -9,7 +9,7 @@ import { eventosEntre } from './agenda.js';
 import { tareasDeLaSemana } from './estudios.js';
 import { habitosDeHoy, pendientesLista } from './personal.js';
 import { objetivosDelDia, totalesDe } from './nutricion.js';
-import { fotosDe, avisoProgreso } from './fotos.js';
+import { avisoProgreso } from './fotos.js';
 import { AREAS, pintarPublicacion } from './inicio/publicaciones.js';
 import { soporta3D, crearRueda } from './inicio/rueda.js';
 
@@ -109,21 +109,17 @@ function pintarWidgets(cont, d, ctx) {
 }
 
 // ---------- Publicaciones de la rueda ----------
-async function publicaciones(d) {
+async function publicaciones(d, ctx) {
   const proximo = d.proximo ? `${d.proximo.inicio ? `${d.proximo.inicio} · ` : ''}${d.proximo.titulo}` : 'Nada más por hoy';
-  let foto = null;
-  try {
-    const f = (await fotosDe('progreso'))[0] || (await fotosDe('dia'))[0] || (await fotosDe('comidas'))[0];
-    if (f) { foto = URL.createObjectURL(f.blob); urls.push(foto); }
-  } catch { /* sin fotos */ }
   const datos = {
-    salud: { dato: sinEtiquetas(d.pendiente?.texto || 'Día de descanso'), detalle: d.obj ? `Llevas ${Math.round(d.tot.kcal)} de ${d.obj.kcal} kcal` : 'Completa tu perfil para tus objetivos' },
+    salud: { dato: sinEtiquetas(d.pendiente?.texto || 'Día de descanso'), detalle: d.obj ? `${Math.round(d.tot.kcal).toLocaleString('es-ES')} de ${d.obj.kcal.toLocaleString('es-ES')} kcal hoy` : '' },
     calendario: { dato: d.eventos.length ? `${d.eventos.length} ${d.eventos.length === 1 ? 'plan' : 'planes'} hoy` : 'Día libre', detalle: proximo },
-    estudios: { dato: d.semana.length ? `${d.semana.length} ${d.semana.length === 1 ? 'entrega' : 'entregas'} esta semana` : 'Semana despejada', detalle: d.semana[0]?.titulo || 'Organiza tus tareas y proyectos' },
-    personal: { dato: d.hab.total ? `Hábitos: ${d.hab.hechos} de ${d.hab.total}` : 'Tus hábitos y retos', detalle: d.lista.length ? `${d.lista.length} cosas en tu lista` : 'Tu lista está al día' },
-    imagen: { dato: foto ? 'Tu última foto' : 'Tu progreso, en fotos', detalle: 'Privadas por defecto', foto },
+    estudios: { dato: d.semana.length ? `${d.semana.length} ${d.semana.length === 1 ? 'entrega' : 'entregas'} esta semana` : 'Semana despejada', detalle: d.semana[0]?.titulo || '' },
+    personal: { dato: d.hab.total ? `Hábitos: ${d.hab.hechos} de ${d.hab.total}` : 'Tus hábitos y retos', detalle: d.lista.length ? `${d.lista.length} cosas en tu lista` : '' },
+    imagen: { dato: 'Tu progreso, en fotos', detalle: 'Privado por defecto' },
   };
-  return Promise.all(AREAS.map(area => pintarPublicacion({ area, ...datos[area.id] })));
+  const usuario = ctx.nombre || 'tú';
+  return Promise.all(AREAS.map(area => pintarPublicacion({ area, usuario, ...datos[area.id] })));
 }
 
 // ---------- Crear / editar tu avatar (pantalla completa, se carga al abrirla) ----------
@@ -206,7 +202,7 @@ export async function renderInicio(cont, ctx) {
     escenaEl.innerHTML = '<p class="tenue">Tu navegador no muestra escenas 3D. Entra en cada área con los botones de abajo.</p>';
   } else {
     try {
-      const lienzos = await publicaciones(d);
+      const lienzos = await publicaciones(d, ctx);
       if (!escenaEl.isConnected) return;
       rueda = await crearRueda(escenaEl, {
         lienzos, areas: AREAS, quieto,
