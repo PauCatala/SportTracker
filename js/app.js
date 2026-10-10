@@ -22,6 +22,7 @@ import { revelar, indicador, abrirModal, carruseles, transicion } from './intera
 import { introNutricion, introRunning, introGimnasio, introFlexibilidad } from './intros.js';
 import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportacion } from './calendario.js';
 import { activarPlan } from './agenda.js';
+import { renderInicio, cerrarInicio } from './inicio.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -73,7 +74,7 @@ const BLOQUES = {
 
 // Secciones principales. "c" es su color (de css/tokens.css).
 const SECCIONES = {
-  hoy:      { titulo: 'Resumen', lema: 'Lo importante de hoy, de un vistazo.', icono: 'hoy', c: 'marca' },
+  hoy:      { titulo: 'Inicio', lema: 'Tu vida, en movimiento.', icono: 'inicio', c: 'marca' },
   calendario: {
     titulo: 'Calendario', lema: 'Todo tu tiempo, en un solo sitio.', icono: 'calendario', c: 'marca',
     vistas: [['mes', 'Calendario', renderCalendario]],
@@ -153,7 +154,8 @@ function pintarVista() {
   $('titulo-bloque').textContent = sec.titulo;
   $('lema').textContent = sec.lema || '';
 
-  if (seccion === 'hoy') return renderHoy(cont);
+  if (seccion === 'hoy') return renderInicio(cont, contextoInicio());
+  cerrarInicio();
 
   // El "grupo" es el apartado de Salud elegido, o la propia sección
   const claveGrupo = esSalud ? bloque : seccion;
@@ -238,6 +240,15 @@ async function pintarVentanasImagen(cont) {
     ultimaDe(comidas, 'comidas');
     ultimaDe(dia, 'dia');
   } catch (e) { console.warn(e); }
+}
+
+// Lo que el Inicio necesita de aquí (datos de entreno, navegación, cuenta)
+let pedirAvatar = false;
+let nombreUsuario = '';
+function contextoInicio() {
+  const c = { sesionIniciada, entrenoDeHoy, irA, abrirLogin, nombre: nombreUsuario, abrirAvatar: pedirAvatar };
+  pedirAvatar = false;
+  return c;
 }
 
 // ---------- Ventanas ampliadas del Resumen (el "+" de cada mosaico) ----------
@@ -560,7 +571,7 @@ async function guardarCredenciales(email, password) {
   try { await navigator.credentials.store(new PasswordCredential({ id: email, password, name: email })); } catch { /* sin permiso: no pasa nada */ }
 }
 function cerrarLogin() { $('login').classList.add('oculto'); }
-$('btn-entrar').onclick = abrirLogin;
+$('btn-entrar').onclick = () => { cerrarMenuPerfil(); abrirLogin(); };
 $('btn-entrar-movil').onclick = abrirLogin;
 $('login-cerrar').onclick = cerrarLogin;
 $('login').onclick = ev => { if (ev.target === $('login')) cerrarLogin(); };
@@ -570,7 +581,46 @@ function pintarCuenta() {
   $('btn-entrar').classList.toggle('oculto', sesionIniciada);
   $('btn-entrar-movil').classList.toggle('oculto', sesionIniciada);
   $('btn-salir').classList.toggle('oculto', !sesionIniciada);
+  const inicial = nombreUsuario ? escapar(nombreUsuario[0].toUpperCase()) : icono('perfil');
+  $('btn-perfil').innerHTML = inicial;
+  $('btn-perfil-movil').innerHTML = inicial;
+  $('menu-cuenta').textContent = sesionIniciada ? (nombreUsuario || 'Tu cuenta de Lumen') : 'Sin cuenta: tus datos se guardan en este navegador';
 }
+
+// ---------- Menú de perfil (avatar, datos, entrar / salir) ----------
+const menuPerfil = $('menu-perfil');
+menuPerfil.querySelector('[data-menu="avatar"]').innerHTML = `${icono('perfil')}Tu avatar`;
+menuPerfil.querySelector('[data-menu="perfil"]').innerHTML = `${icono('salud')}Tus datos físicos`;
+$('btn-entrar').innerHTML = `${icono('der')}Entrar`;
+$('btn-salir').innerHTML = `${icono('salir')}Cerrar sesión`;
+function cerrarMenuPerfil() {
+  menuPerfil.hidden = true;
+  ['btn-perfil', 'btn-perfil-movil'].forEach(id => $(id).setAttribute('aria-expanded', 'false'));
+}
+function abrirMenuPerfil(boton) {
+  const r = boton.getBoundingClientRect();
+  menuPerfil.style.top = `${r.bottom + 10}px`;
+  menuPerfil.style.right = `${Math.max(12, innerWidth - r.right)}px`;
+  menuPerfil.hidden = false;
+  boton.setAttribute('aria-expanded', 'true');
+  menuPerfil.querySelector('button:not(.oculto)')?.focus();
+}
+['btn-perfil', 'btn-perfil-movil'].forEach(id => {
+  $(id).onclick = ev => { ev.stopPropagation(); menuPerfil.hidden ? abrirMenuPerfil($(id)) : cerrarMenuPerfil(); };
+});
+document.addEventListener('click', ev => { if (!menuPerfil.hidden && !menuPerfil.contains(ev.target)) cerrarMenuPerfil(); });
+addEventListener('keydown', ev => { if (ev.key === 'Escape' && !menuPerfil.hidden) cerrarMenuPerfil(); });
+menuPerfil.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-menu]');
+  if (!b) return;
+  cerrarMenuPerfil();
+  if (b.dataset.menu === 'perfil') return irA('salud|perfil|datos');
+  if (b.dataset.menu === 'avatar') {
+    if (seccion === 'hoy') return window.dispatchEvent(new Event('abrir-avatar'));
+    pedirAvatar = true;
+    irA('hoy');
+  }
+});
 
 async function entrar() {
   sesionIniciada = true;
@@ -579,6 +629,8 @@ async function entrar() {
   pintarCuenta();
   pintar();
   const { data: { session } } = await supabase.auth.getSession();
+  nombreUsuario = session.user.user_metadata?.nombre || session.user.user_metadata?.full_name?.split(' ')[0] || '';
+  pintarCuenta();
   // Datos de las secciones nuevas (perfil, nutrición, tareas, hábitos, notas) + datos de entreno
   await Promise.all([sincronizar(session.user.id), cargarTodo()]);
   await vaciarCola();

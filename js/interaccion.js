@@ -193,6 +193,7 @@ export function carruseles(cont) {
 
 /* ======================= 6. TRANSICIÓN ENTRE SECCIONES ======================= */
 export function transicion(cambio) {
-  if (!document.startViewTransition || sinMovimiento()) return cambio();
+  // Desde el Inicio ya hay su propia transición (la cortina de color), y la escena 3D no se fotografía bien
+  if (!document.startViewTransition || sinMovimiento() || document.body.classList.contains('en-inicio')) return cambio();
   document.startViewTransition(cambio);
 }

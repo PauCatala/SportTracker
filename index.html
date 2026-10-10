@@ -19,15 +19,18 @@
   <!-- Tipografía: la del sistema (SF en Apple) e Inter como respaldo -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Sora:wght@400;500;600;700&display=swap">
   <!-- 1º el diseño central, 2º los estilos de cada módulo, 3º la estructura de Lumen -->
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/pulido.css">
+  <link rel="stylesheet" href="css/v2.css">
 
   <!-- Gráficas (Chart.js) y nuestro código -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <!-- Three.js (copia local, r170) para la escena 3D del Inicio -->
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }</script>
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
@@ -38,8 +41,7 @@
       <b class="lateral-logo"><img src="icons/logo.svg" alt="" class="logo-marca">Lumen</b>
       <nav id="secciones" class="secciones" aria-label="Secciones"></nav>
       <div class="lateral-pie">
-        <button id="btn-entrar" class="btn primario ancho oculto">Entrar</button>
-        <button id="btn-salir" class="btn-texto-salir oculto">Cerrar sesión</button>
+        <button id="btn-perfil" class="btn-perfil" aria-label="Tu cuenta" aria-haspopup="menu" aria-expanded="false"></button>
       </div>
     </aside>
 
@@ -89,6 +91,16 @@
       </form>
     </div>
   </section>
+
+  <!-- Perfil (móvil) y su menú -->
+  <button id="btn-perfil-movil" class="btn-perfil perfil-movil" aria-label="Tu cuenta" aria-haspopup="menu" aria-expanded="false"></button>
+  <div id="menu-perfil" class="menu-perfil" role="menu" hidden>
+    <p id="menu-cuenta">Sin cuenta</p>
+    <button role="menuitem" data-menu="avatar"></button>
+    <button role="menuitem" data-menu="perfil"></button>
+    <button role="menuitem" id="btn-entrar" class="oculto"></button>
+    <button role="menuitem" id="btn-salir" class="oculto"></button>
+  </div>
 
   <div id="aviso" class="aviso" role="status"></div>
 </body>
