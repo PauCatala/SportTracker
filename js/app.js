@@ -23,6 +23,7 @@ import { introNutricion, introRunning, introGimnasio, introFlexibilidad } from '
 import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportacion } from './calendario.js';
 import { activarPlan } from './agenda.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
+import { renderSocial } from './social.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -90,7 +91,7 @@ const SECCIONES = {
   },
   imagen: {
     titulo: 'Imagen', lema: 'Tu progreso, en fotos.', icono: 'imagen', c: 'diario',
-    vistas: [['progreso', 'Progreso físico', renderProgresoFisico], ['comidas', 'Comidas', renderFotosComidas], ['dia', 'Tu día', renderFotosDia]],
+    vistas: [['progreso', 'Progreso físico', renderProgresoFisico], ['comidas', 'Comidas', renderFotosComidas], ['dia', 'Tu día', renderFotosDia], ['comunidad', 'Comunidad', cont => renderSocial(cont, { sesionIniciada, abrirLogin })]],
   },
 };
 const colorFuerte = c => c === 'marca' ? 'var(--marca)' : `var(--${c}-fuerte)`;

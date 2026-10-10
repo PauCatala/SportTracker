@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v16';
+const CACHE = 'lumen-v17';
 const ARCHIVOS = [
   './', './index.html', './manifest.json', './css/tokens.css', './css/styles.css', './css/app.css', './css/pulido.css', './css/v2.css',
   './js/app.js', './js/config.js', './js/db.js', './js/utils.js', './js/consultas.js',
@@ -9,7 +9,7 @@ const ARCHIVOS = [
   './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
   './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/intros.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
-  './js/inicio.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
+  './js/inicio.js', './js/social.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
   './vendor/three/three.module.min.js', './vendor/three/addons/loaders/GLTFLoader.js', './vendor/three/addons/utils/BufferGeometryUtils.js',
   './vendor/three/addons/utils/SkeletonUtils.js', './vendor/three/addons/environments/RoomEnvironment.js',
   './js/intro-base.js', './js/intro-nutricion.js', './js/intro-gym.js', './js/intro-flex.js',

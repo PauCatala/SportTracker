@@ -1,0 +1,5 @@
+-- Aplicado en Supabase el 2026-10-10 (migraciones lumen_imagen_social y lumen_puede_ver_invoker).
+-- Imagen social de Lumen: perfiles públicos, seguidores con aceptación y publicaciones PRIVADAS por defecto.
+-- Las fotos viven en el bucket privado "publicaciones": solo se ven con URL firmada si eres el dueño
+-- o un seguidor aceptado y la foto está compartida.
+-- (Copia de referencia; el texto exacto está en el historial de migraciones de Supabase.)
