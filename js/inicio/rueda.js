@@ -9,8 +9,12 @@ const R = 2.6;            // radio de la rueda
 const W = 1.36;           // ancho de la cinta
 const ALTURA_AVATAR = 3.15;   // ~+20 % respecto a la versión anterior
 const INCLINACION = -0.92; // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
-const VEL_BASE = 0.55;
-const GIRO_TEXTURA = -Math.PI / 2;    // rad/s cuando nadie la toca: un trote tranquilo
+const VEL_BASE = -0.8;     // rad/s cuando nadie la toca; con este sentido el avatar corre hacia nosotros, de tres cuartos
+// Velocidad del pie apoyado en la carrera de Avaturn (4,4 m/s a 1,8 m de estatura) en unidades de la escena:
+// la animación se acompasa a la superficie de la rueda para que los pies no patinen
+const VEL_PIE = 4.4 * (ALTURA_AVATAR / 1.75);
+const VEL_PIE_ANDAR = 1.4 * (ALTURA_AVATAR / 1.75); // al ir despacio (p. ej. con el puntero encima), camina
+const GIRO_TEXTURA = -Math.PI / 2;
 
 export function soporta3D() {
   try {
@@ -147,7 +151,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   try {
     avatar = await cargarAvatar();
     avatar.objeto.scale.setScalar(ALTURA_AVATAR);
-    avatar.objeto.rotation.y = -Math.PI / 2;     // corre hacia -X: la rueda gira bajo sus pies
+    avatar.objeto.rotation.y = VEL_BASE < 0 ? Math.PI / 2 : -Math.PI / 2; // corre a favor de la cinta, que gira bajo sus pies
     ancla.add(avatar.objeto);
     avatar.poner(quieto ? 'quieto' : 'correr', 0);
     avatar.mallas.forEach(m => { m.userData.avatar = true; });
@@ -341,8 +345,11 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     if (avatar) {
       const rapidez = Math.abs(vel);
       if (!editor) {
-        avatar.poner(rapidez > 0.12 ? 'correr' : 'quieto', 0.35);
-        avatar.velocidad(rapidez > 0.12 ? THREE.MathUtils.clamp(rapidez / VEL_BASE, 0.6, 1.9) : 1);
+        const superficie = rapidez * R;
+        const marcha = rapidez < 0.06 ? 'quieto' : superficie < 1.3 ? 'andar' : 'correr';
+        avatar.poner(marcha, 0.35);
+        avatar.velocidad(marcha === 'correr' ? THREE.MathUtils.clamp(superficie / VEL_PIE, 0.5, 1.4)
+          : marcha === 'andar' ? THREE.MathUtils.clamp(superficie / VEL_PIE_ANDAR, 0.5, 1.3) : 1);
         const mira = vel < -0.12 ? Math.PI / 2 : -Math.PI / 2;
         avatar.objeto.rotation.y += (mira - avatar.objeto.rotation.y) * Math.min(1, dt * 5);
       } else {

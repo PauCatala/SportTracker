@@ -1,21 +1,28 @@
-// Avatar realista con Avaturn (https://avaturn.me).
-// - El editor de Avaturn se abre a pantalla completa dentro de Lumen (iframe oficial con su SDK).
-// - Al pulsar "Siguiente" en Avaturn recibimos el modelo 3D (GLB) y lo guardamos:
-//   en tu cuenta (Supabase Storage, carpeta privada) y en este dispositivo (IndexedDB).
-// - Después se carga en la rueda del Inicio con animaciones adaptadas a su esqueleto.
+// Avatares realistas de Avaturn (https://avaturn.me).
+// - Lumen trae dos avatares listos (masculino y femenino) creados con Avaturn, con su carrera nativa.
+// - También puedes usar el tuyo: créalo gratis en avaturn.me, descárgalo (.glb) y súbelo en "Tu avatar".
+//   Se guarda en tu cuenta (Supabase Storage, carpeta privada) y en este dispositivo (IndexedDB).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { AvaturnSDK } from '../../vendor/avaturn/sdk-1.1.4.js';
 import { supabase } from '../db.js';
 import { leer, guardar } from '../almacen.js';
-import { AVATURN_SUBDOMINIO } from '../config.js';
 import { animacionesPara } from './retarget.js';
 
-const CLAVE = 'avatar-avaturn';        // datos del avatar en tu cuenta (lumen_datos)
+const CLAVE = 'avatar-avaturn';        // tu elección (lumen_datos)
 const CUBO = 'avatares';               // carpeta privada de Supabase Storage
+export const AVATARES = {
+  hombre: { nombre: 'Él', url: 'media/avatar/avaturn/hombre.glb' },
+  mujer: { nombre: 'Ella', url: 'media/avatar/avaturn/mujer.glb' },
+};
 
-export const tieneAvaturn = () => !!leer(CLAVE, null)?.avatarId;
-export const datosAvaturn = () => leer(CLAVE, null);
+// Elección actual: 'hombre', 'mujer' o 'propio'. Por defecto, según el sexo de tu perfil.
+export function eleccionAvatar() {
+  const d = leer(CLAVE, null);
+  if (d?.eleccion) return d;
+  if (d?.avatarId) return { eleccion: 'propio', propioId: d.avatarId };   // formato anterior
+  return { eleccion: leer('perfil', null)?.sexo === 'm' ? 'mujer' : 'hombre' };
+}
+export const tieneAvaturn = () => !!leer(CLAVE, null);
 
 // ---------- Copia local (IndexedDB) ----------
 function bd() {
@@ -38,93 +45,55 @@ async function usuario() {
   try { return (await supabase.auth.getSession()).data.session?.user?.id || null; } catch { return null; }
 }
 
-// El modelo del avatar guardado (blob GLB), de este dispositivo o de tu cuenta
-export async function modeloGuardado() {
-  const meta = datosAvaturn();
-  if (!meta?.avatarId) return null;
+// Tu avatar propio (blob GLB), de este dispositivo o de tu cuenta
+export async function modeloPropio() {
+  const id = eleccionAvatar().propioId || leer(CLAVE, null)?.propioId;
   const local = await leerLocal().catch(() => null);
-  if (local?.id === meta.avatarId) return local.blob;
+  if (local && (!id || local.id === id)) return local.blob;
   const uid = await usuario();
   if (!uid) return local?.blob || null;
   const { data, error } = await supabase.storage.from(CUBO).download(`${uid}/avatar.glb`);
   if (error || !data) return local?.blob || null;
-  await guardarLocal(meta.avatarId, data).catch(() => {});
+  await guardarLocal(id || 'cuenta', data).catch(() => {});
   return data;
 }
 
-async function guardarModelo(blob, info) {
-  await guardarLocal(info.avatarId, blob);
-  const uid = await usuario();
-  if (uid) {
-    const { error } = await supabase.storage.from(CUBO).upload(`${uid}/avatar.glb`, blob, { contentType: 'model/gltf-binary', upsert: true });
-    if (error) console.warn('No se pudo subir el avatar a tu cuenta:', error.message);
-  }
-  guardar(CLAVE, { v: 1, avatarId: info.avatarId, bodyId: info.bodyId, gender: info.gender, caras: !!info.avatarSupportsFaceAnimations, fecha: new Date().toISOString() });
+// Lo que hay que cargar para la elección actual (URL de un avatar de Lumen o tu GLB)
+export async function fuenteAvatar(eleccion = eleccionAvatar().eleccion) {
+  if (eleccion === 'propio') { const b = await modeloPropio(); if (b) return b; eleccion = 'hombre'; }
+  return AVATARES[eleccion]?.url || AVATARES.hombre.url;
 }
 
-// ---------- Editor de Avaturn a pantalla completa ----------
-let abierto = null;
-export function abrirAvaturn({ alGuardar, alExportar } = {}) {
-  if (abierto) return abierto;
-  const raiz = document.createElement('div');
-  raiz.className = 'avt entrando';
-  raiz.setAttribute('role', 'dialog');
-  raiz.setAttribute('aria-modal', 'true');
-  raiz.setAttribute('aria-label', 'Tu avatar');
-  raiz.innerHTML = `
-    <header class="avt-cab">
-      <button class="cr-icono" data-cerrar aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="avt-titulo"><h2>Tu avatar</h2><p>Hazte una foto o elige un rostro, ajusta tu estilo y pulsa <b>Siguiente</b> para traerlo a Lumen.</p></div>
-    </header>
-    <div class="avt-marco">
-      <div class="avt-sdk"></div>
-      <p class="avt-estado"><span></span>Abriendo el editor…</p>
-    </div>`;
-  document.body.append(raiz);
-  document.body.classList.add('con-creador');
-  requestAnimationFrame(() => raiz.classList.remove('entrando'));
-  const estado = raiz.querySelector('.avt-estado');
-  const mostrar = (texto, cargando = true) => { estado.hidden = false; estado.innerHTML = `${cargando ? '<span></span>' : ''}${texto}`; estado.classList.remove('fuera'); };
-
-  const sdk = new AvaturnSDK();
-  sdk.init(raiz.querySelector('.avt-sdk'), { url: `https://${AVATURN_SUBDOMINIO}.avaturn.dev`, iframeClassName: 'avt-iframe' })
-    .then(() => estado.classList.add('fuera'))
-    .catch(e => { console.warn('Avaturn', e); mostrar('No se ha podido abrir el editor de Avaturn. Revisa la conexión e inténtalo de nuevo.', false); });
-  // Por si el aviso de "listo" no llega, el iframe ya se ve debajo
-  setTimeout(() => estado.classList.add('fuera'), 6000);
-
-  sdk.on('export', async data => {
-    mostrar('Guardando tu avatar…');
-    try {
-      const res = await fetch(data.url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      if (alExportar) await alExportar(blob, data);
-      else {
-        await guardarModelo(blob, data);
-        window.dispatchEvent(new CustomEvent('avatar-cambiado', { detail: { tipo: 'avaturn' } }));
-        alGuardar?.(data);
-      }
-      mostrar('¡Listo! Tu avatar ya está en tu Inicio.', false);
-      setTimeout(cerrar, 900);
-    } catch (e) {
-      console.warn('Avaturn export', e);
-      mostrar('No se ha podido guardar el avatar. Vuelve a pulsar Siguiente.', false);
+// Guarda tu elección; con un GLB propio, también el archivo
+export async function elegirAvatar(eleccion, blob = null) {
+  const previo = leer(CLAVE, null) || {};
+  let propioId = previo.propioId || previo.avatarId || null;
+  if (blob) {
+    propioId = crypto.randomUUID();
+    await guardarLocal(propioId, blob);
+    const uid = await usuario();
+    if (uid) {
+      const { error } = await supabase.storage.from(CUBO).upload(`${uid}/avatar.glb`, blob, { contentType: 'model/gltf-binary', upsert: true });
+      if (error) console.warn('No se pudo subir el avatar a tu cuenta:', error.message);
     }
-  });
-  sdk.on('error', e => console.warn('Avaturn', e));
-
-  function cerrar() {
-    raiz.classList.add('saliendo');
-    removeEventListener('keydown', teclas);
-    setTimeout(() => { try { sdk.destroy(); } catch { /* ya cerrado */ } raiz.remove(); document.body.classList.remove('con-creador'); }, 300);
-    abierto = null;
   }
-  const teclas = ev => { if (ev.key === 'Escape') cerrar(); };
-  addEventListener('keydown', teclas);
-  raiz.querySelector('[data-cerrar]').onclick = cerrar;
-  abierto = { cerrar };
-  return abierto;
+  guardar(CLAVE, { v: 2, eleccion, propioId, fecha: new Date().toISOString() });
+  window.dispatchEvent(new CustomEvent('avatar-cambiado', { detail: { eleccion } }));
+}
+
+// Carrera nativa de Avaturn (ciclo de 0,67 s sin desplazamiento), adaptable a cualquier avatar de Avaturn
+let carrera = null;
+const clipCarrera = () => (carrera ||= fetch('media/avatar/avaturn/correr.json').then(r => r.json()).then(j => THREE.AnimationClip.parse(j)));
+function adaptarCarrera(base, cadera) {
+  const clip = base.clone();
+  const p = clip.tracks.find(t => t.name === 'Hips.position');
+  if (p) {
+    const v = p.values = p.values.slice();
+    for (let i = 0; i < v.length; i += 3) { v[i] = cadera.position.x; v[i + 1] *= cadera.position.y; v[i + 2] = cadera.position.z; }
+  }
+  // El balanceo vertical ya va en la cadera: la capa de balanceo queda quieta durante la carrera
+  clip.tracks.push(new THREE.VectorKeyframeTrack('avatar_balanceo.position', [0, clip.duration], [0, 0, 0, 0, 0, 0]));
+  return clip;
 }
 
 // ---------- Modelo en la escena ----------
@@ -157,18 +126,33 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
   objeto.updateMatrixWorld(true);
 
   // Materiales: que reciban bien la luz del estudio, sin brillos de plástico
-  modelo.traverse(o => {
-    if (!o.isMesh) return;
+  const mallas = []; modelo.traverse(o => { if (o.isMesh) mallas.push(o); });
+  for (const o of mallas) {
     o.castShadow = sombras; o.receiveShadow = sombras; o.frustumCulled = false;
-    for (const m of [].concat(o.material)) {
-      if ('envMapIntensity' in m) m.envMapIntensity = 0.85;
-      if (m.map) m.map.anisotropy = 4;
-      if (m.transparent && m.alphaTest === 0) { m.alphaTest = 0.4; m.transparent = false; m.alphaToCoverage = true; }
+    const m = o.material;
+    if ('envMapIntensity' in m) m.envMapIntensity = 0.85;
+    if (m.map) m.map.anisotropy = 8;
+    // Pelo semitransparente en dos pasadas, como en Avaturn: núcleo sólido (ordena bien y da sombra)
+    // y bordes suaves por encima, sin escribir profundidad
+    if (m.transparent && o.isSkinnedMesh) {
+      const borde = m.clone();
+      borde.alphaTest = 0; borde.depthWrite = false; borde.transparent = true;
+      m.transparent = false; m.alphaTest = 0.5; m.depthWrite = true;
+      const suave = new THREE.SkinnedMesh(o.geometry, borde);
+      suave.bind(o.skeleton, o.bindMatrix);
+      suave.frustumCulled = false; suave.renderOrder = 2; suave.castShadow = false;
+      o.parent.add(suave);
     }
-  });
+  }
 
+  // Avatares de Avaturn (huesos Hips, LeftUpLeg...): su carrera nativa, mucho más natural que la adaptada
+  const cadera = buscar(/^Hips$/);
+  const reposoCadera = cadera && buscar(/^LeftUpLeg$/) ? cadera.clone(false) : null;
   const { clips, balanceo } = await animacionesPara(giro);
   objeto.add(balanceo);
+  if (reposoCadera) {
+    try { clips.run = adaptarCarrera(await clipCarrera(), reposoCadera); } catch (e) { console.warn('Carrera de Avaturn', e); }
+  }
   const mixer = new THREE.AnimationMixer(objeto);
   const acciones = {};
   for (const [n, c] of Object.entries(clips)) {

@@ -1,37 +1,32 @@
 // Avatar del Inicio, con la interfaz que espera la rueda (poner, gesto, velocidad, aplicar...).
-// - Si has creado tu avatar con Avaturn, se usa ese modelo realista.
-// - Si aún no, se muestra el avatar provisional hasta que crees el tuyo.
+// - Avatar realista de Avaturn: el que elijas en "Tu avatar" (Él, Ella o el tuyo propio).
+// - Solo si no se pudiera cargar, se usa el avatar sencillo de respaldo.
 import * as THREE from 'three';
-import { leer, guardar } from '../almacen.js';
+import { leer } from '../almacen.js';
 import { crearAvatar } from '../avatar/motor.js';
 import { crearAnimador } from '../avatar/animacion.js';
 import { normalizar, PERFIL_BASE, VERSION } from '../avatar/parametros.js';
-import { tieneAvaturn, modeloGuardado, cargarAvatarRealista } from '../avatar/avaturn.js';
+import { fuenteAvatar, cargarAvatarRealista } from '../avatar/avaturn.js';
 
-// Perfil del avatar provisional (se mantiene mientras no haya avatar de Avaturn)
-export const tieneAvatar = () => leer('avatar', null)?.v === VERSION;
-export const leerPerfil = () => (tieneAvatar() ? normalizar(leer('avatar', null)) : normalizar(PERFIL_BASE));
-export const guardarPerfil = p => guardar('avatar', normalizar(p));
+// Avatar sencillo de respaldo (solo si el realista no se puede cargar)
+const leerPerfil = () => (leer('avatar', null)?.v === VERSION ? normalizar(leer('avatar', null)) : normalizar(PERFIL_BASE));
 
-const ALTO_REF = 1.75; // una persona de 1,75 m mide 1 en la escena; el resto, a escala
+const ALTO_REF = 1.75; // una persona de 1,75 m mide 1 en la escena
+const ALTO_AVATAR = 1.8; // todos los avatares realistas se muestran con la misma estatura
 const ESTADOS = { correr: 'run', quieto: 'idle', andar: 'walk' };
 
 // Carga el avatar que toque y lo envuelve con una interfaz común
 async function cargarInterior() {
-  if (tieneAvaturn()) {
-    try {
-      const blob = await modeloGuardado();
-      if (blob) {
-        const av = await cargarAvatarRealista(blob);
-        av.objeto.scale.setScalar(1 / ALTO_REF);
-        return {
-          objeto: av.objeto, altura: () => av.altura,
-          estado: (n, v) => av.estado(n, v), gesto: n => av.gesto(n === 'megusta' ? 'agree' : n),
-          actualizar: dt => av.actualizar(dt), destruir: () => av.destruir(),
-        };
-      }
-    } catch (e) { console.warn('Avatar realista', e); }
-  }
+  try {
+    const av = await cargarAvatarRealista(await fuenteAvatar());
+    const escala = ALTO_AVATAR / av.altura;
+    av.objeto.scale.setScalar(escala / ALTO_REF);
+    return {
+      objeto: av.objeto, altura: () => ALTO_AVATAR,
+      estado: (n, v) => av.estado(n, v), gesto: n => av.gesto(n === 'megusta' ? 'agree' : n),
+      actualizar: dt => av.actualizar(dt), destruir: () => av.destruir(),
+    };
+  } catch (e) { console.warn('Avatar realista', e); }
   const av = await crearAvatar(leerPerfil());
   const anim = await crearAnimador(av);
   av.objeto.scale.setScalar(1 / ALTO_REF);

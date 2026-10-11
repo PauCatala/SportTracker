@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#eef0f0}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script></head><body>
+<script type="module">
+// Laboratorio: carga un GLB (?glb=ruta) y lo renderiza desde varios ángulos y momentos de su animación.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w') || 1200), H = +(q.get('h') || 900);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setSize(W, H); r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace; r.shadowMap.enabled = true;
+document.body.append(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color(0xeef0f0);
+esc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(2, 4, 3); sol.castShadow = true; esc.add(sol);
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.ShadowMaterial({ opacity: .2 })); suelo.rotation.x = -Math.PI / 2; suelo.receiveShadow = true; esc.add(suelo);
+const g = await new GLTFLoader().loadAsync(q.get('glb'));
+const m = g.scene; esc.add(m);
+m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+const caja = new THREE.Box3().setFromObject(m);
+const info = { caja: [caja.min.toArray(), caja.max.toArray()], anims: g.animations.map(a => [a.name, a.duration, a.tracks.length, a.tracks.slice(0, 6).map(t => t.name)]),
+  materiales: [], huesos: [] };
+m.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(x => info.materiales.push({ n: x.name, tipo: x.type, mapas: ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap','alphaMap'].filter(k => x[k]).map(k => k + ':' + x[k].image?.width), transp: x.transparent, alphaTest: x.alphaTest, rough: x.roughness, metal: x.metalness }));
+  if (o.isBone && info.huesos.length < 60) info.huesos.push(o.name); });
+const mixer = new THREE.AnimationMixer(m);
+if (g.animations[0]) mixer.clipAction(g.animations[0]).play();
+const cam = new THREE.PerspectiveCamera(30, W / H, .1, 50);
+window.foto = (ang, t, zoom = 1) => {
+  mixer.setTime(t);
+  const h = caja.max.y; const d = 4.2 / zoom;
+  cam.position.set(Math.sin(ang) * d, h * 0.55, Math.cos(ang) * d); cam.lookAt(0, h * (zoom > 1.5 ? 0.88 : 0.5), 0);
+  r.render(esc, cam); return true;
+};
+window.info = info; window.listo = true;
+</script></body></html>

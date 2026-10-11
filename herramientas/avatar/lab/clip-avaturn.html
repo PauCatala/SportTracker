@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+<script type="module">
+// Extrae el ciclo de carrera nativo de Avaturn a JSON (sin desplazamiento horizontal, cadera relativa a su altura de reposo).
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const g = await new GLTFLoader().loadAsync('../../../media/avatar/avaturn/hombre.glb');
+const clip = g.animations[0];
+let hips; g.scene.traverse(o => { if (o.isBone && o.name === 'Hips') hips = o; });
+const p = clip.tracks.find(t => t.name === 'Hips.position');
+const v = p.values, n = v.length / 3;
+const resumen = { reposo: hips.position.toArray(), x: [], y: [], z: [], escalaPadre: hips.parent.getWorldScale(new THREE.Vector3()).toArray() };
+for (let i = 0; i < n; i++) { resumen.x.push(+v[i*3].toFixed(4)); resumen.y.push(+v[i*3+1].toFixed(4)); resumen.z.push(+v[i*3+2].toFixed(4)); }
+// Sin avance: x y z fijos en el reposo; y relativa a la altura de reposo de la cadera
+const hy = hips.position.y;
+for (let i = 0; i < n; i++) { v[i*3] = hips.position.x; v[i*3+2] = hips.position.z; v[i*3+1] = v[i*3+1] / hy; }
+p.name = 'Hips.position';
+clip.name = 'run';
+window.salida = { clip: THREE.AnimationClip.toJSON(clip), resumen };
+window.listo = true;
+</script>

@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+<script type="module">
+// Mide la velocidad del pie apoyado en la carrera nativa (m/s), para ajustar la rueda sin que patinen los pies.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const g = await new GLTFLoader().loadAsync('../../../media/avatar/avaturn/hombre.glb');
+const m = new THREE.AnimationMixer(g.scene); const clip = g.animations[0]; m.clipAction(clip).play();
+let pie; g.scene.traverse(o => { if (o.name === 'LeftToeBase') pie = o; });
+const N = 120, filas = [];
+for (let i = 0; i <= N; i++) { m.setTime(clip.duration * i / N); g.scene.updateMatrixWorld(true); const p = pie.getWorldPosition(new THREE.Vector3()); filas.push([clip.duration * i / N, p.y, p.z]); }
+const ymin = Math.min(...filas.map(f => f[1]));
+const apoyo = filas.filter(f => f[1] < ymin + 0.03);
+const vz = [];
+for (let i = 1; i < apoyo.length; i++) { const dt = apoyo[i][0] - apoyo[i - 1][0]; if (dt < 0.02) vz.push((apoyo[i][2] - apoyo[i - 1][2]) / dt); }
+window.res = { duracion: clip.duration, ymin, apoyoFrames: apoyo.length, velPie: vz.reduce((a, b) => a + b, 0) / vz.length, zRango: [Math.min(...filas.map(f => f[2])), Math.max(...filas.map(f => f[2]))] };
+window.listo = true;
+</script>
