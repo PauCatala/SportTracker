@@ -7,7 +7,8 @@ import { renderRutina } from './rutina.js';
 import { renderSemanaRun, renderRegistrarRun, renderProgresoRun } from './running.js';
 import { renderFlexHoy, renderFlexProgreso } from './flex.js';
 import { renderPerfil, PERFIL_VACIO } from './perfil.js';
-import { renderNutriHoy, renderNutriObjetivos, renderNutriIdeas, objetivosDelDia, totalesDe } from './nutricion.js';
+import { renderNutriHoy, renderNutriObjetivos, objetivosDelDia, totalesDe } from './nutricion.js';
+import { renderRecetas, renderPlanCompra } from './recetas.js';
 import { renderTablero, tareasDeLaSemana, etiquetaFecha } from './estudios.js';
 import { renderHabitos, renderLista, pendientesLista } from './personal.js';
 import { renderProgresoFisico, renderFotosComidas, renderFotosDia } from './imagen.js';
@@ -53,7 +54,8 @@ const BLOQUES = {
     vistas: [
       ['hoy', 'Hoy', renderNutriHoy],
       ['objetivos', 'Objetivos', renderNutriObjetivos],
-      ['ideas', 'Ideas de comidas', renderNutriIdeas],
+      ['recetas', 'Recetas', renderRecetas],
+      ['plan', 'Plan y compra', renderPlanCompra],
     ],
   },
   running: {

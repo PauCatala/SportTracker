@@ -112,7 +112,7 @@ export function renderNutriHoy(cont) {
         </div>
         <div class="fila-botones">
           <button class="btn primario" type="submit">${icono('mas')}Añadir comida</button>
-          <button class="btn suave" type="button" data-ideas>Elegir de las ideas</button>
+          <button class="btn suave" type="button" data-ideas>Elegir de las recetas</button>
         </div>
       </form>
     </section>
@@ -141,7 +141,7 @@ export function renderNutriHoy(cont) {
       guardar(`comidas:${hoy}`, comidasDe(hoy).filter(x => x.id !== b.dataset.borrar));
       return renderNutriHoy(cont);
     }
-    if (ev.target.closest('[data-ideas]')) dispatchEvent(new CustomEvent('navegar', { detail: { bloque: 'nutricion', vista: 'ideas' } }));
+    if (ev.target.closest('[data-ideas]')) dispatchEvent(new CustomEvent('navegar', { detail: { bloque: 'nutricion', vista: 'recetas' } }));
   };
   cont.querySelector('#n-form').onsubmit = ev => {
     ev.preventDefault();
@@ -151,7 +151,7 @@ export function renderNutriHoy(cont) {
   };
 }
 
-function anadirComida(c) {
+export function anadirComida(c) {
   const hoy = hoyISO();
   guardar(`comidas:${hoy}`, [...comidasDe(hoy), { id: nuevoId(), ...c }]);
   aviso('Comida añadida');
