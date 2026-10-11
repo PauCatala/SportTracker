@@ -617,7 +617,7 @@ menuPerfil.addEventListener('click', ev => {
   cerrarMenuPerfil();
   if (b.dataset.menu === 'perfil') return irA('salud|perfil|datos');
   if (b.dataset.menu === 'avatar') {
-    import('./avatar/creador.js').then(m => m.abrirCreador()).catch(e => console.warn('Creador de avatar', e));
+    import('./avatar/avaturn.js').then(m => m.abrirAvaturn()).catch(e => console.warn('Avaturn', e));
   }
 });
 

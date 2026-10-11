@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+</head><body><script type="module">
+// Prueba: exporta un avatar en postura A con nombres tipo Mixamo para comprobar el retarget genérico
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { crearAvatar, nombreHueso } from '../../../js/avatar/motor.js';
+import { PERFILES } from '../../../js/avatar/parametros.js';
+const MAPA = { root: 'Hips', spine04: 'Spine', spine03: 'Spine1', spine01: 'Spine2', neck01: 'Neck', head: 'Head' };
+for (const [l, L] of [['L', 'Left'], ['R', 'Right']]) Object.assign(MAPA, {
+  [`clavicle.${l}`]: `${L}Shoulder`, [`upperarm01.${l}`]: `${L}Arm`, [`lowerarm01.${l}`]: `${L}ForeArm`, [`wrist.${l}`]: `${L}Hand`,
+  [`upperleg01.${l}`]: `${L}UpLeg`, [`lowerleg01.${l}`]: `${L}Leg`, [`foot.${l}`]: `${L}Foot`, [`toe1-1.${l}`]: `${L}ToeBase`,
+  [`finger3-1.${l}`]: `${L}HandMiddle1`,
+});
+window.exportar = async g => {
+  const av = await crearAvatar(PERFILES[g]);
+  for (const [mh, mx] of Object.entries(MAPA)) { const b = av.objeto.getObjectByName(nombreHueso(mh)); if (b) b.name = mx; }
+  av.objeto.updateMatrixWorld(true);
+  const buf = await new GLTFExporter().parseAsync(av.objeto, { binary: true });
+  let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode(...u.subarray(i, i + 32768));
+  return btoa(s);
+};
+window.listo = true;
+</script></body></html>

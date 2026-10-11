@@ -1,0 +1,69 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script>
+</head><body>
+<script type="module">
+// Herramienta (solo desarrollo): extrae las animaciones del maniquí (captura de movimiento tipo Mixamo)
+// como giros en el espacio del mundo, independientes del esqueleto. En la web se aplican a
+// cualquier avatar humanoide (Avaturn incluido) en js/avatar/retarget.js.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const LADOS = ['Left', 'Right'];
+const DEDOS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+const HUESOS = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head'];
+for (const l of LADOS) {
+  HUESOS.push(`${l}Shoulder`, `${l}Arm`, `${l}ForeArm`, `${l}Hand`, `${l}UpLeg`, `${l}Leg`, `${l}Foot`, `${l}ToeBase`);
+  for (const d of DEDOS) for (let k = 1; k <= 3; k++) HUESOS.push(`${l}Hand${d}${k}`);
+}
+// Hijo de referencia para medir la dirección de cada hueso
+const HIJO = { Hips: 'Spine', Spine: 'Spine1', Spine1: 'Spine2', Spine2: 'Neck', Neck: 'Head', Head: 'HeadTop_End' };
+for (const l of LADOS) {
+  Object.assign(HIJO, {
+    [`${l}Shoulder`]: `${l}Arm`, [`${l}Arm`]: `${l}ForeArm`, [`${l}ForeArm`]: `${l}Hand`, [`${l}Hand`]: `${l}HandMiddle1`,
+    [`${l}UpLeg`]: `${l}Leg`, [`${l}Leg`]: `${l}Foot`, [`${l}Foot`]: `${l}ToeBase`, [`${l}ToeBase`]: `${l}Toe_End`,
+  });
+  for (const d of DEDOS) for (let k = 1; k <= 3; k++) HIJO[`${l}Hand${d}${k}`] = `${l}Hand${d}${k + 1}`;
+}
+
+window.extraer = async () => {
+  const g = await new GLTFLoader().loadAsync('../../../media/maniqui.glb');
+  const esc = g.scene; esc.updateMatrixWorld(true);
+  const hueso = n => esc.getObjectByName(`mixamorig${n}`);
+  const pos = n => hueso(n)?.getWorldPosition(new THREE.Vector3());
+  const qRep = {}, dir = {};
+  for (const n of HUESOS) {
+    qRep[n] = hueso(n).getWorldQuaternion(new THREE.Quaternion());
+    const a = pos(n), b = pos(HIJO[n]);
+    if (a && b) dir[n] = b.sub(a).normalize().toArray().map(x => +x.toFixed(4));
+  }
+  const alturaCadera = pos('Hips').y - Math.min(pos('LeftToeBase').y, pos('RightToeBase').y);
+  const mixer = new THREE.AnimationMixer(esc);
+  const FPS = 30, clips = {};
+  for (const clip of g.animations) {
+    if (!['idle', 'walk', 'run', 'agree', 'headShake'].includes(clip.name)) continue;
+    mixer.stopAllAction();
+    mixer.clipAction(clip).reset().play();
+    const n = Math.max(2, Math.round(clip.duration * FPS));
+    const q = {}; const y = [];
+    for (let f = 0; f <= n; f++) {
+      mixer.setTime((f / n) * clip.duration); esc.updateMatrixWorld(true);
+      for (const b of HUESOS) {
+        // giro respecto al reposo, en el mundo
+        let d = hueso(b).getWorldQuaternion(new THREE.Quaternion()).multiply(qRep[b].clone().invert());
+        if (clip.name === 'idle' && /UpLeg|Leg$/.test(b)) {
+          // postura más natural: pies algo más juntos que en el clip
+          d = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), b.startsWith('Left') ? -0.1 : 0.1).multiply(d);
+        }
+        (q[b] ||= []).push(...d.toArray().map(x => +x.toFixed(4)));
+      }
+      y.push(+((pos('Hips').y - qRepHips) / alturaCadera).toFixed(4));
+    }
+    clips[clip.name] = { d: +clip.duration.toFixed(3), n: n + 1, q, y };
+  }
+  return { huesos: HUESOS, dir, clips };
+};
+let qRepHips = 0;
+window.listo = true;
+// la altura de reposo de la cadera se calcula antes de animar
+new GLTFLoader().loadAsync('../../../media/maniqui.glb').then(g => { g.scene.updateMatrixWorld(true); qRepHips = g.scene.getObjectByName('mixamorigHips').getWorldPosition(new THREE.Vector3()).y; window.listo2 = true; });
+</script></body></html>

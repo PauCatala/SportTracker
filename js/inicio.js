@@ -123,7 +123,7 @@ async function publicaciones(d, ctx) {
 }
 
 // ---------- Crear / editar tu avatar (pantalla completa, se carga al abrirla) ----------
-const abrirAvatar = () => import('./avatar/creador.js').then(m => m.abrirCreador()).catch(e => console.warn('Creador de avatar', e));
+const abrirAvatar = () => import('./avatar/avaturn.js').then(m => m.abrirAvaturn()).catch(e => console.warn('Avaturn', e));
 
 // ---------- La pantalla ----------
 export async function renderInicio(cont, ctx) {

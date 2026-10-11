@@ -7,7 +7,7 @@ import { cargarAvatar } from './avatar.js';
 
 const R = 2.6;            // radio de la rueda
 const W = 1.42;           // ancho (profundidad) de la banda
-const ALTURA_AVATAR = 2.45;
+const ALTURA_AVATAR = 2.6;
 const INCLINACION = -0.92; // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
 const VEL_BASE = 0.55;
 const GIRO_TEXTURA = -Math.PI / 2;    // rad/s cuando nadie la toca: un trote tranquilo
