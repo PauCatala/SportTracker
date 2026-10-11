@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v20';
+const CACHE = 'lumen-v21';
 // Recursos del avatar (modelos, texturas, animaciones): no cambian dentro de una versión
 const CACHE_AVATAR = 'lumen-avatar-2';
 const ARCHIVOS = [
@@ -14,6 +14,7 @@ const ARCHIVOS = [
   './js/inicio.js', './js/social.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
   './js/avatar/motor.js', './js/avatar/parametros.js', './js/avatar/animacion.js', './js/avatar/creador.js',
   './js/avatar/avaturn.js', './js/avatar/retarget.js', './vendor/avaturn/sdk-1.1.4.js',
+  './js/recetas.js', './js/inicio/post-foco.js',
   './vendor/three/three.module.min.js', './vendor/three/addons/loaders/GLTFLoader.js', './vendor/three/addons/utils/BufferGeometryUtils.js',
   './vendor/three/addons/utils/SkeletonUtils.js', './vendor/three/addons/environments/RoomEnvironment.js',
   './js/intro-base.js', './js/intro-nutricion.js', './js/intro-gym.js', './js/intro-flex.js',
