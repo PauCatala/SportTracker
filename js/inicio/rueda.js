@@ -6,8 +6,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { cargarAvatar } from './avatar.js';
 
 const R = 2.6;            // radio de la rueda
-const W = 1.42;           // ancho (profundidad) de la banda
-const ALTURA_AVATAR = 2.6;
+const W = 1.36;           // ancho de la cinta
+const ALTURA_AVATAR = 3.15;   // ~+20 % respecto a la versión anterior
 const INCLINACION = -0.92; // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
 const VEL_BASE = 0.55;
 const GIRO_TEXTURA = -Math.PI / 2;    // rad/s cuando nadie la toca: un trote tranquilo
@@ -64,7 +64,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   // Suelo invisible que solo recoge la sombra
   const suelo = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.11 }));
   suelo.rotation.x = -Math.PI / 2;
-  suelo.position.y = -R - 0.075;
+  suelo.position.y = -R - 0.02;
   suelo.receiveShadow = true;
   escena.add(suelo);
 
@@ -75,55 +75,64 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   const rueda = new THREE.Group();
   soporte.add(rueda);
 
-  // Acabado de objeto de diseño: blanco satinado con un velo suave (sheen) y barniz fino
-  const blanco = new THREE.MeshPhysicalMaterial({ color: 0xf6f7f7, roughness: 0.42, clearcoat: 0.8, clearcoatRoughness: 0.22, sheen: 0.5, sheenColor: new THREE.Color('#e8ecff'), sheenRoughness: 0.5 });
-  const banda = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.012, R + 0.012, W, 180, 1, true), blanco.clone());
-  banda.material.side = THREE.DoubleSide;
-  banda.rotation.x = Math.PI / 2;
-  banda.receiveShadow = true;
-  banda.castShadow = true;
-  rueda.add(banda);
-  for (const z of [-W / 2, W / 2]) {
-    const aro = new THREE.Mesh(new THREE.TorusGeometry(R + 0.012, 0.085, 28, 240), blanco);
-    aro.position.z = z;
-    aro.castShadow = true; aro.receiveShadow = true;
-    rueda.add(aro);
+  // ---------- La cinta ----------
+  // Una tira continua de papel fotográfico satinado que se curva sobre sí misma:
+  // las publicaciones son la propia superficie (por fuera y por dentro) y el canto es finísimo.
+  const ESPESOR = 0.012, ONDA = 0.035;
+  const onda = th => ONDA * Math.sin(th * 2 + 0.6);           // leve ondulación de tira flexible
+  function ondular(geo) {
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + onda(Math.atan2(p.getX(i), p.getZ(i))));
+    geo.computeVertexNormals();
+    return geo;
+  }
+  const papel = new THREE.MeshPhysicalMaterial({ color: 0xf7f7f5, roughness: 0.55, sheen: 0.3, sheenColor: new THREE.Color('#ffffff'), clearcoat: 0.12, clearcoatRoughness: 0.45 });
+  // Cantos: dos tiras finísimas que cierran el grosor del papel
+  for (const lado of [-1, 1]) {
+    const pts = [], idx = [];
+    const SEG = 360;
+    for (let k = 0; k <= SEG; k++) {
+      const th = (k / SEG) * Math.PI * 2, y = lado * W / 2 + onda(th);
+      for (const r of [R - ESPESOR / 2, R + ESPESOR / 2]) pts.push(r * Math.sin(th), y, r * Math.cos(th));
+      if (k < SEG) { const o = k * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const canto = new THREE.Mesh(g, papel.clone()); canto.material.side = THREE.DoubleSide;
+    canto.rotation.x = Math.PI / 2; canto.castShadow = true;
+    rueda.add(canto);
   }
 
-  // Publicaciones: dos vueltas de las cinco áreas
+  // Publicaciones: dos vueltas de las cinco áreas, una detrás de otra sin huecos
   const N = areas.length * 2;
   const paso = (Math.PI * 2) / N;
-  const hueco = 0.05;
+  const hueco = 0;
   const texturas = lienzos.map(c => {
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     t.center.set(0.5, 0.5);
-    t.rotation = GIRO_TEXTURA;   // la publicación queda "de pie" a lo largo de la rueda
+    t.rotation = GIRO_TEXTURA;   // la publicación queda "de pie" a lo largo de la cinta
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter;
     return t;
   });
+  const matPost = map => new THREE.MeshPhysicalMaterial({ map, roughness: 0.52, sheen: 0.25, sheenColor: new THREE.Color('#ffffff'), clearcoat: 0.12, clearcoatRoughness: 0.45, envMapIntensity: 0.4, emissive: 0x000000 });
   const tarjetas = [];
   for (let i = 0; i < N; i++) {
     const a = i % areas.length;
     const t0 = i * paso + hueco / 2, largo = paso - hueco;
     const grupo = new THREE.Group();
-    // Cara de fuera
     const texFuera = texturas[a];
-    const fuera = new THREE.Mesh(
-      new THREE.CylinderGeometry(R + 0.03, R + 0.03, W * 0.84, 28, 1, true, t0, largo),
-      new THREE.MeshStandardMaterial({ map: texFuera, roughness: 0.7, emissive: 0x000000, envMapIntensity: 0.35 }),
-    );
+    const fuera = new THREE.Mesh(ondular(new THREE.CylinderGeometry(R + ESPESOR / 2, R + ESPESOR / 2, W, 40, 6, true, t0, largo)), matPost(texFuera));
     // Cara de dentro (la textura se refleja para que se lea bien)
     const texDentro = texFuera.clone();
     texDentro.wrapS = THREE.RepeatWrapping;
     texDentro.repeat.x = -1;
     texDentro.rotation = GIRO_TEXTURA + Math.PI;
     texDentro.needsUpdate = true;
-    const dentro = new THREE.Mesh(
-      new THREE.CylinderGeometry(R - 0.012, R - 0.012, W * 0.84, 28, 1, true, t0, largo),
-      new THREE.MeshStandardMaterial({ map: texDentro, side: THREE.BackSide, roughness: 0.7, emissive: 0x000000, envMapIntensity: 0.35 }),
-    );
-    for (const m of [fuera, dentro]) { m.receiveShadow = true; m.userData.tarjeta = i; }
+    const mDentro = matPost(texDentro); mDentro.side = THREE.BackSide;
+    const dentro = new THREE.Mesh(ondular(new THREE.CylinderGeometry(R - ESPESOR / 2, R - ESPESOR / 2, W, 40, 6, true, t0, largo)), mDentro);
+    for (const m of [fuera, dentro]) { m.receiveShadow = true; m.castShadow = true; m.userData.tarjeta = i; }
     grupo.add(fuera, dentro);
     grupo.rotation.x = Math.PI / 2;
     rueda.add(grupo);
@@ -133,7 +142,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   // ---------- El avatar ----------
   let avatar = null;
   const ancla = new THREE.Group();
-  ancla.position.set(0, -R + 0.005, 0);
+  ancla.position.set(0, -R + ESPESOR / 2 + 0.004, 0);
   soporte.add(ancla);
   try {
     avatar = await cargarAvatar();
@@ -177,6 +186,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     lienzo.setPointerCapture(ev.pointerId);
     arrastre = { x: ev.clientX, y: ev.clientY, x0: ev.clientX, t: performance.now(), movido: false };
     objetivoAngulo = null;
+    vel = 0;   // al tocar, la cinta se detiene: lo que pulsas no se escapa
   });
   lienzo.addEventListener('pointermove', ev => {
     aNDC(ev);
@@ -319,7 +329,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
         vel = d * 4;
         if (Math.abs(d) < 0.002) objetivoAngulo = null;
       } else {
-        velObj = pausado || editor ? 0 : VEL_BASE;
+        velObj = pausado || editor || eligiendo ? 0 : sobre !== null ? VEL_BASE * 0.2 : VEL_BASE;
         const k = ahora - ultimoToque < 1200 ? 0.6 : 1.6;
         vel += (velObj - vel) * Math.min(1, dt * k);
       }
@@ -363,7 +373,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     if (!editor) calcularDestacada();
     for (const t of tarjetas) {
       t.brillo += (t.brilloObj - t.brillo) * Math.min(1, dt * 6);
-      const e = 0.035 * t.brillo + (sobre === t.i ? 0.06 : 0);
+      const e = 0.03 * t.brillo + (sobre === t.i ? 0.06 : 0);
       t.fuera.material.emissive.setScalar(e);
       t.dentro.material.emissive.setScalar(e);
     }

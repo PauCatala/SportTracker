@@ -2,7 +2,24 @@
 // (tu usuario, una imagen de la sección, interacciones y el nombre del área como pie).
 // Se dibujan en un <canvas> que la escena 3D usa como textura.
 
+import { leer, guardar } from '../almacen.js';
+
 export const ANCHO = 720, ALTO = 880;
+
+// ---------- Interacciones de cada publicación (tuyas, reales, guardadas en tu cuenta) ----------
+const CLAVE = 'inicio-posts';
+export function interacciones(id) {
+  const v = leer(CLAVE, {})[id] || {};
+  return { like: !!v.like, guardado: !!v.guardado, comentarios: Array.isArray(v.comentarios) ? v.comentarios : [] };
+}
+export function cambiarInteraccion(id, cambio) {
+  const todo = leer(CLAVE, {});
+  todo[id] = { ...interacciones(id), ...cambio(interacciones(id)) };
+  guardar(CLAVE, todo);
+  return todo[id];
+}
+export const textoMeGusta = n => (n === 1 ? '1 Me gusta' : `${n} Me gusta`);
+export const textoComentarios = n => (n ? `Ver ${n === 1 ? 'el comentario' : `los ${n} comentarios`}` : 'Añade un comentario…');
 
 // Las cinco áreas: color suave (fondos) y fuerte (acentos mínimos)
 export const AREAS = [
@@ -15,7 +32,7 @@ export const AREAS = [
 
 const IMAGENES = { salud: 'salud', estudios: 'estudios', personal: 'personal', imagen: 'imagen' };
 const RUTA = new URL('../../media/posts/', import.meta.url).href;
-const TINTA = '#222B3D', GRIS = '#8E95A3', FONDO = '#F4F5F5';
+const TINTA = '#222B3D', GRIS = '#8E95A3', PAPEL = '#F7F7F5', ROJO = '#E5484D';
 
 const redondo = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 function encaja(ctx, texto, max) {
@@ -37,7 +54,16 @@ function cargar(nombre) {
 
 // ---------- Iconos de línea fina, dibujados a mano ----------
 function trazo(ctx, fn) { ctx.save(); ctx.strokeStyle = TINTA; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); fn(); ctx.stroke(); ctx.restore(); }
+function relleno(ctx, color, fn) { ctx.save(); ctx.fillStyle = color; ctx.beginPath(); fn(); ctx.fill(); ctx.restore(); }
 const ICONOS = {
+  corazonLleno: (ctx, x, y) => relleno(ctx, ROJO, () => {
+    ctx.moveTo(x, y + 12);
+    ctx.bezierCurveTo(x - 22, y - 2, x - 13, y - 20, x, y - 9);
+    ctx.bezierCurveTo(x + 13, y - 20, x + 22, y - 2, x, y + 12);
+  }),
+  guardadoLleno: (ctx, x, y) => relleno(ctx, TINTA, () => {
+    ctx.moveTo(x - 11, y - 14); ctx.lineTo(x + 11, y - 14); ctx.lineTo(x + 11, y + 14); ctx.lineTo(x, y + 5); ctx.lineTo(x - 11, y + 14); ctx.closePath();
+  }),
   corazon: (ctx, x, y) => trazo(ctx, () => {
     ctx.moveTo(x, y + 12);
     ctx.bezierCurveTo(x - 22, y - 2, x - 13, y - 20, x, y - 9);
@@ -79,7 +105,7 @@ function calendario(ctx, x, y, w, h) {
   const hoy = new Date();
   const mes = hoy.toLocaleDateString('es-ES', { month: 'long' });
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#FFFFFF';
-  ctx.font = '300 74px Sora, Inter, sans-serif';
+  ctx.font = '300 74px "Inter Tight", Inter, sans-serif';
   ctx.fillText(mes[0].toUpperCase() + mes.slice(1), cx + p, cy + ch * 0.47);
   ctx.textAlign = 'right'; ctx.fillText(String(hoy.getDate()), cx + cw - p, cy + ch * 0.47);
   // semana
@@ -107,62 +133,78 @@ function calendario(ctx, x, y, w, h) {
   ctx.textAlign = 'left';
 }
 
-// Dibuja una publicación. pub = { area, dato, detalle, usuario }
+// Imagen principal de una sección (la usa también la vista ampliada)
+export async function pintarImagen(ctx, area, x, y, w, h) {
+  if (area.id === 'calendario') return calendario(ctx, x, y, w, h);
+  const img = IMAGENES[area.id] ? await cargar(IMAGENES[area.id]) : null;
+  if (img) {
+    const k = Math.max(w / img.width, h / img.height);
+    ctx.drawImage(img, x + (w - img.width * k) / 2, y + (h - img.height * k) / 2, img.width * k, img.height * k);
+  } else { ctx.fillStyle = area.suave; ctx.fillRect(x, y, w, h); }
+}
+
+// Dibuja una publicación sobre la cinta. pub = { area, dato, detalle, usuario (null = invitado) }
 export async function pintarPublicacion(pub, lienzo = document.createElement('canvas')) {
   lienzo.width = ANCHO; lienzo.height = ALTO;
   const ctx = lienzo.getContext('2d');
   const { area } = pub;
-  const usuario = (pub.usuario || 'tú').toLowerCase().replace(/\s+/g, '');
+  const invitado = !pub.usuario;
+  const usuario = invitado ? 'Invitado' : pub.usuario.toLowerCase().replace(/\s+/g, '');
+  const est = interacciones(area.id);
   await Promise.all([
-    document.fonts?.load('600 28px Sora').catch(() => {}),
-    document.fonts?.load('300 74px Sora').catch(() => {}),
+    document.fonts?.load('600 28px "Inter Tight"').catch(() => {}),
+    document.fonts?.load('300 74px "Inter Tight"').catch(() => {}),
   ]);
-  const img = IMAGENES[area.id] ? await cargar(IMAGENES[area.id]) : null;
 
-  // Fondo de la publicación
-  ctx.fillStyle = FONDO; ctx.fillRect(0, 0, ANCHO, ALTO);
-  ctx.fillStyle = '#FFFFFF'; redondo(ctx, 14, 14, ANCHO - 28, ALTO - 28, 30); ctx.fill();
+  // Papel continuo: sin tarjeta pegada, solo una línea finísima entre publicaciones
+  ctx.fillStyle = PAPEL; ctx.fillRect(0, 0, ANCHO, ALTO);
+  ctx.fillStyle = 'rgba(34,43,61,.07)'; ctx.fillRect(0, 0, ANCHO, 1.5); ctx.fillRect(0, ALTO - 1.5, ANCHO, 1.5);
 
-  // Cabecera: tu perfil y el menú
-  const g = ctx.createLinearGradient(42, 40, 98, 96);
-  g.addColorStop(0, area.suave); g.addColorStop(1, '#FFFFFF');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(70, 66, 26, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(34,43,61,.08)'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = TINTA; ctx.font = '600 24px Sora, Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(usuario[0].toUpperCase(), 70, 67);
-  ctx.textAlign = 'left'; ctx.font = '600 26px Inter, sans-serif';
-  ctx.fillText(encaja(ctx, usuario, 460), 112, 66);
+  // Cabecera: foto de perfil, usuario y menú
+  const cx = 66, cy = 58;
+  if (invitado) {
+    ctx.fillStyle = '#E3E5E8'; ctx.beginPath(); ctx.arc(cx, cy, 25, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#AEB4BE'; ctx.beginPath(); ctx.arc(cx, cy - 6, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, cy + 14, 14, 9, 0, Math.PI, 0); ctx.fill();
+  } else {
+    const g = ctx.createLinearGradient(cx - 25, cy - 25, cx + 25, cy + 25);
+    g.addColorStop(0, area.suave); g.addColorStop(1, '#FFFFFF');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 25, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(34,43,61,.1)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = TINTA; ctx.font = '600 23px "Inter Tight", Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(usuario[0].toUpperCase(), cx, cy + 1);
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = invitado ? GRIS : TINTA;
+  ctx.font = '600 25px "Inter Tight", Inter, sans-serif';
+  ctx.fillText(encaja(ctx, usuario, 440), 106, cy);
   ctx.fillStyle = TINTA;
-  for (const dx of [-12, 0, 12]) { ctx.beginPath(); ctx.arc(658 + dx, 66, 3.2, 0, Math.PI * 2); ctx.fill(); }
+  for (const dx of [-11, 0, 11]) { ctx.beginPath(); ctx.arc(662 + dx, cy, 3, 0, Math.PI * 2); ctx.fill(); }
 
-  // Imagen principal
-  const ix = 30, iy = 110, iw = ANCHO - 60, ih = 552;
-  ctx.save(); redondo(ctx, ix, iy, iw, ih, 22); ctx.clip();
-  if (area.id === 'calendario') calendario(ctx, ix, iy, iw, ih);
-  else if (img) {
-    const k = Math.max(iw / img.width, ih / img.height);
-    ctx.drawImage(img, ix + (iw - img.width * k) / 2, iy + (ih - img.height * k) / 2, img.width * k, img.height * k);
-  } else { ctx.fillStyle = area.suave; ctx.fillRect(ix, iy, iw, ih); }
+  // Imagen principal: casi toda la publicación
+  const ix = 0, iy = 100, iw = ANCHO, ih = 560;
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+  await pintarImagen(ctx, area, ix, iy, iw, ih);
   ctx.restore();
 
   // Interacciones
-  ICONOS.corazon(ctx, 60, 706);
-  ICONOS.comentario(ctx, 118, 704);
-  ICONOS.enviar(ctx, 176, 704);
-  ICONOS.guardar(ctx, 660, 704);
-  // puntos del carrusel, discretos
-  for (let i = 0; i < 3; i++) { ctx.fillStyle = i === 1 ? area.fuerte : 'rgba(34,43,61,.18)'; ctx.beginPath(); ctx.arc(342 + i * 18, 704, 4, 0, Math.PI * 2); ctx.fill(); }
+  (est.like ? ICONOS.corazonLleno : ICONOS.corazon)(ctx, 52, 704);
+  ICONOS.comentario(ctx, 110, 702);
+  ICONOS.enviar(ctx, 168, 702);
+  (est.guardado ? ICONOS.guardadoLleno : ICONOS.guardar)(ctx, 668, 702);
+  for (let i = 0; i < 3; i++) { ctx.fillStyle = i === 1 ? area.fuerte : 'rgba(34,43,61,.18)'; ctx.beginPath(); ctx.arc(342 + i * 18, 702, 4, 0, Math.PI * 2); ctx.fill(); }
 
-  // Dato del día (en el lugar de los "me gusta"), usuario + sección y una frase
+  // Me gusta, autor + sección, comentarios y fecha
   ctx.textBaseline = 'alphabetic'; ctx.fillStyle = TINTA;
+  ctx.font = '600 23px Inter, sans-serif';
+  ctx.fillText(textoMeGusta(est.like ? 1 : 0), 36, 762);
   ctx.font = '600 24px Inter, sans-serif';
-  ctx.fillText(encaja(ctx, pub.dato || area.titulo, ANCHO - 90), 44, 768);
-  ctx.font = '600 25px Inter, sans-serif';
-  ctx.fillText(usuario, 44, 808);
+  ctx.fillText(usuario, 36, 798);
   const ancho = ctx.measureText(`${usuario} `).width;
-  ctx.font = '400 25px Inter, sans-serif';
-  ctx.fillText(area.titulo, 44 + ancho, 808);
+  ctx.font = '400 24px Inter, sans-serif';
+  ctx.fillText(encaja(ctx, `${area.titulo} · ${pub.dato || area.frase}`, ANCHO - 72 - ancho), 36 + ancho, 798);
   ctx.fillStyle = GRIS; ctx.font = '400 21px Inter, sans-serif';
-  ctx.fillText(encaja(ctx, pub.detalle || area.frase, ANCHO - 90), 44, 842);
+  ctx.fillText(textoComentarios(est.comentarios.length), 36, 832);
+  ctx.font = '500 16px Inter, sans-serif'; ctx.fillStyle = '#A8AEB8';
+  ctx.fillText('HOY', 36, 862);
   return lienzo;
 }

@@ -523,8 +523,22 @@ window.addEventListener('navegar', ev => {
   transicion(() => { pintar(); window.scrollTo(0, 0); });
 });
 
-// Al hacer scroll, la cabecera se compacta (como los títulos grandes de iOS)
-addEventListener('scroll', () => document.querySelector('.cabecera').classList.toggle('compacta', scrollY > 30), { passive: true });
+// Al hacer scroll, la cabecera se compacta (como los títulos grandes de iOS).
+// Ojo: compactarla acorta la página. Si queda poco recorrido, el navegador recoloca el scroll
+// por encima del umbral, la cabecera se vuelve a abrir, la página se alarga… y la pantalla
+// tiembla (pasaba al final de Estudios y trabajo). Por eso: dos umbrales distintos para
+// cerrar y abrir, y solo se compacta si sobra recorrido de verdad.
+let cabeceraCompacta = false, revisionCabecera = 0;
+function revisarCabecera() {
+  revisionCabecera = 0;
+  const cab = document.querySelector('.cabecera');
+  if (!cab) return;
+  const recorrido = document.documentElement.scrollHeight - innerHeight;
+  const cerrar = !cabeceraCompacta && scrollY > 48 && recorrido > 260;
+  const abrir = cabeceraCompacta && scrollY < 8;
+  if (cerrar || abrir) { cabeceraCompacta = cerrar; cab.classList.toggle('compacta', cabeceraCompacta); }
+}
+addEventListener('scroll', () => { revisionCabecera ||= requestAnimationFrame(revisarCabecera); }, { passive: true });
 addEventListener('resize', () => { indicador($('secciones')); indicador($('subbloques')); indicador($('tabs')); });
 
 // ---------- Conexión ----------

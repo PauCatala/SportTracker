@@ -12,6 +12,7 @@ import { objetivosDelDia, totalesDe } from './nutricion.js';
 import { avisoProgreso } from './fotos.js';
 import { AREAS, pintarPublicacion } from './inicio/publicaciones.js';
 import { soporta3D, crearRueda } from './inicio/rueda.js';
+import { abrirPost } from './inicio/post-foco.js';
 
 let actual = null;          // la escena viva (para destruirla al salir)
 let urls = [];              // fotos abiertas como URL temporales
@@ -24,6 +25,9 @@ export function cerrarInicio() {
   document.body.classList.remove('en-inicio');
 }
 
+const sesion = ctx => (typeof ctx.sesionIniciada === 'function' ? ctx.sesionIniciada() : !!ctx.sesionIniciada);
+const ICONO_PAUSA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1.4"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.4"/></svg>';
+const ICONO_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 001.5.9l10-6.4a1 1 0 000-1.8l-10-6.4A1 1 0 008 5.6z"/></svg>';
 const sinEtiquetas = html => html.replace(/<[^>]+>/g, '');
 const ahoraHHMM = () => new Date().toTimeString().slice(0, 5);
 const areaDe = id => AREAS.find(a => a.id === id);
@@ -118,8 +122,10 @@ async function publicaciones(d, ctx) {
     personal: { dato: d.hab.total ? `Hábitos: ${d.hab.hechos} de ${d.hab.total}` : 'Tus hábitos y retos', detalle: d.lista.length ? `${d.lista.length} cosas en tu lista` : '' },
     imagen: { dato: 'Tu progreso, en fotos', detalle: 'Privado por defecto' },
   };
-  const usuario = ctx.nombre || 'tú';
-  return Promise.all(AREAS.map(area => pintarPublicacion({ area, usuario, ...datos[area.id] })));
+  const usuario = sesion(ctx) ? (ctx.nombre || 'tú') : null;   // sin cuenta: invitado
+  const pubs = AREAS.map(area => ({ area, usuario, ...datos[area.id] }));
+  const lienzos = await Promise.all(pubs.map(p => pintarPublicacion(p)));
+  return { pubs, lienzos };
 }
 
 // ---------- Crear / editar tu avatar (pantalla completa, se carga al abrirla) ----------
@@ -154,7 +160,7 @@ export async function renderInicio(cont, ctx) {
           <p class="escena-ayuda">${matchMedia('(pointer: coarse)').matches ? 'Desliza para girar · toca tu avatar' : 'Arrastra para girar · toca tu avatar para cambiarlo'}</p>
           <span class="escena-tip" aria-hidden="true"></span>
           <div class="escena-pie">
-            <button class="flecha" data-pausa aria-label="${quieto ? 'Mover la rueda' : 'Detener el movimiento'}" aria-pressed="${quieto}">${icono(quieto ? 'rayo' : 'x')}</button>
+            <button class="flecha" data-pausa aria-label="${quieto ? 'Mover la rueda' : 'Detener el movimiento'}" aria-pressed="${quieto}">${quieto ? ICONO_PLAY : ICONO_PAUSA}</button>
             <button class="flecha" data-girar="-1" aria-label="Publicación anterior">${icono('izq')}</button>
             <button class="destacada" data-destacada><span class="d-ico"></span><b></b><span></span></button>
             <button class="flecha" data-girar="1" aria-label="Publicación siguiente">${icono('der')}</button>
@@ -202,12 +208,21 @@ export async function renderInicio(cont, ctx) {
     escenaEl.innerHTML = '<p class="tenue">Tu navegador no muestra escenas 3D. Entra en cada área con los botones de abajo.</p>';
   } else {
     try {
-      const lienzos = await publicaciones(d, ctx);
+      const { pubs, lienzos } = await publicaciones(d, ctx);
       if (!escenaEl.isConnected) return;
       rueda = await crearRueda(escenaEl, {
         lienzos, areas: AREAS, quieto,
         alDestacar: marcarDestacada,
-        alElegir: (area, listo) => entrar(area, listo),
+        // Al elegir una publicación se abre ampliada; desde ahí se entra en la sección
+        alElegir: (area, listo) => {
+          const i = AREAS.indexOf(area);
+          abrirPost({
+            area, pub: pubs[i], usuario: pubs[i].usuario,
+            alEntrar: () => entrar(area, listo),
+            alCerrar: listo,
+            alCambiar: async () => { await pintarPublicacion(pubs[i], lienzos[i]); rueda?.refrescar(i); },
+          });
+        },
         alPulsarAvatar: abrirAvatar,
         alSobre: info => {
           if (!info) { tip.classList.remove('ver'); return; }
@@ -261,7 +276,7 @@ export async function renderInicio(cont, ctx) {
       const ahora = pa.getAttribute('aria-pressed') !== 'true';
       pa.setAttribute('aria-pressed', String(ahora));
       pa.setAttribute('aria-label', ahora ? 'Mover la rueda' : 'Detener el movimiento');
-      pa.innerHTML = icono(ahora ? 'rayo' : 'x');
+      pa.innerHTML = ahora ? ICONO_PLAY : ICONO_PAUSA;
       guardar('inicio-pausa', ahora);
       rueda?.pausar(ahora);
       return;

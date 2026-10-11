@@ -1,7 +1,7 @@
 /* =====================================================================
    LUMEN 2 · Nueva identidad
    Se carga la última. Porcelana, tinta azul profundo y cinco pasteles,
-   uno por cada parte de tu vida. Sora para títulos, la del sistema para leer.
+   uno por cada parte de tu vida. Inter Tight para títulos, Inter para leer.
    La única pieza llamativa es la rueda del Inicio: todo lo demás, tranquilo.
    ===================================================================== */
 
@@ -53,7 +53,7 @@
 
   /* ---------- Tipografía ---------- */
   --fuente: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  --fuente-titulo: 'Sora', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  --fuente-titulo: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 
   /* ---------- Profundidad: dos niveles, nada más ---------- */
   --sombra-1: 0 1px 1px rgba(34, 43, 61, .03), 0 6px 18px -8px rgba(34, 43, 61, .10);
@@ -708,3 +708,116 @@ input:focus, select:focus, textarea:focus { border-color: rgba(34, 43, 61, .25);
 .avt-estado span { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--perla-2); border-top-color: var(--tinta); animation: cr-gira .9s linear infinite; }
 .avt-estado.fuera { opacity: 0; pointer-events: none; }
 @media (max-width: 899px) { .avt-cab { padding: 10px 10px; } .avt-titulo p { display: none; } .avt-marco { margin: 0; border-radius: 0; box-shadow: none; border: 0; } }
+
+/* =====================================================================
+   LUMEN 3.0 · tokens, tipografía editorial y componentes refinados
+   ===================================================================== */
+:root {
+  --fuente: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  /* Escala tipográfica (fluida) */
+  --t-display: clamp(40px, 4.4vw, 58px);
+  --t-h1: clamp(32px, 3.3vw, 46px);
+  --t-h2: clamp(20px, 1.8vw, 24px);
+  --t-h3: 17px;
+  --t-cuerpo: 15px;
+  --t-pequeno: 13px;
+  --t-mini: 11.5px;
+  --tracking-titulo: -0.045em;
+  /* Espaciado */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px; --e-7: 48px;
+  /* Radios */
+  --r-s: 12px; --r-m: 18px; --r-l: 24px; --r-xl: 32px; --r-pildora: 999px;
+  /* Elevación (más sutil que la 2.1: relieve solo donde aporta) */
+  --elev-0: 0 0 0 1px rgba(13, 39, 80, .045);
+  --elev-1: 0 1px 2px rgba(13, 39, 80, .04), 0 8px 24px -14px rgba(13, 39, 80, .18);
+  --elev-2: 0 2px 6px rgba(13, 39, 80, .05), 0 24px 48px -24px rgba(13, 39, 80, .28);
+  /* Movimiento */
+  --m-rapido: .18s; --m-medio: .32s; --m-lento: .6s;
+  --curva: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* ---------- Tipografía ---------- */
+body { font-family: var(--fuente); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+h1, h2, h3, .modal-titulo, .cal-titulo, .saludo-hoy { font-family: var(--fuente-titulo); font-weight: 600; letter-spacing: -0.03em; }
+.cabecera h1, .cabecera.compacta h1 { font-family: var(--fuente-titulo); font-weight: 600; letter-spacing: var(--tracking-titulo); font-stretch: normal; }
+@media (min-width: 900px) { .cabecera h1 { font-size: var(--t-h1); line-height: 1.02; } }
+.cabecera .lema { font-size: 16px; font-weight: 400; color: var(--tinta-2); letter-spacing: -0.01em; }
+.cabecera .fecha-hoy { font-size: var(--t-pequeno); font-weight: 500; color: var(--tinta-3); letter-spacing: 0; }
+.inicio-saludo { font-size: var(--t-display); font-weight: 600; letter-spacing: -0.05em; line-height: .98; }
+.inicio-saludo span { font-weight: 500; }
+.panel h2, .panel h3, .tarjeta-hoy h3 { font-size: var(--t-h3); letter-spacing: -0.02em; }
+
+/* ---------- Botones: elevación ligera, no relieve en todo ---------- */
+.btn { box-shadow: var(--elev-0), 0 1px 2px rgba(13, 39, 80, .05); background: #FAFAFA; border: 0; transition: transform var(--m-rapido) var(--curva), box-shadow var(--m-rapido), background var(--m-rapido); }
+.btn:hover { background: #FFFFFF; box-shadow: var(--elev-0), var(--elev-1); }
+.btn:active { transform: scale(.98); box-shadow: var(--elev-0); }
+.btn.primario { box-shadow: 0 1px 0 rgba(255, 255, 255, .12) inset, 0 10px 22px -12px rgba(34, 43, 61, .6); }
+.btn:focus-visible { outline: 2px solid var(--tinta); outline-offset: 3px; }
+
+/* ---------- Widgets de Inicio: compactos y ligeros ---------- */
+.widgets { gap: 8px; }
+.widget { padding: 12px 16px; border-radius: var(--r-m); box-shadow: var(--elev-0), 0 1px 2px rgba(13, 39, 80, .03); background: rgba(255, 255, 255, .55); border: 0; }
+.widget:hover { box-shadow: var(--elev-0), var(--elev-1); background: rgba(255, 255, 255, .85); }
+.widget small { font-size: var(--t-mini); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.widget b { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+.hoy-aviso { box-shadow: var(--elev-0) !important; background: rgba(255, 255, 255, .55) !important; border: 0 !important; }
+
+/* Botón de pausa: símbolo claro de pausa/reproducir */
+.escena-pie [data-pausa] svg { width: 16px; height: 16px; }
+
+/* ---------- Publicación ampliada ---------- */
+.pf { position: fixed; inset: 0; z-index: 250; display: grid; place-items: center; padding: 20px; transition: opacity var(--m-medio) var(--curva); }
+.pf.entrando, .pf.saliendo { opacity: 0; }
+.pf-fondo { position: absolute; inset: 0; background: rgba(238, 240, 240, .55); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+.pf-post {
+  position: relative; width: min(470px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain;
+  background: #FFFFFF; border-radius: 28px; box-shadow: var(--elev-2), var(--elev-0);
+  transition: transform var(--m-medio) var(--curva); scrollbar-width: none;
+}
+.pf.entrando .pf-post, .pf.saliendo .pf-post { transform: translateY(14px) scale(.97); }
+.pf-cab { position: relative; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; padding: 12px 10px 12px 14px; }
+.pf-foto { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 600 15px var(--fuente-titulo); color: var(--tinta);
+  background: linear-gradient(135deg, var(--a-suave), #fff); box-shadow: inset 0 0 0 1px rgba(34, 43, 61, .1); }
+.pf-foto.invitado { background: #E3E5E8 radial-gradient(circle at 50% 38%, #AEB4BE 0 5px, transparent 5.5px); }
+.pf-cab b { display: block; font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
+.pf-cab small { display: block; font-size: 12px; color: var(--tinta-3); }
+.pf-icono { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: transparent; color: var(--tinta); border-radius: 50%; cursor: pointer; transition: background var(--m-rapido), transform var(--m-rapido); }
+.pf-icono:hover { background: rgba(13, 39, 80, .05); }
+.pf-icono:active { transform: scale(.9); }
+.pf-icono svg { width: 24px; height: 24px; }
+.pf-menu { position: absolute; right: 52px; top: 50px; z-index: 2; display: grid; min-width: 200px; padding: 6px; border-radius: 16px; background: #fff; box-shadow: var(--elev-2), var(--elev-0); }
+.pf-menu[hidden] { display: none; }
+.pf-menu button { text-align: left; border: 0; background: transparent; padding: 10px 12px; border-radius: 10px; font: 500 14px var(--fuente); color: var(--tinta); cursor: pointer; }
+.pf-menu button:hover { background: var(--porcelana); }
+.pf-media { display: block; width: 100%; padding: 0; border: 0; background: var(--perla); cursor: pointer; }
+.pf-media canvas { display: block; width: 100%; height: auto; aspect-ratio: 1080 / 840; }
+.pf-barra { display: grid; grid-template-columns: auto auto auto 1fr auto; align-items: center; padding: 4px 6px 0; }
+.pf-like.activo { color: #E5484D; }
+.pf-like.activo svg { fill: #E5484D; }
+.pf-like.late svg { animation: pf-late .45s var(--curva); }
+@keyframes pf-late { 0% { transform: scale(1); } 35% { transform: scale(1.28); } 65% { transform: scale(.94); } 100% { transform: scale(1); } }
+.pf-guardar.activo svg { fill: var(--tinta); }
+.pf-texto { padding: 2px 18px 18px; display: grid; gap: 4px; font-size: 14px; line-height: 1.45; }
+.pf-texto p { margin: 0; }
+.pf-likes { font-weight: 600; }
+.pf-tenue { color: var(--tinta-3); }
+.pf-vercom { justify-self: start; border: 0; background: none; padding: 2px 0; color: var(--tinta-3); font: inherit; cursor: pointer; }
+.pf-coms { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 8px; }
+.pf-coms[hidden] { display: none; }
+.pf-coms li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; }
+.pf-coms li p { grid-column: 1 / 3; }
+.pf-coms small { color: var(--tinta-3); font-size: 12px; }
+.pf-borrar { border: 0; background: none; color: var(--tinta-3); font: 500 12px var(--fuente); cursor: pointer; padding: 0; }
+.pf-form { display: flex; gap: 8px; align-items: center; margin-top: 6px; padding-top: 10px; border-top: 1px solid rgba(13, 39, 80, .06); }
+.pf-form input { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 8px 0; font: inherit; }
+.pf-publicar { border: 0; background: none; font: 600 14px var(--fuente); color: var(--tiempo-fuerte); cursor: pointer; }
+.pf-publicar:disabled { opacity: .35; cursor: default; }
+.pf-pie { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.pf-pie small { font-size: 11px; letter-spacing: .06em; color: var(--tinta-3); }
+.pf-entrar { display: inline-flex; align-items: center; gap: 8px; }
+.pf-entrar svg { width: 16px; height: 16px; }
+.pf-aviso { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 10px); margin: 0; padding: 10px 16px; border-radius: 999px; background: var(--tinta); color: #fff; font-size: 13px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; }
+.pf-aviso.ver { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 520px) { .pf { padding: 0; place-items: end center; } .pf-post { border-radius: 26px 26px 0 0; max-height: 92dvh; } }
+@media (prefers-reduced-motion: reduce) { .pf, .pf-post { transition: none; } .pf-like.late svg { animation: none; } }
+.pf-vercom[hidden] { display: none; }
