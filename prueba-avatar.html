@@ -39,8 +39,8 @@
   </header>
   <section class="pa-escena">
     <div class="pa-slots">
-      <div class="pa-slot"><b>Masculino</b><div class="fila"><button class="btn" data-crear="hombre">Crear con Avaturn</button><label class="btn">GLB<input type="file" accept=".glb" data-archivo="hombre"></label></div></div>
-      <div class="pa-slot"><b>Femenino</b><div class="fila"><button class="btn" data-crear="mujer">Crear con Avaturn</button><label class="btn">GLB<input type="file" accept=".glb" data-archivo="mujer"></label></div></div>
+      <div class="pa-slot"><b>Masculino</b><div class="fila"><button class="btn" data-crear="hombre">Crear con Avaturn</button><label class="btn">GLB<input type="file" accept=".glb" data-archivo="hombre"></label><button class="btn" data-descargar="hombre">Descargar</button></div></div>
+      <div class="pa-slot"><b>Femenino</b><div class="fila"><button class="btn" data-crear="mujer">Crear con Avaturn</button><label class="btn">GLB<input type="file" accept=".glb" data-archivo="mujer"></label><button class="btn" data-descargar="mujer">Descargar</button></div></div>
     </div>
     <p class="pa-vacio">Aún no hay avatares. Pulsa «Crear con Avaturn».</p>
     <div class="pa-anim" role="group" aria-label="Animación">
@@ -103,6 +103,15 @@ document.addEventListener('click', e => {
   if (b.dataset.crear) {
     const k = b.dataset.crear;
     abrirAvaturn({ alExportar: async blob => { await guardarGLB(k, blob); await poner(k, blob); } });
+  }
+  if (b.dataset.descargar) {
+    const k = b.dataset.descargar;
+    leerGLB(k).then(blob => {
+      if (!blob) return alert('Primero crea o carga este avatar.');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = `avatar-${k}.glb`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
   }
   if (b.dataset.anim) {
     anim = b.dataset.anim;
