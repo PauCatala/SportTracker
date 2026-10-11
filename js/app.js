@@ -20,7 +20,8 @@ import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.
 import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 import { revelar, indicador, abrirModal, carruseles, transicion } from './interaccion.js';
-import { introNutricion, introRunning, introGimnasio, introFlexibilidad } from './intros.js';
+// Las películas de entrada de Nutrición, Gimnasio y Running están retiradas hasta rehacerlas con más calidad
+import { introFlexibilidad } from './intro-flex.js';
 import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportacion } from './calendario.js';
 import { activarPlan } from './agenda.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
@@ -110,9 +111,6 @@ const $ = id => document.getElementById(id);
 // ---------- Pintar ----------
 // Películas de entrada de cada apartado (solo al entrar, no al cambiar de pestaña)
 const INTROS = {
-  nutricion: introNutricion,
-  running: introRunning,
-  gym: introGimnasio,
   flex: introFlexibilidad,
 };
 let ultimoGrupo = null;

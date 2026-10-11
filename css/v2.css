@@ -883,3 +883,59 @@ html, body { overflow-anchor: none; }
   .ta-pista { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .ta { transition: none; } .ta-cargando span { animation-duration: 2s; } }
+
+/* =====================================================================
+   LUMEN 3.1 · identidad: wordmark propio y titulares grabados
+   Titulares: Bricolage Grotesque (SIL OFL, alojada con la app), estrecha y con carácter.
+   Acabado "grabado": la tinta se hunde en el papel (más oscura arriba) con un filo de luz debajo.
+   ===================================================================== */
+@font-face { font-family: 'Bricolage Grotesque'; font-style: normal; font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
+  src: url('../fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Bricolage Grotesque'; font-style: normal; font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
+  src: url('../fonts/bricolage-grotesque-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+:root {
+  --fuente-display: 'Bricolage Grotesque', 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  --display-ajustes: 'opsz' 96, 'wdth' 96;
+  --display-peso: 560;
+  --display-tracking: -0.026em;
+  --t-saludo: clamp(38px, 4.5vw, 66px);
+  --t-titulo: clamp(34px, 3.4vw, 50px);
+  --tinta-grabado: linear-gradient(180deg, #11151E 0%, #262E3E 42%, #3B4357 100%);
+}
+.grabado, .inicio-saludo, .cabecera h1 {
+  font-family: var(--fuente-display); font-weight: var(--display-peso); font-variation-settings: var(--display-ajustes);
+  letter-spacing: var(--display-tracking); font-stretch: normal;
+  color: var(--tinta); background: var(--tinta-grabado); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .95)) drop-shadow(0 -.5px 0 rgba(17, 21, 30, .16));
+}
+@media (forced-colors: active) { .grabado, .inicio-saludo, .cabecera h1 { -webkit-text-fill-color: currentColor; background: none; filter: none; } }
+
+/* Saludo del Inicio: en una línea; el nombre, si lo hay, debajo y más claro */
+.inicio-saludo { font-size: var(--t-saludo); line-height: 1; margin: 4px 0 6px; white-space: nowrap; width: max-content; max-width: none; }
+.inicio-saludo span { display: block; background: linear-gradient(180deg, #8C93A1, #AEB4BF); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 480; }
+.inicio-fecha { font-size: var(--t-pequeno); font-weight: 500; letter-spacing: .01em; color: var(--tinta-3); margin: 0; }
+.inicio-cab { padding-top: 34px; }
+@media (max-width: 899px) {
+  .inicio-saludo { font-size: clamp(30px, 10.4vw, 46px); }
+  .inicio-cab { padding-top: 6px; }
+}
+
+/* Títulos de sección: misma voz, mismos márgenes en todas las pantallas */
+.cabecera h1 { font-size: var(--t-titulo); line-height: 1.02; margin: 2px 0 0; }
+.cabecera .fecha-hoy { font-size: var(--t-pequeno); font-weight: 500; color: var(--tinta-3); letter-spacing: .01em; }
+.cabecera .lema { margin-top: 8px; font-size: 15.5px; color: var(--tinta-2); letter-spacing: -0.005em; }
+.cabecera.compacta h1 { font-size: 22px; letter-spacing: -0.03em; }
+@media (max-width: 899px) { .cabecera h1 { font-size: clamp(32px, 9vw, 40px); } }
+
+/* Marca en la navegación y en el acceso */
+.lateral-logo { display: flex; align-items: center; padding: 0 6px 0 4px; line-height: 0; }
+.logo-marca { height: 25px; width: auto; display: block; }
+.login-marca { margin: 0 0 14px; line-height: 0; }
+.logo-login { height: 38px; width: auto; display: block; }
+/* En móvil no hay barra lateral: la marca abre el Inicio */
+.inicio-marca { display: none; }
+@media (max-width: 899px) {
+  .inicio-marca { display: block; height: 22px; width: auto; margin: 4px 0 18px; }
+}

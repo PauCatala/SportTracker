@@ -10,15 +10,16 @@ const ARCHIVOS = [
   './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
   './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
-  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/intros.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
+  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
   './js/inicio.js', './js/social.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
   './js/avatar/motor.js', './js/avatar/parametros.js', './js/avatar/animacion.js', './js/avatar/elegir.js',
   './js/avatar/avaturn.js', './js/avatar/retarget.js',
   './js/recetas.js', './js/inicio/post-foco.js',
   './vendor/three/three.module.min.js', './vendor/three/addons/loaders/GLTFLoader.js', './vendor/three/addons/utils/BufferGeometryUtils.js',
   './vendor/three/addons/utils/SkeletonUtils.js', './vendor/three/addons/environments/RoomEnvironment.js',
-  './js/intro-base.js', './js/intro-nutricion.js', './js/intro-gym.js', './js/intro-flex.js',
-  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/logo.svg',
+  './js/intro-base.js', './js/intro-flex.js',
+  './fonts/bricolage-grotesque-latin.woff2',
+  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/lumen-isotipo.svg', './icons/lumen-marca.svg',
 ];
 
 self.addEventListener('install', ev => {

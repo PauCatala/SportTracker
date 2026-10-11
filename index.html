@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Lumen">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="icon" href="icons/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/lumen-isotipo.svg" type="image/svg+xml">
   <link rel="icon" href="icons/icon-192.png" sizes="192x192">
 
   <!-- Tipografía: la del sistema (SF en Apple) e Inter como respaldo -->
@@ -21,6 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Inter+Tight:wght@300..700&display=swap">
   <!-- 1º el diseño central, 2º los estilos de cada módulo, 3º la estructura de Lumen -->
+  <link rel="preload" href="fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/app.css">
@@ -38,7 +39,7 @@
   <div id="app" class="lumen">
     <!-- Menú lateral (ordenador) -->
     <aside class="lateral-app">
-      <b class="lateral-logo"><img src="icons/logo.svg" alt="" class="logo-marca">Lumen</b>
+      <b class="lateral-logo"><img src="icons/lumen-marca.svg" alt="Lumen" class="logo-marca" width="102" height="26"></b>
       <nav id="secciones" class="secciones" aria-label="Secciones"></nav>
       <div class="lateral-pie">
         <button id="btn-perfil" class="btn-perfil" aria-label="Tu cuenta" aria-haspopup="menu" aria-expanded="false"></button>
@@ -79,8 +80,7 @@
     <div class="login-caja">
       <button class="login-cerrar" id="login-cerrar" aria-label="Cerrar">×</button>
       <div>
-        <img src="icons/logo.svg" alt="" class="logo-login">
-        <h1 id="login-titulo">Lumen</h1>
+        <h1 id="login-titulo" class="login-marca"><img src="icons/lumen-marca.svg" alt="Lumen" class="logo-login"></h1>
         <p class="sub">Entra para guardar tus entrenos, tus estudios y tu progreso.</p>
       </div>
       <form id="form-login" class="campos" method="post" action="#" autocomplete="on">

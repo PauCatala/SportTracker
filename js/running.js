@@ -9,7 +9,6 @@ import { FASES_RUN, SEMANAS_RUN, faseDeSemana, proximoLunes } from './plan.js';
 import { bannerMigracion } from './gym.js';
 import { grafica, hayChart, ejeX, ejeY, C } from './graficos.js';
 import { icono } from './iconos.js';
-import { MODELOS, zapatillaElegida, elegirZapatilla } from './intros.js';
 
 const TIPOS = { series: 'Series', larga: 'Tirada larga', easy: 'Easy', tempo: 'Tempo' };
 const SLOTS = [
@@ -98,31 +97,6 @@ function trackerRun(n) {
     </section>`;
 }
 
-/* ======================= TU ZAPATILLA =======================
-   El modelo y el color que eliges protagonizan la animación de entrada de Running. */
-function pintarZapatilla(el) {
-  const { modelo, color } = zapatillaElegida();
-  const m = MODELOS[modelo];
-  el.innerHTML = `
-    <div class="panel-cab"><h3>Tu zapatilla</h3><span class="tenue">Sale en la animación de Running</span></div>
-    <div class="mi-zapatilla">
-      <div class="vista-zapa"><img src="media/${modelo}_${color}.jpg" alt="${m.nombre} en ${m.colores[color].toLowerCase()}"></div>
-      <div>
-        <p class="tenue">${m.nombre} · elige el color</p>
-        <div class="fila-botones" role="group" aria-label="Color de la zapatilla">
-          ${Object.entries(m.colores).map(([c, nombre]) => `<button class="chip-color${c === color ? ' activo' : ''}" data-color="${c}" aria-pressed="${c === color}"><i class="muestra ${c}"></i>${nombre}</button>`).join('')}
-        </div>
-      </div>
-    </div>`;
-  el.onclick = ev => {
-    ev.stopPropagation();
-    const b = ev.target.closest('[data-color]');
-    if (!b) return;
-    elegirZapatilla(modelo, b.dataset.color);
-    pintarZapatilla(el);
-  };
-}
-
 /* ============================== SEMANA ============================== */
 export function renderSemanaRun(cont) {
   const hoy = hoyISO();
@@ -197,8 +171,7 @@ export function renderSemanaRun(cont) {
     <div class="titulo-seccion"><h3>Tu seguimiento</h3><span class="tenue">27 semanas · 3 entrenos por semana</span></div>
     ${trackerRun(n)}
 
-    <section class="panel" id="r-zapatilla"></section>`;
-  pintarZapatilla(cont.querySelector('#r-zapatilla'));
+`;
 
   cont.onclick = ev => {
     const b = ev.target.closest('button');

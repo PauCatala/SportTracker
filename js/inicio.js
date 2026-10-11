@@ -145,6 +145,7 @@ export async function renderInicio(cont, ctx) {
     <section class="inicio">
       <div class="inicio-escenario">
         <div class="inicio-cab">
+          <img class="inicio-marca" src="icons/lumen-marca.svg" alt="Lumen" width="94" height="24">
           <p class="inicio-fecha">${fecha}</p>
           <h2 class="inicio-saludo">${saludo}${ctx.nombre ? `,<span>${escapar(ctx.nombre)}.</span>` : '.'}</h2>
         </div>
