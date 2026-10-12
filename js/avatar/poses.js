@@ -48,21 +48,22 @@ const POSES = {
     vuelta: true,
   },
   // Nutrición: sostiene un batido a la altura del pecho y da un sorbo
+  // Nutrición: sostiene un batido con la mano de lado (pulgar arriba, el vaso derecho en la palma) y da un sorbo
   comer: {
     duracion: 6,
-    claves: [
-      { t: 0, d: { ...tronco(0), ...cabeza(0.04), ...piernas(0.05), ...brazoRelajado('Left', 0.1, 0.03),
-        RightArm: v(-0.07, -0.92, 0.39), RightForeArm: v(0.65, 0.29, 0.7), RightHand: v(0.7, 0.1, 0.7) }, giro: { RightForeArm: -1.7 }, puño: { Right: 0.65 } },
-      { t: 2.6, d: { ...tronco(0), ...cabeza(0.04), ...piernas(0.05), ...brazoRelajado('Left', 0.1, 0.03),
-        RightArm: v(-0.07, -0.92, 0.39), RightForeArm: v(0.65, 0.29, 0.7), RightHand: v(0.7, 0.1, 0.7) }, giro: { RightForeArm: -1.7 }, puño: { Right: 0.65 } },
-      { t: 3.6, d: { ...tronco(-0.04), ...cabeza(-0.18), ...piernas(0.05), ...brazoRelajado('Left', 0.1, 0.03),
-        RightArm: v(-0.16, -0.6, 0.78), RightForeArm: v(0.57, 0.78, -0.1), RightHand: v(0.5, 0.8, -0.1) }, giro: { RightForeArm: -1.7 }, puño: { Right: 0.65 } },
-      { t: 4.3, d: { ...tronco(-0.04), ...cabeza(-0.18), ...piernas(0.05), ...brazoRelajado('Left', 0.1, 0.03),
-        RightArm: v(-0.16, -0.6, 0.78), RightForeArm: v(0.57, 0.78, -0.1), RightHand: v(0.5, 0.8, -0.1) }, giro: { RightForeArm: -1.7 }, puño: { Right: 0.65 } },
-    ],
+    claves: (() => {
+      const sostiene = { RightArm: v(-0.08, -1, 0.14), RightForeArm: v(0.3, 0.22, 1), RightHand: v(0.28, 0.16, 1) };
+      const bebe = { RightArm: v(-0.1, -0.36, 0.93), RightForeArm: v(0.5, 0.86, -0.3), RightHand: v(0.95, 0.3, -0.25) };
+      const base = { ...tronco(0), ...piernas(0.05), ...brazoRelajado('Left', 0.1, 0.03) };
+      return [
+        { t: 0, d: { ...base, ...cabeza(0.06), ...sostiene }, mano: { Right: v(0, 1, 0) }, puño: { Right: 0.55 } },
+        { t: 2.4, d: { ...base, ...cabeza(0.06), ...sostiene }, mano: { Right: v(0, 1, 0) }, puño: { Right: 0.55 } },
+        { t: 3.3, d: { ...base, ...cabeza(-0.12), ...bebe }, mano: { Right: v(0.1, 0.82, -0.56) }, puño: { Right: 0.55 } },
+        { t: 4.1, d: { ...base, ...cabeza(-0.12), ...bebe }, mano: { Right: v(0.1, 0.82, -0.56) }, puño: { Right: 0.55 } },
+      ];
+    })(),
     vuelta: true,
   },
-  // Flexibilidad: estiramiento lateral con los brazos arriba, a un lado y a otro
   // Flexibilidad: flexión lateral de pie; un brazo hace un arco por encima de la cabeza y la otra mano va a la cadera
   estirar: {
     duracion: 9,
@@ -112,6 +113,26 @@ export function posesSalud(raiz) {
     const padre = b.parent.getWorldQuaternion(new THREE.Quaternion());
     b.quaternion.copy(padre.invert().multiply(mundo));
   }
+  // Gira el antebrazo sobre su eje hasta que la línea de los nudillos (meñique → índice) apunte a 'deseado'
+  function orientarMano(lado, deseado, dirMano) {
+    const fa = H(`${lado}ForeArm`), mano = H(`${lado}Hand`), i1 = H(`${lado}HandIndex1`), p1 = H(`${lado}HandPinky1`), m1 = H(`${lado}HandMiddle1`);
+    if (!fa || !mano || !i1 || !p1 || !m1) return;
+    const obj = deseado.clone().applyQuaternion(qRaiz).normalize();
+    for (let k = 0; k < 4; k++) {
+      fa.updateWorldMatrix(true, true);
+      const eje = m1.getWorldPosition(new THREE.Vector3()).sub(mano.getWorldPosition(new THREE.Vector3())).normalize();
+      const actual = i1.getWorldPosition(new THREE.Vector3()).sub(p1.getWorldPosition(new THREE.Vector3()));
+      const a = actual.addScaledVector(eje, -actual.dot(eje)).normalize();
+      const b = obj.clone().addScaledVector(eje, -obj.dot(eje)).normalize();
+      if (a.lengthSq() < 1e-6 || b.lengthSq() < 1e-6) return;
+      const ang = Math.atan2(new THREE.Vector3().crossVectors(a, b).dot(eje), a.dot(b));
+      if (Math.abs(ang) < 0.01) return;
+      const ejeFa = mano.getWorldPosition(new THREE.Vector3()).sub(fa.getWorldPosition(new THREE.Vector3())).normalize();
+      const q = new THREE.Quaternion().setFromAxisAngle(ejeFa, ang).multiply(fa.getWorldQuaternion(new THREE.Quaternion()));
+      fa.quaternion.copy(fa.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+      if (dirMano) apuntar(mano, dirMano);
+    }
+  }
   // Cierra la mano (0..1) girando cada falange alrededor del eje de los nudillos
   function cerrarMano(lado, cuanto) {
     const i1 = H(`${lado}HandIndex1`), p1 = H(`${lado}HandPinky1`);
@@ -144,6 +165,7 @@ export function posesSalud(raiz) {
       for (const b of orden) b.quaternion.copy(reposo.get(b));
       const nombres = Object.keys(c.d).sort((a, b) => profundidad(H(a)) - profundidad(H(b)));
       for (const n of nombres) { const b = H(n); if (b) apuntar(b, c.d[n], c.giro?.[n] || 0); }
+      for (const [lado, dir] of Object.entries(c.mano || {})) orientarMano(lado, dir, c.d[`${lado}Hand`]);
       for (const [lado, cuanto] of Object.entries(c.puño || {})) cerrarMano(lado, cuanto);
       for (const b of orden) {
         if (!pistas.has(b)) pistas.set(b, new Float32Array(claves.length * 4));

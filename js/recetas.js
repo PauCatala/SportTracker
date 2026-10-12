@@ -48,16 +48,22 @@ const fmt = n => (Math.round(n * 10) / 10).toLocaleString('es-ES');
 const gramos = g => (g >= 1000 ? `${fmt(g / 1000)} kg` : `${Math.round(g)} g`);
 
 // Portada: un plato visto desde arriba con los colores de sus ingredientes principales
-function portada(r, D) {
-  const top = [...r.ing].sort((a, b) => b[1] - a[1]).slice(0, 4);
-  const total = top.reduce((s, [, g]) => s + g, 0) || 1;
+// Portada: un plato con el reparto de calorías por macronutriente, etiquetado dentro del círculo
+const MACROS = [['p', 'Prot', 4, '#7F9BD6'], ['c', 'Carbs', 4, '#D9B26F'], ['g', 'Grasas', 9, '#D99595']];
+function portada(r) {
+  const kcal = MACROS.map(([k, , f]) => (r[k] || 0) * f);
+  const total = kcal.reduce((a, b) => a + b, 0) || 1;
   let a = 0;
-  const partes = top.map(([k, g]) => {
-    const c = COLORES[D.ingredientes[k]?.[1]] || '#E7E2DA';
-    const desde = a; a += (g / total) * 360;
-    return `${c} ${desde}deg ${a}deg`;
+  const trozos = MACROS.map(([k, nombre, , color], i) => {
+    const pct = kcal[i] / total, desde = a; a += pct * 360;
+    const medio = (desde + a) / 2 * Math.PI / 180;
+    return { nombre, color, pct, desde, hasta: a, x: 50 + 36 * Math.sin(medio), y: 50 - 36 * Math.cos(medio) };
   });
-  return `background: radial-gradient(circle at 50% 50%, transparent 0 34%, rgba(255,255,255,.9) 34.5% 41%, transparent 41.5%), conic-gradient(from 20deg, ${partes.join(',')});`;
+  const fondo = trozos.map(t => `${t.color} ${t.desde.toFixed(1)}deg ${t.hasta.toFixed(1)}deg`).join(',');
+  return `<div class="rec-plato" style="background:conic-gradient(${fondo})" role="img" aria-label="${trozos.map(t => `${t.nombre} ${Math.round(t.pct * 100)} %`).join(', ')} de las calorías">
+      ${trozos.filter(t => t.pct >= 0.08).map(t => `<i style="left:${t.x.toFixed(1)}%;top:${t.y.toFixed(1)}%">${t.nombre}<b>${Math.round(t.pct * 100)}%</b></i>`).join('')}
+      <em>${Math.round(r.kcal)}<small>kcal</small></em>
+    </div>`;
 }
 
 function cumple(r, f, D, favs) {
@@ -161,7 +167,7 @@ export async function renderRecetas(cont) {
       const etq = r.et.filter(e => ['alta-proteina', 'vegana', 'vegetariana', 'sin-gluten', 'ligera', 'meal-prep'].includes(e)).slice(0, 2);
       return `
         <article class="rec-tarjeta" data-receta="${r.id}" tabindex="0" aria-label="${escapar(r.n)}">
-          <div class="rec-portada" style="${portada(r, D)}"><span>${TIPO_NOMBRE[r.t]?.replace(/s$/, '') || ''}</span></div>
+          <div class="rec-portada">${portada(r)}<span>${TIPO_NOMBRE[r.t]?.replace(/s$/, '') || ''}</span></div>
           <button class="rec-fav${favs.has(r.id) ? ' activo' : ''}" data-fav="${r.id}" aria-label="Favorita" aria-pressed="${favs.has(r.id)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 3.9 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.2 0 5.5 3.1 4.3 6.6-1.7 4.8-9.2 9.4-9.2 9.4z"/></svg></button>
           <h4>${escapar(r.n)}</h4>

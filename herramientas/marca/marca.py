@@ -7,7 +7,7 @@ import wordmark, isotipo
 TINTA = '#222B3D'
 DEST = os.path.join(os.path.dirname(__file__), '..', '..', 'icons')
 
-w = wordmark.construir('j').simplify(0.06)
+w = wordmark.construir_ref(S=24, G=7, corte=3.4).simplify(0.06)
 i = isotipo.construir('b').simplify(0.06)
 print('wordmark', wordmark.a_svg(w, os.path.join(DEST, 'lumen-wordmark.svg'), TINTA))
 print('isotipo', wordmark.a_svg(i, os.path.join(DEST, 'lumen-isotipo.svg'), TINTA))

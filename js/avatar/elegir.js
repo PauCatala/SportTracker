@@ -2,10 +2,11 @@
 // Vista previa 3D con la misma luz que la rueda: arrastra para girarlo y prueba la carrera.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista } from './avaturn.js';
+import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes } from './avaturn.js';
 
 const ICO = {
   cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
+  cara: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="11" r="3.2"/><path d="M7.5 17.2c1.1-1.6 2.7-2.4 4.5-2.4s3.4.8 4.5 2.4"/>',
   subir: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
   ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 };
@@ -13,10 +14,14 @@ const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const MAX_MB = 40;
 
 let abierto = null;
-export function abrirPersonalizacion() {
+export function abrirPersonalizacion({ escanear = false } = {}) {
   if (abierto) return abierto;
   const inicial = eleccionAvatar().eleccion;
-  let elegido = inicial, propioNuevo = null, modo = 'idle', hayGuardado = false;
+  const ajustesIniciales = ajustesAvatar();
+  let elegido = escanear ? 'propio' : inicial, propioNuevo = null, modo = 'idle', hayGuardado = false, ajustes = { ...ajustesIniciales };
+  const cambiaronAjustes = () => (ajustes.piel || '') !== (ajustesIniciales.piel || '') || (ajustes.pelo || '') !== (ajustesIniciales.pelo || '');
+  const muestras = (tipo, lista) => `<div class="ta-muestras" role="radiogroup" aria-label="${tipo === 'piel' ? 'Tono de piel' : 'Color de pelo'}">${lista.map(([c, n]) =>
+    `<button type="button" role="radio" data-ajuste="${tipo}|${c}" title="${n}" aria-label="${n}" class="${c ? '' : 'original'}" style="${c ? `--c:${c}` : ''}"></button>`).join('')}</div>`;
 
   const raiz = document.createElement('div');
   raiz.className = 'ta entrando';
@@ -42,10 +47,22 @@ export function abrirPersonalizacion() {
         <button class="ta-opcion" role="radio" data-elegir="propio"><span class="ta-retrato" data-retrato="propio">${ico('subir')}</span><b>El tuyo</b></button>
       </div>
       <div class="ta-propio" hidden>
-        <p>Crea tu avatar gratis en <a href="https://avaturn.me" target="_blank" rel="noopener">avaturn.me</a> a partir de tres fotos.
-          Después, en tu lista de avatares, pulsa <b>⋯</b> → <b>Download</b> y sube aquí el archivo <b>.glb</b>.</p>
-        <label class="btn ta-subir">${ico('subir')}<span>Subir archivo .glb</span><input type="file" accept=".glb,model/gltf-binary" hidden></label>
+        <h3>${ico('cara')}Tu avatar, con tu cara</h3>
+        <ol class="ta-pasos">
+          <li><b>Escanéate con el móvil.</b> En Avaturn, pulsa <i>Create Avatar</i> y hazte tres fotos: de frente y de cada lado.</li>
+          <li><b>Ajusta tu estilo.</b> Peinado, piel, ojos, ropa y calzado, a tu gusto.</li>
+          <li><b>Descárgalo.</b> En tu lista de avatares pulsa <i>⋯</i> → <i>Download</i>. Se guarda un archivo <i>.glb</i>.</li>
+          <li><b>Súbelo aquí.</b> Lo guardamos en tu cuenta, en privado.</li>
+        </ol>
+        <div class="ta-propio-acciones">
+          <a class="btn" href="https://hub.avaturn.me" target="_blank" rel="noopener">Abrir Avaturn</a>
+          <label class="btn primario ta-subir">${ico('subir')}<span>Subir .glb</span><input type="file" accept=".glb,model/gltf-binary" hidden></label>
+        </div>
         <p class="ta-error" role="alert" hidden></p>
+      </div>
+      <div class="ta-aspecto">
+        <div><span>Piel</span>${muestras('piel', TONOS_PIEL)}</div>
+        <div><span>Pelo</span>${muestras('pelo', COLORES_PELO)}</div>
       </div>
       <button class="btn primario ta-usar" data-usar disabled>Usar este avatar</button>
     </div>`;
@@ -80,17 +97,17 @@ export function abrirPersonalizacion() {
 
   async function cargar(k, fuente) {
     if (!cache[k]) cache[k] = (async () => {
-      const av = await cargarAvatarRealista(fuente ?? (k === 'propio' ? await modeloPropio() : AVATARES[k].url));
+      const av = await cargarAvatarRealista(fuente ?? (k === 'propio' ? await modeloPropio() : AVATARES[k].url), { ajustes });
       av.objeto.scale.setScalar(1.8 / av.altura);
       return av;
     })();
     return cache[k];
   }
-  async function mostrar(k) {
+  async function mostrar(k, forzar = false) {
     cargando.hidden = false;
     try {
       const av = await cargar(k, k === 'propio' ? propioNuevo : undefined);
-      if (!vivo || elegido !== k) return;
+      if (!vivo || (!forzar && elegido !== k)) return;
       if (actual) soporte.remove(actual.objeto);
       actual = av; soporte.add(av.objeto); av.estado(modo);
     } catch (e) {
@@ -164,8 +181,10 @@ export function abrirPersonalizacion() {
     raiz.querySelectorAll('[data-elegir]').forEach(b => { const si = b.dataset.elegir === elegido; b.classList.toggle('activo', si); b.setAttribute('aria-checked', String(si)); });
     panelPropio.hidden = elegido !== 'propio';
     const hayPropio = !!propioNuevo || !!cache.propio || hayGuardado;
-    usar.disabled = (elegido === inicial && !propioNuevo) || (elegido === 'propio' && !hayPropio);
-    usar.textContent = elegido === inicial && !propioNuevo ? 'Es tu avatar actual' : 'Usar este avatar';
+    const sinCambios = elegido === inicial && !propioNuevo && !cambiaronAjustes();
+    usar.disabled = sinCambios || (elegido === 'propio' && !hayPropio);
+    usar.textContent = sinCambios ? 'Es tu avatar actual' : elegido === inicial && !propioNuevo ? 'Guardar cambios' : 'Usar este avatar';
+    raiz.querySelectorAll('[data-ajuste]').forEach(x => { const [t, c] = x.dataset.ajuste.split('|'); const si = (ajustes[t] || '') === c; x.classList.toggle('activo', si); x.setAttribute('aria-checked', String(si)); });
   }
 
   raiz.addEventListener('click', async e => {
@@ -176,6 +195,13 @@ export function abrirPersonalizacion() {
       raiz.querySelectorAll('[data-modo]').forEach(x => { x.classList.toggle('activo', x === b); x.setAttribute('aria-selected', String(x === b)); });
       return;
     }
+    if (b.dataset.ajuste) {
+      const [t, c] = b.dataset.ajuste.split('|');
+      ajustes = { ...ajustes, [t]: c };
+      for (const p of Object.values(cache)) p.then?.(av => av && aplicarAjustes(av, ajustes)).catch?.(() => {});
+      marcar();
+      return;
+    }
     if (b.dataset.elegir) {
       elegido = b.dataset.elegir; error(''); marcar();
       if (elegido !== 'propio' || propioNuevo || cache.propio || hayGuardado) mostrar(elegido);
@@ -184,7 +210,8 @@ export function abrirPersonalizacion() {
     if (b.matches('[data-usar]')) {
       usar.disabled = true; usar.textContent = 'Guardando…';
       try {
-        await elegirAvatar(elegido, elegido === 'propio' ? propioNuevo : null);
+        if (cambiaronAjustes()) guardarAjustes(ajustes);
+        if (elegido !== inicial || propioNuevo) await elegirAvatar(elegido, elegido === 'propio' ? propioNuevo : null);
         cerrar();
       } catch (err) { console.warn(err); usar.disabled = false; usar.textContent = 'Usar este avatar'; error('No se ha podido guardar. Inténtalo de nuevo.'); }
     }
@@ -230,7 +257,9 @@ export function abrirPersonalizacion() {
     hayGuardado = !!(await modeloPropio().catch(() => null));
     if (inicial === 'propio' && !hayGuardado) elegido = 'hombre';
     marcar();
-    await mostrar(elegido);
+    // Si vienes a escanear tu cara y aún no tienes avatar propio, de fondo se ve el actual
+    if (elegido === 'propio' && !hayGuardado) await mostrar(inicial === 'propio' ? 'hombre' : inicial, true);
+    else await mostrar(elegido);
     for (const k of [...Object.keys(AVATARES), ...(hayGuardado ? ['propio'] : [])]) await retrato(k);
     marcar();
   })();

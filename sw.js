@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v23';
+const CACHE = 'lumen-v24';
 // Recursos del avatar (modelos, texturas, animaciones): no cambian dentro de una versión
 const CACHE_AVATAR = 'lumen-avatar-3';
 const ARCHIVOS = [
@@ -12,14 +12,14 @@ const ARCHIVOS = [
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
   './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
   './js/inicio.js', './js/social.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
-  './js/avatar/motor.js', './js/avatar/parametros.js', './js/avatar/animacion.js', './js/avatar/elegir.js',
+  './js/avatar/motor.js', './js/avatar/parametros.js', './js/avatar/animacion.js', './js/avatar/elegir.js', './js/avatar/bienvenida.js',
   './js/avatar/avaturn.js', './js/avatar/retarget.js',
   './js/recetas.js', './js/inicio/post-foco.js', './js/salud/centro.js', './js/salud/estacion.js', './js/avatar/poses.js',
   './vendor/three/three.module.min.js', './vendor/three/addons/loaders/GLTFLoader.js', './vendor/three/addons/utils/BufferGeometryUtils.js',
   './vendor/three/addons/utils/SkeletonUtils.js', './vendor/three/addons/environments/RoomEnvironment.js',
   './js/intro-base.js', './js/intro-flex.js',
   './fonts/bricolage-grotesque-latin.woff2',
-  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/lumen-isotipo.svg', './icons/lumen-marca.svg',
+  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/lumen-isotipo.svg', './icons/lumen-wordmark.svg',
 ];
 
 self.addEventListener('install', ev => {

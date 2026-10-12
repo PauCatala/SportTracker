@@ -64,7 +64,9 @@ const ICONOS = {
   guardadoLleno: (ctx, x, y) => relleno(ctx, TINTA, () => {
     ctx.moveTo(x - 11, y - 14); ctx.lineTo(x + 11, y - 14); ctx.lineTo(x + 11, y + 14); ctx.lineTo(x, y + 5); ctx.lineTo(x - 11, y + 14); ctx.closePath();
   }),
+  // El corazón siempre en rojo: vacío si no te gusta aún, relleno cuando sí
   corazon: (ctx, x, y) => trazo(ctx, () => {
+    ctx.strokeStyle = ROJO; ctx.lineWidth = 3.6;
     ctx.moveTo(x, y + 12);
     ctx.bezierCurveTo(x - 22, y - 2, x - 13, y - 20, x, y - 9);
     ctx.bezierCurveTo(x + 13, y - 20, x + 22, y - 2, x, y + 12);

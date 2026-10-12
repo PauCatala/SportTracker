@@ -661,6 +661,8 @@ async function entrar() {
   await Promise.all([sincronizar(session.user.id), cargarTodo()]);
   await vaciarCola();
   datosCargados = true;
+  // Lo primero al entrar por primera vez: tu avatar personalizado
+  import('./avatar/bienvenida.js').then(m => m.bienvenidaAvatar()).catch(e => console.warn('Bienvenida', e));
   activarPlan(true);
   actualizarExportacion();
   pintarRed();

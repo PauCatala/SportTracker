@@ -77,7 +77,14 @@ def construir(var='j', S=21.0, G=19.0):
     piezas.append(trazo([(n0, 0), (n0, H)], S))
     piezas.append(trazo(arco(n0 + rn, cyn, rn, 180, 0) + [(n0 + 2 * rn, 0)], S))
     forma = unary_union(piezas)
-    k = 9
+    k = 9 if S < 26 else 12
+    if var == 'z':
+        # Peso alto y dos uniones líquidas: u → m en la base y el pie de la m fluyendo hasta la e
+        forma = forma.union(puente((xu_der, S * 0.5), (xc, S * 0.5), S * 1.0, 0.38, -5))
+        forma = cierre_local(forma, box(xu_der - S / 2 - 1, -12, xc + S / 2 + 1, 40), 14)
+        ang = math.radians(222); ex, ey = ce[0] + re * math.cos(ang), ce[1] + re * math.sin(ang)
+        forma = forma.union(puente((xm_der, S * 0.5), (ex, ey), S * 1.0, 0.4, -6))
+        forma = cierre_local(forma, box(xm_der - S / 2 - 1, -14, ex + S, ey + S), 14)
     if var in ('g', 'h', 'j'):
         # pie de la m → cuenco inferior de la e
         ang = math.radians(215); ex, ey = ce[0] + re * math.cos(ang), ce[1] + re * math.sin(ang)
@@ -90,6 +97,45 @@ def construir(var='j', S=21.0, G=19.0):
         ang = math.radians(28); ex, ey = ce[0] + re * math.cos(ang), ce[1] + re * math.sin(ang)
         forma = forma.union(puente((ex, ey), (n0, H - S / 2), S, 0.45, 3))
         forma = cierre_local(forma, box(ex - S, H - 40, n0 + S / 2 + 1, H + 6), k)
+    return forma
+
+def construir_ref(S=24.0, G=7.0, A_=146.0, corte=3.4):
+    """«lumen» pesado: la u y la m comparten trazo con la tinta acumulada en la base,
+    y la e se monta sobre la última pata de la m separada por un hilo blanco curvo."""
+    from shapely.geometry import Polygon
+    piezas, x = [], 0.0
+    xl = x + S / 2
+    piezas.append(trazo([(xl, 0), (xl, A_)], S))
+    x = xl + S / 2 + G
+    # u (cuenco) + trazo compartido con la m
+    wu = 58.0
+    x0 = x + S / 2; r = wu / 2; cy = r + S / 2 - OV
+    xc = x0 + wu
+    piezas.append(trazo([(x0, H)] + arco(x0 + r, cy, r, 180, 360) + [(xc, H)], S))
+    piezas.append(trazo([(xc, 0), (xc, H)], S))
+    # m: dos arcos
+    ra = 25.0
+    cya = H - S / 2 - ra + OV
+    piezas.append(trazo(arco(xc + ra, cya, ra, 180, 0) + [(xc + 2 * ra, 0)], S))
+    piezas.append(trazo([(xc + 2 * ra, cya)] + arco(xc + 3 * ra, cya, ra, 180, 0) + [(xc + 4 * ra, 0)], S))
+    xm = xc + 4 * ra
+    base = unary_union(piezas)
+    # Tinta acumulada en la base entre el cuenco de la u y el trazo compartido
+    base = cierre_local(base, box(x0, -2, xc + S / 2 + 0.5, 34), 16)
+    # e: se monta sobre la última pata de la m
+    re = (H - S) / 2 + OV
+    ce = (xm + S * 0.35 + re, H / 2)
+    e = unary_union([trazo([(ce[0] - re, H / 2), (ce[0] + re, H / 2)], S), trazo(arco(ce[0], ce[1], re, 0, 318, 220), S)])
+    # Hilo blanco: la silueta exterior de la e, solo donde toca la m
+    exterior = Point(ce).buffer(re + S / 2 + corte, quad_segs=96).difference(Point(ce).buffer(re + S / 2, quad_segs=96))
+    hilo = exterior.intersection(box(xm - S, -10, ce[0] - re * 0.15, H + 10))
+    forma = unary_union([base.difference(hilo), e])
+    x = ce[0] + re + S / 2 + G
+    # n
+    rn = 27.0
+    n0 = x + S / 2
+    cyn = H - S / 2 - rn + OV
+    forma = unary_union([forma, trazo([(n0, 0), (n0, H)], S), trazo(arco(n0 + rn, cyn, rn, 180, 0) + [(n0 + 2 * rn, 0)], S)])
     return forma
 
 def a_svg(forma, ruta, color='#1E2533'):

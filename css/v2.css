@@ -1133,3 +1133,52 @@ html, body { overflow-anchor: none; }
   .cs-hilos circle.aro { animation: none; opacity: 0; }
   .cs-tarjeta, .cs-lienzo { transition: none; }
 }
+
+/* Portada de receta: plato con el reparto de calorías (proteína, hidratos, grasa) etiquetado dentro */
+.rec-portada { place-items: center; background: radial-gradient(70% 70% at 50% 45%, #FBFBFA, #EEF0F0); }
+.rec-portada::after { display: none; }
+.rec-portada > span { position: absolute; left: 10px; top: 10px; }
+.rec-plato { position: relative; width: min(74%, 170px); aspect-ratio: 1; border-radius: 50%; box-shadow: 0 10px 24px -14px rgba(13, 39, 80, .35), inset 0 0 0 4px rgba(255, 255, 255, .55); }
+.rec-plato::before { content: ''; position: absolute; inset: 27%; border-radius: 50%; background: #FAFAF8; box-shadow: inset 0 2px 6px rgba(13, 39, 80, .08); }
+.rec-plato i { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; font: 600 9.5px/1.05 var(--fuente); font-style: normal; letter-spacing: .02em; color: #1F2633; text-shadow: 0 1px 0 rgba(255, 255, 255, .55); white-space: nowrap; pointer-events: none; }
+.rec-plato i b { font-size: 11.5px; font-weight: 700; }
+.rec-plato em { position: absolute; inset: 27%; display: grid; place-content: center; text-align: center; font: 560 17px/1 var(--fuente-display); font-variation-settings: var(--display-ajustes); font-style: normal; color: var(--tinta); }
+.rec-plato em small { font: 500 10px var(--fuente); color: var(--tinta-3); }
+
+/* Tu avatar: aspecto (piel y pelo) y pasos para escanear tu cara */
+.ta-aspecto { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(34, 43, 61, .07); }
+.ta-aspecto > div { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 8px; }
+.ta-aspecto span { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tinta-3); }
+.ta-muestras { display: flex; flex-wrap: wrap; gap: 7px; }
+.ta-muestras button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(34, 43, 61, .12), 0 2px 6px -3px rgba(13, 39, 80, .3); transition: transform var(--m-rapido), box-shadow var(--m-rapido); }
+.ta-muestras button.original { background: conic-gradient(from 45deg, #F1D8C6, #B98A6E, #5A3D2A, #C9A66E, #F1D8C6); }
+.ta-muestras button:hover { transform: scale(1.08); }
+.ta-muestras button.activo { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--tinta); }
+.ta-propio h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 15px var(--fuente); }
+.ta-propio h3 svg { width: 22px; height: 22px; color: var(--tinta-2); }
+.ta-pasos { margin: 0; padding: 0; list-style: none; counter-reset: paso; display: grid; gap: 8px; }
+.ta-pasos li { counter-increment: paso; position: relative; padding-left: 30px; font-size: 13px; line-height: 1.45; color: var(--tinta-2); }
+.ta-pasos li::before { content: counter(paso); position: absolute; left: 0; top: 0; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; background: var(--tinta); color: #fff; font: 600 11px var(--fuente); }
+.ta-pasos b { color: var(--tinta); font-weight: 600; }
+.ta-pasos i { font-style: normal; font-weight: 600; color: var(--tinta); }
+.ta-propio-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ta-propio-acciones .btn { justify-content: center; text-align: center; text-decoration: none; }
+@media (max-width: 899px) { .ta-panel { max-height: 58dvh; overflow-y: auto; } }
+
+/* Bienvenida: crea tu avatar */
+.bv { position: fixed; inset: 0; z-index: 320; display: grid; place-items: center; padding: 20px; background: rgba(238, 240, 240, .6); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); opacity: 0; transition: opacity var(--m-medio) var(--curva); }
+.bv.ver { opacity: 1; }
+.bv-hoja { width: min(440px, 100%); padding: 28px 26px 22px; border-radius: 30px; background: #fff; text-align: center; box-shadow: var(--elev-2), var(--elev-0); transform: translateY(14px) scale(.98); transition: transform var(--m-medio) var(--curva); }
+.bv.ver .bv-hoja { transform: none; }
+.bv-arte { position: relative; width: 96px; height: 96px; margin: 0 auto 14px; display: grid; place-items: center; }
+.bv-arte img { width: 42px; height: auto; position: relative; z-index: 1; }
+.bv-arte i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(110, 135, 181, .35); animation: cs-aro 2.6s ease-out infinite; }
+.bv-arte i:nth-child(3) { animation-delay: .85s; } .bv-arte i:nth-child(4) { animation-delay: 1.7s; }
+.bv-hoja h2 { margin: 0 0 8px; font: var(--display-peso) 28px/1.1 var(--fuente-display); font-variation-settings: var(--display-ajustes); letter-spacing: -0.025em; }
+.bv-hoja p { margin: 0 0 20px; color: var(--tinta-2); font-size: 14.5px; line-height: 1.5; }
+.bv-acciones { display: grid; gap: 8px; }
+.bv-acciones .btn { min-height: 48px; justify-content: center; }
+.bv-luego { border: 0; background: none; padding: 8px; font: 500 14px var(--fuente); color: var(--tinta-3); cursor: pointer; }
+@media (max-width: 520px) { .bv { place-items: end center; padding: 0; } .bv-hoja { border-radius: 28px 28px 0 0; padding-bottom: calc(22px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .bv-arte i { animation: none; } }

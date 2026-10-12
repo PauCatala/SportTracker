@@ -159,7 +159,6 @@ function crear() {
     }
     if (av) {
       av.actualizar(reducido ? 0 : dt);
-      if (objetos.vaso.visible) nivelar(objetos.vaso);
     }
     const d = cam.userData.d || 6;
     cam.position.set(0, 1.02, d); cam.lookAt(0, 0.98, 0);

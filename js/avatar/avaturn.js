@@ -66,6 +66,45 @@ export async function fuenteAvatar(eleccion = eleccionAvatar().eleccion) {
 }
 
 // Guarda tu elección; con un GLB propio, también el archivo
+// ---------- Ajustes de aspecto (piel y pelo), guardados en tu cuenta ----------
+export const TONOS_PIEL = [['', 'Original'], ['#F6E2D6', 'Muy clara'], ['#E8C5AE', 'Clara'], ['#CF9E80', 'Media'], ['#A9765A', 'Morena'], ['#7A5240', 'Oscura'], ['#563A2E', 'Muy oscura']];
+export const COLORES_PELO = [['', 'Original'], ['#24201E', 'Negro'], ['#5A3D2A', 'Castaño'], ['#8C6239', 'Castaño claro'], ['#C9A66E', 'Rubio'], ['#9C4A2B', 'Pelirrojo'], ['#A9A8A4', 'Canoso']];
+export const ajustesAvatar = () => leer(CLAVE, null)?.ajustes || {};
+export function guardarAjustes(ajustes) {
+  guardar(CLAVE, { ...(leer(CLAVE, null) || eleccionAvatar()), v: 2, ajustes });
+  window.dispatchEvent(new CustomEvent('avatar-cambiado', { detail: { ajustes } }));
+}
+// Aplica piel y pelo a un avatar ya cargado (se puede llamar las veces que haga falta)
+export function aplicarAjustes(av, { piel = '', pelo = '' } = {}) {
+  av.objeto.traverse(o => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (/body/i.test(m.name)) {
+        // La piel se tiñe multiplicando la textura (conserva poros, labios y sombras)
+        m.userData.colorBase ||= m.color.clone();
+        m.color.copy(piel ? new THREE.Color(piel).multiplyScalar(1.12) : m.userData.colorBase);
+      }
+      if (/hair/i.test(m.name)) colorearPelo(m, pelo);
+    }
+  });
+}
+// El pelo se pasa a escala de grises y se colorea, así funciona tanto para aclarar como para oscurecer
+function colorearPelo(m, color) {
+  if (!m.userData.tinte) {
+    m.userData.tinte = { value: new THREE.Color(1, 1, 1) };
+    m.userData.tinteOn = { value: 0 };
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uTinte = m.userData.tinte; sh.uniforms.uTinteOn = m.userData.tinteOn;
+      sh.fragmentShader = 'uniform vec3 uTinte;\nuniform float uTinteOn;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        if (uTinteOn > 0.5) { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = uTinte * clamp(l * 3.2, 0.0, 1.6); }`);
+    };
+    m.customProgramCacheKey = () => 'pelo-tinte';
+    m.needsUpdate = true;
+  }
+  m.userData.tinteOn.value = color ? 1 : 0;
+  if (color) m.userData.tinte.value.set(color);
+}
+
 export async function elegirAvatar(eleccion, blob = null) {
   const previo = leer(CLAVE, null) || {};
   let propioId = previo.propioId || previo.avatarId || null;
@@ -78,7 +117,7 @@ export async function elegirAvatar(eleccion, blob = null) {
       if (error) console.warn('No se pudo subir el avatar a tu cuenta:', error.message);
     }
   }
-  guardar(CLAVE, { v: 2, eleccion, propioId, fecha: new Date().toISOString() });
+  guardar(CLAVE, { v: 2, eleccion, propioId, ajustes: previo.ajustes || {}, fecha: new Date().toISOString() });
   window.dispatchEvent(new CustomEvent('avatar-cambiado', { detail: { eleccion } }));
 }
 
@@ -105,7 +144,7 @@ const BUCLES = new Set(['idle', 'walk', 'run', 'fuerza', 'comer', 'estirar']);
  * Carga un GLB de Avaturn (u otro humanoide), lo orienta mirando a +Z con los pies en el suelo
  * y le prepara las animaciones. Devuelve { objeto, altura, poner, velocidad, gesto, actualizar }.
  */
-export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
+export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = ajustesAvatar() } = {}) {
   const url = fuente instanceof Blob ? URL.createObjectURL(fuente) : fuente;
   let gltf;
   try { gltf = await cargador.loadAsync(url); } finally { if (fuente instanceof Blob) URL.revokeObjectURL(url); }
@@ -174,7 +213,7 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
   mixer.addEventListener('finished', e => { if (e.action === acciones[gesto]) { gesto = null; poner(base, 0.45); } });
   poner('idle', 0);
 
-  return {
+  const resultado = {
     objeto, altura,
     estado(n, v = 1) { base = n; vel = v; if (!gesto) poner(n); if (actual === acciones[n]) actual.setEffectiveTimeScale(v); },
     gesto(n) { if (!acciones[n]) return; gesto = n; poner(n, 0.3); },
@@ -184,4 +223,6 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
     actualizar(dt) { mixer.update(dt); modelo.position.y = baseY + balanceo.position.y; },
     destruir() { mixer.stopAllAction(); objeto.traverse(o => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach(m => m.dispose()); } }); objeto.removeFromParent(); },
   };
+  if (ajustes) aplicarAjustes(resultado, ajustes);
+  return resultado;
 }
