@@ -1,6 +1,7 @@
 // "Tu avatar": elige entre los avatares de SYNCO (Él, Ella) o sube el tuyo de Avaturn.
 // Vista previa 3D con la misma luz que la rueda: arrastra para girarlo y prueba la carrera.
 import * as THREE from 'three';
+import { cargador } from '../marca-anim.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes } from './avaturn.js';
 
@@ -33,7 +34,7 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
     </header>
     <div class="ta-escenario">
       <canvas aria-label="Vista previa del avatar. Arrastra para girarlo."></canvas>
-      <p class="ta-cargando" hidden><span></span>Cargando avatar…</p>
+      <div class="ta-cargando" hidden>${cargador('Cargando avatar…')}</div>
       <div class="segmento-suave ta-modo" role="tablist" aria-label="Movimiento">
         <button class="activo" data-modo="idle" role="tab" aria-selected="true">Reposo</button>
         <button data-modo="run" role="tab" aria-selected="false">Correr</button>

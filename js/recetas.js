@@ -3,6 +3,7 @@
 // filtros combinables, ficha con raciones ajustables, favoritas, plan semanal y lista de la compra.
 // Los macros se calculan sumando ingredientes con tablas de composición: son estimaciones.
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
+import { cargador } from './marca-anim.js';
 import { abrirModal } from './interaccion.js';
 import { aviso, sumarDias } from './utils.js';
 import { objetivosDelDia, anadirComida } from './nutricion.js';
@@ -98,7 +99,7 @@ function coincidencias(r, f, D) {
 
 // ============================== LISTA ==============================
 export async function renderRecetas(cont) {
-  cont.innerHTML = '<p class="tenue">Cargando recetas…</p>';
+  cont.innerHTML = cargador('Cargando recetas…');
   let D;
   try { D = await datos(); } catch { cont.innerHTML = '<div class="vacio"><p>No se han podido cargar las recetas. Revisa la conexión.</p></div>'; return; }
   const f = { ...FILTROS_VACIOS, ...leer('recetas-filtros', {}), q: '' };
@@ -311,7 +312,7 @@ function anadirACompra(r, rac) {
 
 // ============================== PLAN Y COMPRA ==============================
 export async function renderPlanCompra(cont) {
-  cont.innerHTML = '<p class="tenue">Cargando…</p>';
+  cont.innerHTML = cargador();
   let D;
   try { D = await datos(); } catch { cont.innerHTML = '<div class="vacio"><p>No se han podido cargar las recetas.</p></div>'; return; }
   const porId = new Map(D.recetas.map(r => [r.id, r]));

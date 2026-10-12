@@ -35,6 +35,12 @@
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
+  <!-- Arranque: los trazos de SYNCO caen como fichas de dominó mientras carga la app -->
+  <div id="arranque" class="arranque" role="status" aria-label="Cargando SYNCO">
+    <span class="sy-barras grande" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <b>SYNCO</b>
+  </div>
+  <script>setTimeout(function () { var a = document.getElementById('arranque'); if (a) a.remove(); }, 9000);</script>
 
   <div id="app" class="lumen">
     <!-- Menú lateral (ordenador) -->

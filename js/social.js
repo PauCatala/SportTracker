@@ -5,6 +5,7 @@
 // - Las fotos viven en un almacén privado y se ven con enlaces firmados que caducan; nunca hay enlaces públicos.
 // - Seguir es una petición que la otra persona acepta. Puedes bloquear y denunciar.
 import { supabase } from './db.js';
+import { cargador } from './marca-anim.js';
 import { escapar, leer, guardar } from './almacen.js';
 import { comprimir } from './fotos.js';
 import { aviso } from './utils.js';
@@ -132,7 +133,7 @@ export async function renderSocial(cont, ctx) {
     cont.onclick = ev => { if (ev.target.closest('[data-entrar]')) abrirLogin(); };
     return;
   }
-  cont.innerHTML = '<p class="tenue sp-cargando">Cargando tu comunidad…</p>';
+  cont.innerHTML = cargador('Cargando tu comunidad…');
   try {
     yo = (await supabase.auth.getUser()).data.user.id;
     let r = await supabase.from('perfiles_publicos').select('usuario, nombre, bio').eq('user_id', yo).maybeSingle();
@@ -262,7 +263,7 @@ export async function renderSocial(cont, ctx) {
 }
 
 async function pintar(caja) {
-  caja.innerHTML = '<p class="tenue sp-cargando">Cargando…</p>';
+  caja.innerHTML = cargador();
   try {
     if (pestana === 'parati') return await pintarParaTi(caja);
     if (pestana === 'siguiendo') return await pintarSiguiendo(caja);
@@ -423,7 +424,7 @@ async function abrirComentarios(cont, id) {
   if (!caja) return;
   if (!caja.hidden && caja.dataset.cargado) { caja.querySelector('input')?.focus(); return; }
   caja.hidden = false;
-  caja.innerHTML = '<p class="tenue">Cargando comentarios…</p>';
+  caja.innerHTML = cargador('Cargando comentarios…');
   const { data, error } = await supabase.from('comentarios').select('id, user_id, texto, creado').eq('publicacion_id', id).order('creado').limit(100);
   if (error) { caja.innerHTML = ''; return fallo(error); }
   const perfiles = await perfilesDe(data.map(c => c.user_id));

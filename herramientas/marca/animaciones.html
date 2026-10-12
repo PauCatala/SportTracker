@@ -1,0 +1,14 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../../css/tokens.css"><link rel="stylesheet" href="../../css/styles.css"><link rel="stylesheet" href="../../css/app.css"><link rel="stylesheet" href="../../css/pulido.css"><link rel="stylesheet" href="../../css/v2.css">
+<title>Animaciones SYNCO</title></head>
+<body style="padding:40px;display:grid;gap:30px;justify-items:start">
+<!-- Laboratorio: el cargador de SYNCO y la transición entre secciones -->
+<span class="sy-barras grande" id="grande"><i></i><i></i><i></i><i></i></span>
+<div id="peq"></div>
+<button class="btn primario" id="probar">Probar transición</button>
+<script type="module">
+import { cargador, transicionSynco } from '../../js/marca-anim.js';
+document.getElementById('peq').innerHTML = cargador('Cargando tus datos…');
+document.getElementById('probar').onclick = () => transicionSynco(() => { document.body.style.background = document.body.style.background ? '' : '#E8ECF2'; });
+window.listo = true;
+</script></body></html>

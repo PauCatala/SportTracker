@@ -189,7 +189,7 @@ export async function pintarPublicacion(pub, lienzo = document.createElement('ca
   ctx.restore();
 
   // Interacciones
-  (est.like ? ICONOS.corazonLleno : ICONOS.corazon)(ctx, 52, 704);
+  ICONOS.corazonLleno(ctx, 52, 704);   // en la rueda el corazón va siempre relleno de rojo
   ICONOS.comentario(ctx, 110, 702);
   ICONOS.enviar(ctx, 168, 702);
   (est.guardado ? ICONOS.guardadoLleno : ICONOS.guardar)(ctx, 668, 702);

@@ -3,6 +3,7 @@
 //   y el avatar en inicio/avatar.js.
 // - Los widgets usan datos reales de cada módulo y puedes elegir cuáles ver.
 import { leer, guardar, hoyISO, escapar } from './almacen.js';
+import { cargador } from './marca-anim.js';
 import { icono } from './iconos.js';
 import { capitalizar } from './utils.js';
 import { eventosEntre } from './agenda.js';
@@ -157,7 +158,7 @@ export async function renderInicio(cont, ctx) {
         </div>
         <div class="inicio-escena" id="escena">
           <div class="halo" aria-hidden="true"></div>
-          <p class="escena-cargando">Preparando tu rueda…</p>
+          <div class="escena-cargando">${cargador('Preparando tu rueda…')}</div>
           <p class="escena-ayuda">${matchMedia('(pointer: coarse)').matches ? 'Desliza para girar · toca tu avatar' : 'Arrastra para girar · toca tu avatar para cambiarlo'}</p>
           <span class="escena-tip" aria-hidden="true"></span>
           <div class="escena-pie">

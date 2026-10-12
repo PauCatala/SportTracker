@@ -4,6 +4,7 @@
 // No duplica lógica: lee los mismos datos (perfil, sesiones, carreras, comidas, flexibilidad) y,
 // en Perfil, guarda exactamente igual que el formulario de siempre.
 import { leer, guardar, escapar } from '../almacen.js';
+import { cargador } from '../marca-anim.js';
 import { hoyISO, sumarDias, lunesDe, fmtKg, fmtRitmo, fmtCorta, diasEntre } from '../utils.js';
 import { state } from '../db.js';
 import { PERFIL_VACIO, ACTIVIDAD, imc, textoImc, caloriasMantenimiento, caloriasObjetivo, planPeso, planHTML, fmt, perfilCompleto } from '../perfil.js';
@@ -157,7 +158,7 @@ const puntos = (n, total, lleno = 'lleno') => `<div class="cs-puntos">${Array.fr
 const accion = (texto, attr) => `<button class="cs-accion" ${attr}>${texto}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`;
 
 function cargandoDatos(bloque) {
-  return { izq: [tarjeta({ titulo: NOMBRES[bloque], cuerpo: '<p class="cs-texto">Cargando tus datos…</p>' })], der: [] };
+  return { izq: [tarjeta({ titulo: NOMBRES[bloque], cuerpo: cargador('Cargando tus datos…') })], der: [] };
 }
 function sinCuenta(bloque) {
   const texto = { gym: 'tus rutinas, series y progreso', running: 'tus salidas, ritmos y plan', flex: 'tus rutinas de movilidad y tu racha' }[bloque] || 'tus datos';

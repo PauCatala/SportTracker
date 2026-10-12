@@ -27,6 +27,7 @@ import { activarPlan } from './agenda.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
 import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
+import { cargador, quitarArranque, transicionSynco } from './marca-anim.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -178,7 +179,7 @@ function pintarVista() {
 
   if (grupo.cuenta && !sesionIniciada) return renderPideEntrar(destino, `Entra para ver tu ${grupo.titulo.toLowerCase()}: lo guardamos en tu cuenta.`);
   if (grupo.cuenta && !datosCargados) {
-    destino.innerHTML = '<p class="tenue" style="text-align:center;padding:40px 0">Cargando tus datos…</p>';
+    destino.innerHTML = cargador('Cargando tus datos…');
     return;
   }
 
@@ -509,7 +510,8 @@ const alElegirSeccion = ev => {
   if (!b) return;
   if (b.dataset.seccion === seccion) return;
   seccion = b.dataset.seccion;
-  transicion(() => { pintar(); window.scrollTo(0, 0); });
+  // Cambio de sección: los círculos de SYNCO ruedan, se funden y en ese instante cambia la pantalla
+  transicionSynco(() => { pintar(); window.scrollTo(0, 0); });
 };
 $('secciones').onclick = alElegirSeccion;
 $('barra').onclick = alElegirSeccion;
@@ -705,6 +707,8 @@ const { data: { session } } = await supabase.auth.getSession();
 pintarCuenta();
 if (session) entrar();
 else pintar();
+// La pantalla de arranque se va en cuanto hay algo que ver
+requestAnimationFrame(() => setTimeout(quitarArranque, 250));
 
 // Service worker: permite instalarla y abrirla sin internet
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.warn);
