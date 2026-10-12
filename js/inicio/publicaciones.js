@@ -1,4 +1,4 @@
-// Publicaciones de la rueda: cada área de Lumen es un "post" minimalista
+// Publicaciones de la rueda: cada área de SYNCO es un "post" minimalista
 // (tu usuario, una imagen de la sección, interacciones y el nombre del área como pie).
 // Se dibujan en un <canvas> que la escena 3D usa como textura.
 

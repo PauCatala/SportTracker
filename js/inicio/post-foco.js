@@ -106,7 +106,7 @@ export function abrirPost({ area, pub, usuario, alEntrar, alCerrar, alCambiar })
       $('.pf-menu').hidden = true;
       const url = `${location.origin}${location.pathname}#${area.ir.split('|')[0]}`;
       try {
-        if (b.matches('[data-compartir]') && navigator.share) { await navigator.share({ title: `Lumen · ${area.titulo}`, url }); return; }
+        if (b.matches('[data-compartir]') && navigator.share) { await navigator.share({ title: `SYNCO · ${area.titulo}`, url }); return; }
         await navigator.clipboard.writeText(url); aviso('Enlace copiado');
       } catch { /* cancelado */ }
     }

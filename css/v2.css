@@ -1182,3 +1182,14 @@ html, body { overflow-anchor: none; }
 .bv-luego { border: 0; background: none; padding: 8px; font: 500 14px var(--fuente); color: var(--tinta-3); cursor: pointer; }
 @media (max-width: 520px) { .bv { place-items: end center; padding: 0; } .bv-hoja { border-radius: 28px 28px 0 0; padding-bottom: calc(22px + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .bv-arte i { animation: none; } }
+
+/* Marca SYNCO: el isotipo de cuatro trazos y el nombre */
+.marca-synco { display: inline-flex; align-items: center; gap: 9px; line-height: 1; }
+.marca-synco img { display: block; height: 19px; width: auto; }
+.marca-synco span { font: 640 19px/1 var(--fuente-display); font-variation-settings: 'opsz' 96, 'wdth' 92; letter-spacing: 0.04em; color: var(--tinta); }
+.lateral-logo.marca-synco { padding: 0 6px 0 4px; }
+.login-marca.marca-synco { gap: 12px; margin: 0 0 14px; }
+.login-marca.marca-synco img { height: 30px; }
+.login-marca.marca-synco span { font-size: 30px; }
+.inicio-marca.marca-synco { display: none; }
+@media (max-width: 899px) { .inicio-marca.marca-synco { display: inline-flex; height: auto; width: auto; margin: 4px 0 18px; } .inicio-marca.marca-synco img { height: 17px; } .inicio-marca.marca-synco span { font-size: 17px; } }

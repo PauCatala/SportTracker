@@ -1,4 +1,4 @@
-// Guardado de las secciones nuevas de Lumen (perfil, nutrición, tareas, hábitos, notas...).
+// Guardado de las secciones nuevas de SYNCO (perfil, nutrición, tareas, hábitos, notas...).
 // - Sin cuenta: todo se guarda en este navegador.
 // - Con cuenta: además se sube a Supabase (tabla lumen_datos) y se baja al entrar,
 //   así lo ves igual en el móvil y en el ordenador.

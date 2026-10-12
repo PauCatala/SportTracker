@@ -1,7 +1,7 @@
 // Función de Vercel "calendario" (se publica sola en /api/calendario). Hace dos cosas:
 //  1. ?url=<enlace .ics>  → descarga un calendario (Google, PoliformaT, Outlook…) y se lo pasa a la app.
 //     Hace falta porque esos servidores no dejan que una web lo descargue directamente (CORS).
-//  2. ?feed=<código>      → devuelve tu calendario de Lumen en formato .ics para suscribirte desde
+//  2. ?feed=<código>      → devuelve tu calendario de SYNCO en formato .ics para suscribirte desde
 //     Google Calendar. El código es secreto y solo lo conoce tu cuenta (se crea en la app).
 //     Lo lee de Supabase con la función lumen_calendario_feed (solo devuelve el calendario de ese código).
 const SUPABASE_URL = 'https://lqbqlgkuubyukqbhckck.supabase.co';
@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return texto(res, 204, '');
   const params = new URL(req.url, 'http://x').searchParams;
 
-  // ---------- 2. Tu calendario de Lumen para Google Calendar ----------
+  // ---------- 2. Tu calendario de SYNCO para Google Calendar ----------
   const feed = params.get('feed');
   if (feed) {
     if (!/^[A-Za-z0-9]{24,64}$/.test(feed)) return texto(res, 404, 'No encontrado');
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
   try {
     r = await fetch(destino, {
       redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (Lumen Calendario)', Accept: 'text/calendar, text/plain, */*' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (SYNCO Calendario)', Accept: 'text/calendar, text/plain, */*' },
       signal: AbortSignal.timeout(15000),
     });
   } catch {

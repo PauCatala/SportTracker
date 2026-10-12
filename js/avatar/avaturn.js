@@ -1,5 +1,5 @@
 // Avatares realistas de Avaturn (https://avaturn.me).
-// - Lumen trae dos avatares listos (masculino y femenino) creados con Avaturn, con su carrera nativa.
+// - SYNCO trae dos avatares listos (masculino y femenino) creados con Avaturn, con su carrera nativa.
 // - También puedes usar el tuyo: créalo gratis en avaturn.me, descárgalo (.glb) y súbelo en "Tu avatar".
 //   Se guarda en tu cuenta (Supabase Storage, carpeta privada) y en este dispositivo (IndexedDB).
 import * as THREE from 'three';
@@ -59,7 +59,7 @@ export async function modeloPropio() {
   return data;
 }
 
-// Lo que hay que cargar para la elección actual (URL de un avatar de Lumen o tu GLB)
+// Lo que hay que cargar para la elección actual (URL de un avatar de SYNCO o tu GLB)
 export async function fuenteAvatar(eleccion = eleccionAvatar().eleccion) {
   if (eleccion === 'propio') { const b = await modeloPropio(); if (b) return b; eleccion = 'hombre'; }
   return AVATARES[eleccion]?.url || AVATARES.hombre.url;

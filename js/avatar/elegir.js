@@ -1,4 +1,4 @@
-// "Tu avatar": elige entre los avatares de Lumen (Él, Ella) o sube el tuyo de Avaturn.
+// "Tu avatar": elige entre los avatares de SYNCO (Él, Ella) o sube el tuyo de Avaturn.
 // Vista previa 3D con la misma luz que la rueda: arrastra para girarlo y prueba la carrera.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';

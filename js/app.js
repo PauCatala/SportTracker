@@ -365,7 +365,7 @@ function renderHoy(cont) {
     <div id="aviso-foto"></div>
     ${sesionIniciada ? '' : `
       <div class="hoy-aviso">
-        <p>Estás usando Lumen sin cuenta: tus datos se guardan en este navegador. Entra para tenerlos en todos tus dispositivos.</p>
+        <p>Estás usando SYNCO sin cuenta: tus datos se guardan en este navegador. Entra para tenerlos en todos tus dispositivos.</p>
         <button class="btn primario chico" data-entrar>Entrar</button>
       </div>`}
 
@@ -584,7 +584,7 @@ function abrirLogin() {
   setTimeout(() => $('form-login').querySelector('input').focus(), 50);
   rellenarGuardada();
 }
-// Si el navegador tiene guardados el email y la contraseña de Lumen, los rellena solos
+// Si el navegador tiene guardados el email y la contraseña de SYNCO, los rellena solos
 async function rellenarGuardada() {
   if (!('PasswordCredential' in window) || $('login-email').value) return;
   try {
@@ -612,7 +612,7 @@ function pintarCuenta() {
   const inicial = nombreUsuario ? escapar(nombreUsuario[0].toUpperCase()) : icono('perfil');
   $('btn-perfil').innerHTML = inicial;
   $('btn-perfil-movil').innerHTML = inicial;
-  $('menu-cuenta').textContent = sesionIniciada ? (nombreUsuario || 'Tu cuenta de Lumen') : 'Sin cuenta: tus datos se guardan en este navegador';
+  $('menu-cuenta').textContent = sesionIniciada ? (nombreUsuario || 'Tu cuenta de SYNCO') : 'Sin cuenta: tus datos se guardan en este navegador';
 }
 
 // ---------- Menú de perfil (avatar, datos, entrar / salir) ----------

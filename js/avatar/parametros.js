@@ -56,7 +56,7 @@ export const COLORES_OJOS = [
   ['grey', 'Gris', '#7d8790'], ['ice', 'Hielo', '#a9c3d6'],
 ];
 
-// Paleta pastel de Lumen para la ropa (null = color original de la prenda)
+// Paleta pastel de SYNCO para la ropa (null = color original de la prenda)
 export const PALETA_ROPA = [
   [null, 'Original'], ['#f7f7f5', 'Blanco'], ['#2b3142', 'Tinta'], ['#dce9df', 'Salvia'], ['#a9cbb3', 'Menta'],
   ['#dceaf7', 'Cielo'], ['#9fbfe0', 'Azul'], ['#e7dff7', 'Lavanda'], ['#bfaee6', 'Lila'], ['#f3e1e5', 'Rosa'],

@@ -3,7 +3,7 @@
 //  - Toca un hueco para crear algo a esa hora; arrastra un evento para moverlo
 //  - Filtros por tipo (clases, estudio, trabajo, deporte, hogar, personal, imagen)
 //  - Sincronizar: importa Google Calendar, PoliformaT, Outlook… (enlace iCal o archivo .ics)
-//    y crea un enlace para ver Lumen dentro de Google Calendar.
+//    y crea un enlace para ver SYNCO dentro de Google Calendar.
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
 import { lunesDe, sumarDias, capitalizar } from './utils.js';
 import { icono } from './iconos.js';
@@ -391,7 +391,7 @@ export function abrirDetalle(e, origen, alCambiar) {
         <div class="ev-acciones">
           ${e.hecho !== null && e.hecho !== undefined && ['tarea', 'lista', 'evento'].includes(e.fuente) ? `<button class="btn primario" data-a="hecho">${icono('check')}${e.hecho ? 'Marcar como pendiente' : 'Marcar como hecho'}</button>` : ''}
           ${e.editable ? `<button class="btn suave" data-a="editar">Editar</button>` : ''}
-          ${e.ir ? `<button class="btn suave" data-a="ir">Abrir en Lumen ${icono('der')}</button>` : ''}
+          ${e.ir ? `<button class="btn suave" data-a="ir">Abrir en SYNCO ${icono('der')}</button>` : ''}
           ${e.fuente !== 'importado' ? `<a class="btn suave" href="${enlaceGoogle(e)}" target="_blank" rel="noopener">Añadir a Google Calendar</a>` : ''}
         </div>
         ${e.editable ? `<div class="ev-borrar">${e.repite
@@ -605,7 +605,7 @@ async function cargarFotos() {
   } catch { /* sin fotos */ }
 }
 
-// ---------- Ver Lumen en Google Calendar ----------
+// ---------- Ver SYNCO en Google Calendar ----------
 const URL_FEED = token => `${location.origin}${API}?feed=${token}`;
 function icsDeLumen() {
   const hoy = hoyISO();
@@ -613,7 +613,7 @@ function icsDeLumen() {
   return crearICS(eventos.map(e => ({
     uid: e.id, titulo: `${e.hecho ? '✓ ' : ''}${e.titulo}`, fecha: e.fecha, inicio: e.inicio, fin: e.fin,
     todoElDia: e.todoElDia, lugar: e.lugar, nota: e.nota,
-  })), 'Lumen');
+  })), 'SYNCO');
 }
 let temporizadorExport = null;
 // Mantiene al día el calendario que lee Google (si has creado el enlace)
@@ -657,7 +657,7 @@ export function abrirSincronizar(origen, alCambiar) {
       <div class="sync">
         <section class="sync-bloque">
           <h3 class="modal-h3">Trae tus calendarios</h3>
-          <p class="sync-txt">Clases, entregas y exámenes de <b>PoliformaT</b>, tu <b>Google Calendar</b>, Outlook o cualquier calendario con enlace iCal (.ics). Se actualizan solos cada vez que abres Lumen.</p>
+          <p class="sync-txt">Clases, entregas y exámenes de <b>PoliformaT</b>, tu <b>Google Calendar</b>, Outlook o cualquier calendario con enlace iCal (.ics). Se actualizan solos cada vez que abres SYNCO.</p>
           <ul class="sync-lista" id="sync-lista"></ul>
           <form class="campos" id="sync-form" autocomplete="off">
             <label class="campo">Enlace del calendario <input name="url" inputmode="url" placeholder="https://…/calendario.ics  o  webcal://…" required></label>
@@ -723,8 +723,8 @@ export function abrirSincronizar(origen, alCambiar) {
         const caja = cuerpo.querySelector('#sync-export');
         const enlace = ex?.token ? URL_FEED(ex.token) : '';
         caja.innerHTML = `
-          <h3 class="modal-h3">Ver Lumen en Google Calendar</h3>
-          <p class="sync-txt">Tus clases, tareas, entrenos y recordatorios de Lumen aparecerán en Google Calendar (y en el calendario del móvil) como un calendario más.</p>
+          <h3 class="modal-h3">Ver SYNCO en Google Calendar</h3>
+          <p class="sync-txt">Tus clases, tareas, entrenos y recordatorios de SYNCO aparecerán en Google Calendar (y en el calendario del móvil) como un calendario más.</p>
           ${!conCuenta ? '<p class="tenue">Entra en tu cuenta para crear tu enlace. Mientras tanto, puedes descargar el archivo e importarlo.</p>'
             : ex?.token ? `
               <div class="sync-enlace"><input readonly value="${enlace}" aria-label="Tu enlace"><button class="btn suave chico" data-copiar>${icono('copiar')}Copiar</button></div>
@@ -785,7 +785,7 @@ export function abrirSincronizar(origen, alCambiar) {
         }
         const q = ev.target.closest('[data-quitar]');
         if (q) {
-          if (!confirm('¿Quitar este calendario de Lumen? (No se borra de su aplicación)')) return;
+          if (!confirm('¿Quitar este calendario de SYNCO? (No se borra de su aplicación)')) return;
           guardar('calendarios', leer('calendarios', []).filter(c => c.id !== q.dataset.quitar));
           guardar(`cal-cache:${q.dataset.quitar}`, []);
           pintarLista(); alCambiar?.();
@@ -796,7 +796,7 @@ export function abrirSincronizar(origen, alCambiar) {
           return pintarExport();
         }
         if (ev.target.closest('[data-exportar-quitar]')) {
-          if (!confirm('El enlace dejará de funcionar y Google Calendar ya no verá Lumen. ¿Desactivarlo?')) return;
+          if (!confirm('El enlace dejará de funcionar y Google Calendar ya no verá SYNCO. ¿Desactivarlo?')) return;
           guardar('cal-exportar', null);
           return pintarExport();
         }

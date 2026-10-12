@@ -1,4 +1,4 @@
-// Escena 3D del Inicio: una rueda de publicaciones (una por área de Lumen, dos vueltas)
+// Escena 3D del Inicio: una rueda de publicaciones (una por área de SYNCO, dos vueltas)
 // y tu avatar corriendo dentro. Se gira arrastrando, con el dedo o con las flechas;
 // tocar una publicación te lleva a esa área y tocar el avatar abre su editor.
 import * as THREE from 'three';
@@ -37,7 +37,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
   const lienzo = renderer.domElement;
   lienzo.tabIndex = 0;
   lienzo.setAttribute('role', 'application');
-  lienzo.setAttribute('aria-label', 'Rueda de Lumen. Arrastra o usa las flechas para girarla y pulsa Intro para entrar en la publicación destacada.');
+  lienzo.setAttribute('aria-label', 'Rueda de SYNCO. Arrastra o usa las flechas para girarla y pulsa Intro para entrar en la publicación destacada.');
   cont.appendChild(lienzo);
 
   const escena = new THREE.Scene();

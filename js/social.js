@@ -1,4 +1,4 @@
-// IMAGEN · COMUNIDAD — red social visual de Lumen.
+// IMAGEN · COMUNIDAD — red social visual de SYNCO.
 // Pestañas: Para ti (publicaciones públicas de otras personas), Siguiendo, Explorar, Mi perfil y Actividad.
 // Privacidad (la impone la base de datos con RLS, no la interfaz):
 // - Todo lo que subes es PRIVADO por defecto. Solo tú decides compartirlo con tus seguidores o hacerlo público.
@@ -180,14 +180,14 @@ export async function renderSocial(cont, ctx) {
       }
       if (b.dataset.compartir) {
         const autor = b.closest('.sp').querySelector('.sp-autor b').textContent;
-        const texto = `Mira la publicación de @${autor} en Lumen`;
-        if (navigator.share) await navigator.share({ title: 'Lumen', text: texto }).catch(() => {});
+        const texto = `Mira la publicación de @${autor} en SYNCO`;
+        if (navigator.share) await navigator.share({ title: 'SYNCO', text: texto }).catch(() => {});
         else { await navigator.clipboard.writeText(texto); aviso('Copiado'); }
         return;
       }
       if (b.dataset.cambiarVis) {
         const k = b.dataset.cambiarVis;
-        const msg = { compartida: '¿Compartir esta foto con tus seguidores aceptados?', publica: '¿Hacerla pública? Cualquier persona con cuenta en Lumen podrá verla en Para ti y Explorar.' }[k];
+        const msg = { compartida: '¿Compartir esta foto con tus seguidores aceptados?', publica: '¿Hacerla pública? Cualquier persona con cuenta en SYNCO podrá verla en Para ti y Explorar.' }[k];
         if (msg && !confirm(msg)) return;
         const { error } = await supabase.from('publicaciones').update({ visibilidad: k, actualizado: new Date().toISOString() }).eq('id', b.dataset.id);
         if (error) return fallo(error);
@@ -243,7 +243,7 @@ export async function renderSocial(cont, ctx) {
         return pintar(caja);
       }
       if (b.dataset.denunciar || b.dataset.denunciarUsuario) {
-        const motivo = prompt('Cuéntanos qué ocurre (lo revisará el equipo de Lumen):');
+        const motivo = prompt('Cuéntanos qué ocurre (lo revisará el equipo de SYNCO):');
         if (!motivo?.trim()) return;
         const { error } = await supabase.from('denuncias').insert({ publicacion_id: b.dataset.denunciar || null, usuario_id: b.dataset.usuario || b.dataset.denunciarUsuario, motivo: motivo.trim().slice(0, 500) });
         if (error) return fallo(error);
@@ -307,8 +307,8 @@ async function pintarExplorar(caja) {
   caja.innerHTML = `
     <div class="sp-busca"><input type="search" data-buscar placeholder="Buscar personas por nombre o usuario" aria-label="Buscar personas"></div>
     <ul class="sp-personas" id="sp-resultados"></ul>
-    <div id="sp-sugerencias">${sug.length ? `<h3 class="sp-h">Personas en Lumen</h3><ul class="sp-personas">${sug.map(p => fila(p.user_id, p, botonSeguir(p.user_id, rel))).join('')}</ul>`
-      : vacio('Aún no hay más personas', 'Cuando otras personas creen su perfil en Lumen, podrás encontrarlas aquí.')}</div>
+    <div id="sp-sugerencias">${sug.length ? `<h3 class="sp-h">Personas en SYNCO</h3><ul class="sp-personas">${sug.map(p => fila(p.user_id, p, botonSeguir(p.user_id, rel))).join('')}</ul>`
+      : vacio('Aún no hay más personas', 'Cuando otras personas creen su perfil en SYNCO, podrás encontrarlas aquí.')}</div>
     ${rejilla}`;
 }
 
@@ -475,7 +475,7 @@ function abrirNueva(cont, alTerminar) {
       <label class="campo">Carpeta <select name="carpeta">${Object.entries(CARPETAS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
       <fieldset class="sp-visibilidad"><legend>Quién la ve</legend>
         ${Object.entries(VIS).filter(([k]) => v2 || k !== 'publica').map(([k, n]) => `
-          <label><input type="radio" name="vis" value="${k}" ${k === 'privada' ? 'checked' : ''}><span>${ico(k === 'privada' ? 'candado' : k === 'publica' ? 'mundo' : 'personas')}<b>${n}</b><small>${k === 'privada' ? 'Por defecto. Nadie más puede verla.' : k === 'compartida' ? 'Solo las personas que has aceptado.' : 'Cualquiera con cuenta en Lumen, en Para ti y Explorar.'}</small></span></label>`).join('')}
+          <label><input type="radio" name="vis" value="${k}" ${k === 'privada' ? 'checked' : ''}><span>${ico(k === 'privada' ? 'candado' : k === 'publica' ? 'mundo' : 'personas')}<b>${n}</b><small>${k === 'privada' ? 'Por defecto. Nadie más puede verla.' : k === 'compartida' ? 'Solo las personas que has aceptado.' : 'Cualquiera con cuenta en SYNCO, en Para ti y Explorar.'}</small></span></label>`).join('')}
       </fieldset>
       <button class="btn primario" data-publicar>Guardar en privado</button>
     </form>`);
@@ -494,7 +494,7 @@ function abrirNueva(cont, alTerminar) {
     const archivo = f.foto.files[0];
     if (!archivo) return aviso('Elige una foto', 'error');
     const vis = f.vis.value;
-    if (vis === 'publica' && !confirm('Esta foto será visible para cualquier persona con cuenta en Lumen. ¿Continuar?')) return;
+    if (vis === 'publica' && !confirm('Esta foto será visible para cualquier persona con cuenta en SYNCO. ¿Continuar?')) return;
     const boton = f.querySelector('[data-publicar]'); boton.disabled = true;
     const ruta = `${yo}/${crypto.randomUUID()}.jpg`;
     try {

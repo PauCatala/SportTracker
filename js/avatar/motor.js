@@ -1,4 +1,4 @@
-// Motor del avatar de Lumen.
+// Motor del avatar de SYNCO.
 // Cuerpo humano real (malla base de MakeHuman, CC0) con deformaciones de geometría,
 // esqueleto que se reajusta a cada forma y recursos (pelo, ropa, calzado...) ligados
 // a la superficie del cuerpo igual que en MakeHuman: siguen cada cambio de forma.

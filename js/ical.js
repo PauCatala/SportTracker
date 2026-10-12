@@ -1,7 +1,7 @@
 // iCAL (.ics): el formato estándar de calendarios.
-//  - leerICS: convierte un .ics (Google Calendar, PoliformaT, Outlook, Apple…) en eventos de Lumen,
+//  - leerICS: convierte un .ics (Google Calendar, PoliformaT, Outlook, Apple…) en eventos de SYNCO,
 //    con sus repeticiones ya expandidas entre dos fechas.
-//  - crearICS: convierte eventos de Lumen en un .ics (para Google Calendar o para descargar).
+//  - crearICS: convierte eventos de SYNCO en un .ics (para Google Calendar o para descargar).
 
 const dos = n => String(n).padStart(2, '0');
 const isoDe = d => `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
@@ -213,10 +213,10 @@ const soloFecha = iso => iso.replaceAll('-', '');
 const masUnDia = iso => { const d = new Date(`${iso}T12:00`); d.setDate(d.getDate() + 1); return isoDe(d); };
 
 /** eventos: [{ uid, titulo, fecha, inicio, fin, todoElDia, lugar, nota }] */
-export function crearICS(eventos, nombre = 'Lumen') {
+export function crearICS(eventos, nombre = 'SYNCO') {
   const ahora = utc(new Date());
   const lineas = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lumen//Calendario//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SYNCO//Calendario//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     `X-WR-CALNAME:${escaparICS(nombre)}`, 'X-WR-TIMEZONE:Europe/Madrid', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
   ];
   for (const e of eventos) {

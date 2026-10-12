@@ -1,4 +1,4 @@
-// INICIO: tu avatar corriendo dentro de la rueda de Lumen y, al lado, lo que tienes hoy.
+// INICIO: tu avatar corriendo dentro de la rueda de SYNCO y, al lado, lo que tienes hoy.
 // - La rueda (3D) está en inicio/rueda.js, las publicaciones en inicio/publicaciones.js
 //   y el avatar en inicio/avatar.js.
 // - Los widgets usan datos reales de cada módulo y puedes elegir cuáles ver.
@@ -145,7 +145,7 @@ export async function renderInicio(cont, ctx) {
     <section class="inicio">
       <div class="inicio-escenario">
         <div class="inicio-cab">
-          <img class="inicio-marca" src="icons/lumen-wordmark.svg" alt="Lumen" width="61" height="24">
+          <span class="inicio-marca marca-synco"><img src="icons/synco-isotipo.svg" alt="" width="36" height="19"><span>SYNCO</span></span>
           <p class="inicio-fecha">${fecha}</p>
           <h2 class="inicio-saludo">${saludo}${ctx.nombre ? `,<span>${escapar(ctx.nombre)}.</span>` : '.'}</h2>
         </div>
@@ -168,7 +168,7 @@ export async function renderInicio(cont, ctx) {
           </div>
         </div>
       </div>
-      <nav class="areas" aria-label="Áreas de Lumen">
+      <nav class="areas" aria-label="Áreas de SYNCO">
         ${AREAS.map(a => `<button class="area" style="--a-suave:${a.suave};--a-fuerte:${a.fuerte}" data-area="${a.id}">${icono(a.icono)}${a.titulo}</button>`).join('')}
       </nav>
     </section>`;
