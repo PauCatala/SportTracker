@@ -27,7 +27,7 @@ import { activarPlan } from './agenda.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
 import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
-import { cargador, quitarArranque, transicionSynco } from './marca-anim.js';
+import { cargador, quitarArranque } from './marca-anim.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -272,7 +272,7 @@ function irA(destino) {
   seccion = sec;
   if (sec === 'salud' && grupo) bloque = grupo;
   if (vista) vistaDe[sec === 'salud' ? bloque : sec] = vista;
-  transicion(() => { pintar(); window.scrollTo(0, 0); });
+  transicion(() => { pintar(); window.scrollTo(0, 0); }, 'seccion');
 }
 const enlaceModal = (destino, texto) => `<button class="enlace-flecha" data-ir-modal="${destino}">${texto} ${icono('der')}</button>`;
 
@@ -483,7 +483,7 @@ function renderHoy(cont) {
     seccion = sec;
     if (sec === 'salud' && grupo) bloque = grupo;
     if (vista) vistaDe[sec === 'salud' ? bloque : sec] = vista;
-    transicion(() => { pintar(); window.scrollTo(0, 0); });
+    transicion(() => { pintar(); window.scrollTo(0, 0); }, 'seccion');
   };
 }
 
@@ -509,23 +509,29 @@ const alElegirSeccion = ev => {
   const b = ev.target.closest('button[data-seccion]');
   if (!b) return;
   if (b.dataset.seccion === seccion) return;
+  // Hacia delante o hacia atrás según el orden del menú, para que la pantalla se deslice hacia el lado lógico
+  const orden = Object.keys(SECCIONES);
+  const dir = orden.indexOf(b.dataset.seccion) - orden.indexOf(seccion);
   seccion = b.dataset.seccion;
-  // Cambio de sección: los círculos de SYNCO ruedan, se funden y en ese instante cambia la pantalla
-  transicionSynco(() => { pintar(); window.scrollTo(0, 0); });
+  transicion(() => { pintar(); window.scrollTo(0, 0); }, 'seccion', dir);
 };
 $('secciones').onclick = alElegirSeccion;
 $('barra').onclick = alElegirSeccion;
 $('subbloques').onclick = ev => {
   const b = ev.target.closest('button[data-bloque]');
   if (!b) return;
+  const orden = Object.keys(BLOQUES);
+  const dir = orden.indexOf(b.dataset.bloque) - orden.indexOf(bloque);
   bloque = b.dataset.bloque;
-  transicion(() => pintar());
+  transicion(() => pintar(), 'pestana', dir);
 };
 $('tabs').onclick = ev => {
   const b = ev.target.closest('button[data-vista]');
   if (!b) return;
+  const botones = [...ev.currentTarget.querySelectorAll('button[data-vista]')];
+  const dir = botones.indexOf(b) - botones.findIndex(x => x.classList.contains('activo'));
   vistaDe[grupoActual()] = b.dataset.vista;
-  transicion(() => pintar());
+  transicion(() => pintar(), 'pestana', dir);
 };
 // Otras partes de la app pueden pedir ir a cualquier sitio: "sección|grupo|pestaña"
 window.addEventListener('ir-a', ev => irA(ev.detail));
@@ -535,7 +541,7 @@ window.addEventListener('navegar', ev => {
   seccion = 'salud';
   bloque = d.bloque;
   vistaDe[bloque] = d.vista;
-  transicion(() => { pintar(); window.scrollTo(0, 0); });
+  transicion(() => { pintar(); window.scrollTo(0, 0); }, 'seccion');
 });
 
 // Al hacer scroll, la cabecera se compacta (como los títulos grandes de iOS).

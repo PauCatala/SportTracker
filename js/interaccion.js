@@ -192,8 +192,17 @@ export function carruseles(cont) {
 }
 
 /* ======================= 6. TRANSICIÓN ENTRE SECCIONES ======================= */
-export function transicion(cambio) {
-  // Desde el Inicio ya hay su propia transición (la cortina de color), y la escena 3D no se fotografía bien
-  if (!document.startViewTransition || sinMovimiento() || document.body.classList.contains('en-inicio')) return cambio();
-  document.startViewTransition(cambio);
+let enCurso = null;
+export function transicion(cambio, tipo = 'pestana', dir = 1) {
+  // Transición entre pantallas con View Transitions (como next-view-transitions): la página que sale
+  // se desliza y se desenfoca hacia un lado y la nueva entra desde el otro. tipo: 'seccion' | 'pestana'
+  if (!document.startViewTransition || sinMovimiento()) return cambio();
+  const raiz = document.documentElement;
+  raiz.dataset.vt = tipo;
+  raiz.dataset.vtDir = dir < 0 ? 'atras' : 'adelante';
+  // No esperamos a lo que pinte en segundo plano (modelos 3D, datos): la pantalla nunca se queda congelada
+  const t = document.startViewTransition(() => { cambio(); });
+  enCurso = t;
+  // Solo limpia si no ha empezado otra transición mientras tanto
+  t.finished.finally(() => { if (enCurso === t) { delete raiz.dataset.vt; delete raiz.dataset.vtDir; } });
 }
