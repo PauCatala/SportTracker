@@ -8,13 +8,13 @@ import { cargarAvatar } from './avatar.js';
 const R = 2.6;            // radio de la rueda
 const W = 1.36;           // ancho de la cinta
 const ALTURA_AVATAR = 3.15;   // ~+20 % respecto a la versión anterior
-const INCLINACION = -0.92; // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
-const VEL_BASE = -0.8;     // rad/s cuando nadie la toca; con este sentido el avatar corre hacia nosotros, de tres cuartos
+const INCLINACION = 0.92;  // giro de la rueda respecto a la cámara (la vemos de tres cuartos)
+const VEL_BASE = 0.8;      // rad/s cuando nadie la toca: la cinta avanza hacia la izquierda y el avatar corre hacia nosotros, de tres cuartos
 // Velocidad del pie apoyado en la carrera de Avaturn (4,4 m/s a 1,8 m de estatura) en unidades de la escena:
 // la animación se acompasa a la superficie de la rueda para que los pies no patinen
 const VEL_PIE = 4.4 * (ALTURA_AVATAR / 1.75);
 const VEL_PIE_ANDAR = 1.4 * (ALTURA_AVATAR / 1.75); // al ir despacio (p. ej. con el puntero encima), camina
-const GIRO_TEXTURA = -Math.PI / 2;
+const GIRO_TEXTURA = Math.PI / 2;   // con la rueda girando hacia la izquierda, así las publicaciones se leen derechas
 
 export function soporta3D() {
   try {
@@ -90,7 +90,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     geo.computeVertexNormals();
     return geo;
   }
-  const papel = new THREE.MeshPhysicalMaterial({ color: 0xf7f7f5, roughness: 0.55, sheen: 0.3, sheenColor: new THREE.Color('#ffffff'), clearcoat: 0.12, clearcoatRoughness: 0.45 });
+  const papel = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.55, sheen: 0.3, sheenColor: new THREE.Color('#ffffff'), clearcoat: 0.12, clearcoatRoughness: 0.45 });
   // Cantos: dos tiras finísimas que cierran el grosor del papel
   for (const lado of [-1, 1]) {
     const pts = [], idx = [];
@@ -107,7 +107,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
     rueda.add(canto);
   }
 
-  // Publicaciones: dos vueltas de las cinco áreas, una detrás de otra sin huecos
+  // Publicaciones: dos vueltas de las cinco áreas; cada lienzo trae su propio margen en blanco
   const N = areas.length * 2;
   const paso = (Math.PI * 2) / N;
   const hueco = 0;
@@ -354,7 +354,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
         avatar.objeto.rotation.y += (mira - avatar.objeto.rotation.y) * Math.min(1, dt * 5);
       } else {
         avatar.velocidad(1);
-        avatar.objeto.rotation.y += ((-Math.PI / 2 + Math.PI * 0.75 + giroAvatar) - avatar.objeto.rotation.y) * Math.min(1, dt * 6);
+        avatar.objeto.rotation.y += ((-INCLINACION * 0.85 + giroAvatar) - avatar.objeto.rotation.y) * Math.min(1, dt * 6);
       }
       avatar.actualizar(dt);
     }

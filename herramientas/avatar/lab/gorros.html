@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>Gorros</title>
+<style>body{margin:0;background:#eef0f2}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../../../vendor/three/three.module.min.js", "three/addons/": "../../../vendor/three/addons/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { cargarAvatarRealista, aplicarAjustes } from '../../../js/avatar/avaturn.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(900, 600); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.append(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color('#eef0f2');
+esc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+const l = new THREE.DirectionalLight(0xffffff, 1.6); l.position.set(1, 3, 2); esc.add(l, new THREE.HemisphereLight(0xffffff, 0xd9dde3, 0.5));
+const cams = [[0, 1], [0.8, 1], [1.4, 0.9]];
+const av = await cargarAvatarRealista(`../../../media/avatar/avaturn/${q.get('a') || 'hombre'}.glb`, { ajustes: {} });
+esc.add(av.objeto); av.fijar('idle', 0.4);
+const top = new THREE.Box3().setFromObject(av.objeto).max.y;
+window.pintar = async (aj) => {
+  aplicarAjustes(av, aj); av.actualizar(0);
+  const W = 300; r.setScissorTest(true);
+  cams.forEach(([ang], i) => {
+    const c = new THREE.PerspectiveCamera(22, 300 / 600, 0.05, 10);
+    c.position.set(Math.sin(ang) * 1.3, top - 0.12, Math.cos(ang) * 1.3); c.lookAt(0, top - 0.14, 0);
+    r.setViewport(i * W, 0, W, 600); r.setScissor(i * W, 0, W, 600); r.render(esc, c);
+  });
+  return true;
+};
+window.listo = true;
+</script>

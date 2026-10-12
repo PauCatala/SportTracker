@@ -1273,3 +1273,59 @@ html, body { overflow-anchor: none; }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* ================= Tu avatar: pestañas Avatar · Cuerpo · Ropa ================= */
+.ta-pestanas { justify-self: stretch; display: grid; grid-template-columns: repeat(3, 1fr); }
+.ta-hoja { display: grid; gap: 14px; }
+.ta-hoja[hidden] { display: none; }
+.ta-fila { display: grid; grid-template-columns: 74px minmax(0, 1fr); align-items: center; gap: 10px; }
+.ta-fila > span { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tinta-3); }
+.ta-fila[hidden] { display: none; }
+.ta-rango { display: grid; gap: 8px; }
+.ta-rango > span { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tinta-3); }
+.ta-rango b { font: 600 14px var(--fuente-titulo); letter-spacing: -0.01em; text-transform: none; color: var(--tinta); }
+.ta-rango small { display: flex; justify-content: space-between; margin-top: -4px; font-size: 11.5px; color: var(--tinta-3); }
+.ta-rango small i { font-style: normal; }
+.ta-rango input { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; min-height: 0; padding: 0; margin: 0; background: transparent; border: 0; cursor: pointer; }
+.ta-rango input::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: rgba(34, 43, 61, .12); }
+.ta-rango input::-moz-range-track { height: 4px; border-radius: 4px; background: rgba(34, 43, 61, .12); }
+.ta-rango input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -9px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px var(--tinta), 0 2px 8px rgba(34, 43, 61, .2); }
+.ta-rango input::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px var(--tinta), 0 2px 8px rgba(34, 43, 61, .2); }
+.ta-rango input:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; border-radius: 8px; }
+.ta-gorros { display: flex; flex-wrap: wrap; gap: 6px; }
+.ta-gorros button { min-height: 32px; padding: 0 13px; border: 0; border-radius: 999px; background: var(--perla); color: var(--tinta-2); font: inherit; font-size: 13.5px; cursor: pointer; }
+.ta-gorros button.activo { background: var(--tinta); color: #fff; }
+.ta-escanear { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; }
+.ta-escanear svg { width: 19px; height: 19px; }
+.ta-subir-enlace { justify-self: center; font-size: 13px; color: var(--tinta-3); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.ta-subir-enlace i { font-style: normal; }
+.ta-subir-enlace:hover { color: var(--tinta); }
+@media (max-width: 899px) {
+  .ta-panel { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }
+  .ta-fila { grid-template-columns: 64px minmax(0, 1fr); }
+}
+
+/* Escáner de cara (Avaturn embebido) */
+.esc { position: fixed; inset: 0; z-index: 400; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px;
+  padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 12px); background: var(--porcelana, #F2F3F4);
+  opacity: 0; transform: translateY(12px); transition: opacity .28s var(--curva), transform .28s var(--curva); }
+.esc.ver { opacity: 1; transform: none; }
+.esc-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; max-width: 1100px; width: 100%; margin: 0 auto; }
+.esc-cab h2 { margin: 0; font: 600 var(--t-h2) / 1.15 var(--fuente-titulo); letter-spacing: -0.02em; }
+.esc-cab p { margin: 3px 0 0; font-size: var(--t-pequeno); color: var(--tinta-3); }
+.esc-marco { position: relative; max-width: 1100px; width: 100%; margin: 0 auto; border-radius: 24px; overflow: hidden; background: #fff; box-shadow: var(--elev-2, 0 10px 30px rgba(34,43,61,.12)); }
+.esc-iframe { position: relative; z-index: 1; width: 100%; height: 100%; border: 0; display: block; }
+.esc-cargando { position: absolute; inset: 0; z-index: 0; display: grid; place-items: center; }
+.esc-cargando.sobre { z-index: 2; background: rgba(255, 255, 255, .92); }
+.esc-fallo { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; background: #fff; }
+.esc-fallo p { max-width: 380px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--tinta-2); }
+.esc-fallo i { font-style: normal; font-weight: 600; }
+.esc-pie { max-width: 1100px; width: 100%; margin: 0 auto; font-size: 12.5px; line-height: 1.45; color: var(--tinta-3); text-align: center; }
+.esc-pie b { color: var(--tinta); }
+@media (max-width: 899px) { .esc { padding-inline: 10px; gap: 8px; } .esc-marco { border-radius: 18px; } .esc-cab { padding-left: 6px; } }
+@media (prefers-reduced-motion: reduce) { .esc { transition: none; } }
+.ta-pestanas { width: 100%; }
+.ta-pestanas button { justify-content: center; }
+@media (max-width: 899px) {
+  .ta-usar { position: sticky; bottom: 0; box-shadow: 0 -10px 18px 6px rgba(255, 255, 255, .9); }
+}

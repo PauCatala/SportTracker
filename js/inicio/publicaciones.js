@@ -4,7 +4,11 @@
 
 import { leer, guardar } from '../almacen.js';
 
-export const ANCHO = 720, ALTO = 880;
+export const ANCHO = 720, ALTO = 880;          // la publicación en sí
+// Lienzo de cada tramo de la cinta: la publicación como tarjeta, con papel en blanco alrededor
+// para que cada post quede bien separado del siguiente (proporción 1,2 = la del tramo de la rueda)
+const LIENZO_W = 900, LIENZO_H = 1080, MARGEN = 64;
+const ESCALA = (LIENZO_H - MARGEN * 2) / ALTO;
 
 // ---------- Interacciones de cada publicación (tuyas, reales, guardadas en tu cuenta) ----------
 const CLAVE = 'inicio-posts';
@@ -30,10 +34,12 @@ export const AREAS = [
   { id: 'imagen', titulo: 'Imagen', icono: 'imagen', suave: '#F6E8DA', fuerte: '#85603A', ir: 'imagen', frase: 'Cómo te ves, cómo te muestras.' },
 ];
 
-const IMAGENES = { salud: 'salud', estudios: 'estudios', personal: 'personal', imagen: 'imagen' };
+// Fotos de uso libre; foco = punto vertical (0 arriba, 1 abajo) que se mantiene al recortar
+const IMAGENES = { salud: ['salud', 0.47], estudios: ['estudios', 0.52], personal: ['personal', 0.5], imagen: ['imagen', 0.5] };
 const RUTA = new URL('../../media/posts/', import.meta.url).href;
-const TINTA = '#222B3D', GRIS = '#8E95A3', PAPEL = '#F7F7F5', ROJO = '#E5484D';
+const TINTA = '#222B3D', GRIS = '#8E95A3', PAPEL = '#F4F4F1', BLANCO = '#FFFFFF', ROJO = '#E5484D', RADIO = 30;
 
+const THREE_CLAMP = (v, a, b) => Math.min(b, Math.max(a, v));
 const redondo = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 function encaja(ctx, texto, max) {
   if (ctx.measureText(texto).width <= max) return texto;
@@ -138,17 +144,20 @@ function calendario(ctx, x, y, w, h) {
 // Imagen principal de una sección (la usa también la vista ampliada)
 export async function pintarImagen(ctx, area, x, y, w, h) {
   if (area.id === 'calendario') return calendario(ctx, x, y, w, h);
-  const img = IMAGENES[area.id] ? await cargar(IMAGENES[area.id]) : null;
+  const [nombre, foco = 0.5] = IMAGENES[area.id] || [];
+  const img = nombre ? await cargar(nombre) : null;
   if (img) {
     const k = Math.max(w / img.width, h / img.height);
-    ctx.drawImage(img, x + (w - img.width * k) / 2, y + (h - img.height * k) / 2, img.width * k, img.height * k);
+    const dh = img.height * k, dy = THREE_CLAMP(h / 2 - dh * foco, h - dh, 0);
+    ctx.drawImage(img, x + (w - img.width * k) / 2, y + dy, img.width * k, dh);
   } else { ctx.fillStyle = area.suave; ctx.fillRect(x, y, w, h); }
 }
 
 // Dibuja una publicación sobre la cinta. pub = { area, dato, detalle, usuario (null = invitado) }
 export async function pintarPublicacion(pub, lienzo = document.createElement('canvas')) {
-  lienzo.width = ANCHO; lienzo.height = ALTO;
+  lienzo.width = LIENZO_W; lienzo.height = LIENZO_H;
   const ctx = lienzo.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   const { area } = pub;
   const invitado = !pub.usuario;
   const usuario = invitado ? 'Invitado' : pub.usuario.toLowerCase().replace(/\s+/g, '');
@@ -158,9 +167,13 @@ export async function pintarPublicacion(pub, lienzo = document.createElement('ca
     document.fonts?.load('300 74px "Inter Tight"').catch(() => {}),
   ]);
 
-  // Papel continuo: sin tarjeta pegada, solo una línea finísima entre publicaciones
-  ctx.fillStyle = PAPEL; ctx.fillRect(0, 0, ANCHO, ALTO);
-  ctx.fillStyle = 'rgba(34,43,61,.07)'; ctx.fillRect(0, 0, ANCHO, 1.5); ctx.fillRect(0, ALTO - 1.5, ANCHO, 1.5);
+  // Papel en blanco y, encima, la publicación como tarjeta: un hueco claro entre un post y el siguiente
+  ctx.fillStyle = BLANCO; ctx.fillRect(0, 0, LIENZO_W, LIENZO_H);
+  ctx.translate((LIENZO_W - ANCHO * ESCALA) / 2, MARGEN); ctx.scale(ESCALA, ESCALA);
+  ctx.save(); ctx.shadowColor = 'rgba(34,43,61,.10)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 6;
+  ctx.fillStyle = PAPEL; redondo(ctx, 0, 0, ANCHO, ALTO, RADIO); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(34,43,61,.09)'; ctx.lineWidth = 1.5; redondo(ctx, 0.75, 0.75, ANCHO - 1.5, ALTO - 1.5, RADIO); ctx.stroke();
+  redondo(ctx, 0, 0, ANCHO, ALTO, RADIO); ctx.clip();
 
   // Cabecera: foto de perfil, usuario y menú
   const cx = 66, cy = 58;

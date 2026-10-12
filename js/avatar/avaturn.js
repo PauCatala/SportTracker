@@ -8,6 +8,8 @@ import { supabase } from '../db.js';
 import { leer, guardar } from '../almacen.js';
 import { animacionesPara } from './retarget.js';
 import { posesSalud } from './poses.js';
+import { prepararAspecto } from './aspecto.js';
+export { ALTURA, COLORES_ROPA, GORROS } from './aspecto.js';
 
 const CLAVE = 'avatar-avaturn';        // tu elección (lumen_datos)
 const CUBO = 'avatares';               // carpeta privada de Supabase Storage
@@ -74,8 +76,11 @@ export function guardarAjustes(ajustes) {
   guardar(CLAVE, { ...(leer(CLAVE, null) || eleccionAvatar()), v: 2, ajustes });
   window.dispatchEvent(new CustomEvent('avatar-cambiado', { detail: { ajustes } }));
 }
-// Aplica piel y pelo a un avatar ya cargado (se puede llamar las veces que haga falta)
-export function aplicarAjustes(av, { piel = '', pelo = '' } = {}) {
+// Aplica tu aspecto a un avatar ya cargado (se puede llamar las veces que haga falta):
+// piel y pelo aquí; altura, complexión, ropa y gorro en aspecto.js
+export function aplicarAjustes(av, ajustes = {}) {
+  const { piel = '', pelo = '' } = ajustes;
+  try { av.aspecto?.aplicar(ajustes, Number(leer('perfil', null)?.altura) || 0); } catch (e) { console.warn('Aspecto del avatar', e); }
   av.objeto.traverse(o => {
     if (!o.isMesh) return;
     for (const m of [].concat(o.material)) {
@@ -93,7 +98,9 @@ function colorearPelo(m, color) {
   if (!m.userData.tinte) {
     m.userData.tinte = { value: new THREE.Color(1, 1, 1) };
     m.userData.tinteOn = { value: 0 };
-    m.onBeforeCompile = sh => {
+    const previo = m.onBeforeCompile;   // p. ej. el recorte del pelo bajo el gorro
+    m.onBeforeCompile = (sh, r) => {
+      previo?.call(m, sh, r);
       sh.uniforms.uTinte = m.userData.tinte; sh.uniforms.uTinteOn = m.userData.tinteOn;
       sh.fragmentShader = 'uniform vec3 uTinte;\nuniform float uTinteOn;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         if (uTinteOn > 0.5) { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = uTinte * clamp(l * 3.2, 0.0, 1.6); }`);
@@ -166,6 +173,10 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
   const altura = caja.max.y - caja.min.y;
   objeto.updateMatrixWorld(true);
 
+  // Altura, complexión, ropa y gorro editables (se mide todo en la postura de reposo)
+  let aspecto = null;
+  try { aspecto = prepararAspecto({ modelo, objeto, giro }); } catch (e) { console.warn('Aspecto editable', e); }
+
   // Materiales: que reciban bien la luz del estudio, sin brillos de plástico
   const mallas = []; modelo.traverse(o => { if (o.isMesh) mallas.push(o); });
   for (const o of mallas) {
@@ -214,7 +225,7 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
   poner('idle', 0);
 
   const resultado = {
-    objeto, altura,
+    objeto, altura, aspecto,
     estado(n, v = 1) { base = n; vel = v; if (!gesto) poner(n); if (actual === acciones[n]) actual.setEffectiveTimeScale(v); },
     gesto(n) { if (!acciones[n]) return; gesto = n; poner(n, 0.3); },
     hueso: n => buscar(new RegExp(`^(mixamorig:?)?${n}$`)),

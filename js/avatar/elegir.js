@@ -3,26 +3,34 @@
 import * as THREE from 'three';
 import { cargador } from '../marca-anim.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes } from './avaturn.js';
+import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes, ALTURA, COLORES_ROPA, GORROS } from './avaturn.js';
+import { abrirEscaner } from './escaner.js';
+import { leer } from '../almacen.js';
 
 const ICO = {
   cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
   cara: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="11" r="3.2"/><path d="M7.5 17.2c1.1-1.6 2.7-2.4 4.5-2.4s3.4.8 4.5 2.4"/>',
   subir: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
+  camara: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.5" r="3.4"/>',
   ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 };
 const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
 const MAX_MB = 40;
 
 let abierto = null;
-export function abrirPersonalizacion({ escanear = false } = {}) {
+export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) {
   if (abierto) return abierto;
   const inicial = eleccionAvatar().eleccion;
   const ajustesIniciales = ajustesAvatar();
-  let elegido = escanear ? 'propio' : inicial, propioNuevo = null, modo = 'idle', hayGuardado = false, ajustes = { ...ajustesIniciales };
-  const cambiaronAjustes = () => (ajustes.piel || '') !== (ajustesIniciales.piel || '') || (ajustes.pelo || '') !== (ajustesIniciales.pelo || '');
-  const muestras = (tipo, lista) => `<div class="ta-muestras" role="radiogroup" aria-label="${tipo === 'piel' ? 'Tono de piel' : 'Color de pelo'}">${lista.map(([c, n]) =>
+  let elegido = vieneAEscanear ? 'propio' : inicial, propioNuevo = null, modo = 'idle', hayGuardado = false, ajustes = { ...ajustesIniciales };
+  const CLAVES = ['piel', 'pelo', 'altura', 'complexion', 'camiseta', 'pantalon', 'zapatos', 'gorro', 'gorroColor'];
+  const cambiaronAjustes = () => CLAVES.some(k => String(ajustes[k] ?? '') !== String(ajustesIniciales[k] ?? ''));
+  const alturaPerfil = Number(leer('perfil', null)?.altura) || ALTURA.base;
+  const alturaDe = a => THREE.MathUtils.clamp(Number(a.altura) || alturaPerfil, ALTURA.min, ALTURA.max);
+  const textoComplexion = c => (c <= -0.6 ? 'Delgada' : c < -0.2 ? 'Fina' : c <= 0.2 ? 'Media' : c < 0.6 ? 'Atlética' : 'Fuerte');
+  const muestras = (tipo, lista, nombre) => `<div class="ta-muestras" role="radiogroup" aria-label="${nombre}">${lista.map(([c, n]) =>
     `<button type="button" role="radio" data-ajuste="${tipo}|${c}" title="${n}" aria-label="${n}" class="${c ? '' : 'original'}" style="${c ? `--c:${c}` : ''}"></button>`).join('')}</div>`;
+  const fila = (titulo, html) => `<div class="ta-fila"><span>${titulo}</span>${html}</div>`;
 
   const raiz = document.createElement('div');
   raiz.className = 'ta entrando';
@@ -42,28 +50,39 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
       <small class="ta-pista">Arrastra para girarlo</small>
     </div>
     <div class="ta-panel">
-      <div class="ta-opciones" role="radiogroup" aria-label="Elige tu avatar">
-        ${Object.entries(AVATARES).map(([k, a]) => `
-          <button class="ta-opcion" role="radio" data-elegir="${k}"><span class="ta-retrato" data-retrato="${k}"></span><b>${a.nombre}</b></button>`).join('')}
-        <button class="ta-opcion" role="radio" data-elegir="propio"><span class="ta-retrato" data-retrato="propio">${ico('subir')}</span><b>El tuyo</b></button>
+      <div class="segmento-suave ta-pestanas" role="tablist" aria-label="Personalizar">
+        <button class="activo" data-pestana="avatar" role="tab" aria-selected="true">Avatar</button>
+        <button data-pestana="cuerpo" role="tab" aria-selected="false">Cuerpo</button>
+        <button data-pestana="ropa" role="tab" aria-selected="false">Ropa</button>
       </div>
-      <div class="ta-propio" hidden>
-        <h3>${ico('cara')}Tu avatar, con tu cara</h3>
-        <ol class="ta-pasos">
-          <li><b>Escanéate con el móvil.</b> En Avaturn, pulsa <i>Create Avatar</i> y hazte tres fotos: de frente y de cada lado.</li>
-          <li><b>Ajusta tu estilo.</b> Peinado, piel, ojos, ropa y calzado, a tu gusto.</li>
-          <li><b>Descárgalo.</b> En tu lista de avatares pulsa <i>⋯</i> → <i>Download</i>. Se guarda un archivo <i>.glb</i>.</li>
-          <li><b>Súbelo aquí.</b> Lo guardamos en tu cuenta, en privado.</li>
-        </ol>
-        <div class="ta-propio-acciones">
-          <a class="btn" href="https://hub.avaturn.me" target="_blank" rel="noopener">Abrir Avaturn</a>
-          <label class="btn primario ta-subir">${ico('subir')}<span>Subir .glb</span><input type="file" accept=".glb,model/gltf-binary" hidden></label>
+      <div class="ta-hoja" data-hoja="avatar">
+        <div class="ta-opciones" role="radiogroup" aria-label="Elige tu avatar">
+          ${Object.entries(AVATARES).map(([k, a]) => `
+            <button class="ta-opcion" role="radio" data-elegir="${k}"><span class="ta-retrato" data-retrato="${k}"></span><b>${a.nombre}</b></button>`).join('')}
+          <button class="ta-opcion" role="radio" data-elegir="propio"><span class="ta-retrato" data-retrato="propio">${ico('cara')}</span><b>Con tu cara</b></button>
         </div>
-        <p class="ta-error" role="alert" hidden></p>
+        <div class="ta-propio" hidden>
+          <h3>${ico('cara')}Tu avatar, con tu cara</h3>
+          <p>Hazte tres fotos (de frente y de cada lado) y en un minuto tendrás un avatar que se te parece de verdad. Después podrás cambiarle el cuerpo y la ropa.</p>
+          <button class="btn primario ta-escanear" data-escanear>${ico('camara')}<span>Escanear mi cara</span></button>
+          <label class="ta-subir-enlace">o sube un avatar <i>.glb</i> de Avaturn<input type="file" accept=".glb,model/gltf-binary" hidden></label>
+          <p class="ta-error" role="alert" hidden></p>
+        </div>
       </div>
-      <div class="ta-aspecto">
-        <div><span>Piel</span>${muestras('piel', TONOS_PIEL)}</div>
-        <div><span>Pelo</span>${muestras('pelo', COLORES_PELO)}</div>
+      <div class="ta-hoja" data-hoja="cuerpo" hidden>
+        <label class="ta-rango"><span>Altura <b data-valor="altura"></b></span>
+          <input type="range" data-rango="altura" min="${ALTURA.min}" max="${ALTURA.max}" step="1"></label>
+        <label class="ta-rango"><span>Complexión <b data-valor="complexion"></b></span>
+          <input type="range" data-rango="complexion" min="-100" max="100" step="5"><small><i>Delgada</i><i>Fuerte</i></small></label>
+        ${fila('Piel', muestras('piel', TONOS_PIEL, 'Tono de piel'))}
+        ${fila('Pelo', muestras('pelo', COLORES_PELO, 'Color de pelo'))}
+      </div>
+      <div class="ta-hoja" data-hoja="ropa" hidden>
+        ${fila('Camiseta', muestras('camiseta', COLORES_ROPA, 'Color de la camiseta'))}
+        ${fila('Pantalón', muestras('pantalon', COLORES_ROPA, 'Color del pantalón'))}
+        ${fila('Calzado', muestras('zapatos', COLORES_ROPA, 'Color del calzado'))}
+        ${fila('Gorro', `<div class="ta-gorros" role="radiogroup" aria-label="Gorro">${GORROS.map(([k, n]) => `<button type="button" role="radio" data-ajuste="gorro|${k}">${n}</button>`).join('')}</div>`)}
+        <div class="ta-fila ta-gorro-color" hidden><span></span>${muestras('gorroColor', COLORES_ROPA.slice(1), 'Color del gorro')}</div>
       </div>
       <button class="btn primario ta-usar" data-usar disabled>Usar este avatar</button>
     </div>`;
@@ -185,8 +204,28 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
     const sinCambios = elegido === inicial && !propioNuevo && !cambiaronAjustes();
     usar.disabled = sinCambios || (elegido === 'propio' && !hayPropio);
     usar.textContent = sinCambios ? 'Es tu avatar actual' : elegido === inicial && !propioNuevo ? 'Guardar cambios' : 'Usar este avatar';
-    raiz.querySelectorAll('[data-ajuste]').forEach(x => { const [t, c] = x.dataset.ajuste.split('|'); const si = (ajustes[t] || '') === c; x.classList.toggle('activo', si); x.setAttribute('aria-checked', String(si)); });
+    raiz.querySelectorAll('[data-ajuste]').forEach(x => {
+      const [t, c] = x.dataset.ajuste.split('|');
+      const actualT = ajustes[t] || '';
+      const si = actualT === c; x.classList.toggle('activo', si); x.setAttribute('aria-checked', String(si));
+    });
+    const alt = alturaDe(ajustes), comp = Math.round((Number(ajustes.complexion) || 0) * 100);
+    raiz.querySelector('[data-rango="altura"]').value = alt;
+    raiz.querySelector('[data-rango="complexion"]').value = comp;
+    raiz.querySelector('[data-valor="altura"]').textContent = `${alt} cm`;
+    raiz.querySelector('[data-valor="complexion"]').textContent = textoComplexion(comp / 100);
+    raiz.querySelector('.ta-gorro-color').hidden = !ajustes.gorro;
   }
+  // Cambia un ajuste y se ve al momento en el avatar
+  function ajustar(cambio) {
+    ajustes = { ...ajustes, ...cambio };
+    for (const p of Object.values(cache)) p.then?.(av => av && aplicarAjustes(av, ajustes)).catch?.(() => {});
+    marcar();
+  }
+  raiz.addEventListener('input', e => {
+    const r = e.target.closest('[data-rango]'); if (!r) return;
+    ajustar(r.dataset.rango === 'altura' ? { altura: Number(r.value) } : { complexion: Number(r.value) / 100 });
+  });
 
   raiz.addEventListener('click', async e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -198,11 +237,15 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
     }
     if (b.dataset.ajuste) {
       const [t, c] = b.dataset.ajuste.split('|');
-      ajustes = { ...ajustes, [t]: c };
-      for (const p of Object.values(cache)) p.then?.(av => av && aplicarAjustes(av, ajustes)).catch?.(() => {});
-      marcar();
+      ajustar({ [t]: c });
       return;
     }
+    if (b.dataset.pestana) {
+      raiz.querySelectorAll('[data-pestana]').forEach(x => { x.classList.toggle('activo', x === b); x.setAttribute('aria-selected', String(x === b)); });
+      raiz.querySelectorAll('[data-hoja]').forEach(h => { h.hidden = h.dataset.hoja !== b.dataset.pestana; });
+      return;
+    }
+    if (b.matches('[data-escanear]')) return escanear();
     if (b.dataset.elegir) {
       elegido = b.dataset.elegir; error(''); marcar();
       if (elegido !== 'propio' || propioNuevo || cache.propio || hayGuardado) mostrar(elegido);
@@ -218,23 +261,40 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
     }
   });
 
+  // Un avatar nuevo con tu cara (escaneado aquí mismo o subido como .glb)
+  async function usarArchivo(blob) {
+    error('');
+    const previo = cache.propio; delete cache.propio;
+    propioNuevo = blob;
+    try {
+      await cargar('propio', blob);
+      if (previo) (await previo.catch(() => null))?.destruir();
+      elegido = 'propio'; marcar(); await mostrar('propio'); retrato('propio');
+      return true;
+    } catch (err) {
+      console.warn(err); propioNuevo = null; delete cache.propio; if (previo) cache.propio = previo;
+      error('No se ha podido abrir ese avatar. Vuelve a intentarlo.');
+      marcar();
+      return false;
+    }
+  }
+  function escanear() {
+    error('');
+    abrirEscaner({
+      alTerminar: async blob => {
+        cargando.hidden = false;
+        const ok = await usarArchivo(blob);
+        if (ok) { usar.focus(); }
+      },
+      alFallar: msg => error(msg),
+    });
+  }
   raiz.querySelector('input[type=file]').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = '';
     if (!f) return;
-    if (!/\.glb$/i.test(f.name)) return error('Sube el archivo .glb que descarga Avaturn.');
+    if (!/\.glb$/i.test(f.name)) return error('Sube un archivo .glb de Avaturn.');
     if (f.size > MAX_MB * 1024 * 1024) return error(`El archivo pesa demasiado (máximo ${MAX_MB} MB).`);
-    error('');
-    const previo = cache.propio; delete cache.propio;
-    propioNuevo = f;
-    try {
-      await cargar('propio', f);
-      if (previo) (await previo.catch(() => null))?.destruir();
-      elegido = 'propio'; marcar(); await mostrar('propio'); retrato('propio');
-    } catch (err) {
-      console.warn(err); propioNuevo = null; delete cache.propio; if (previo) cache.propio = previo;
-      error('Ese archivo no parece un avatar de Avaturn. Descárgalo de nuevo desde avaturn.me (⋯ → Download).');
-      marcar();
-    }
+    usarArchivo(f);
   });
 
   const teclas = ev => { if (ev.key === 'Escape') cerrar(); };
@@ -259,7 +319,7 @@ export function abrirPersonalizacion({ escanear = false } = {}) {
     if (inicial === 'propio' && !hayGuardado) elegido = 'hombre';
     marcar();
     // Si vienes a escanear tu cara y aún no tienes avatar propio, de fondo se ve el actual
-    if (elegido === 'propio' && !hayGuardado) await mostrar(inicial === 'propio' ? 'hombre' : inicial, true);
+    if (elegido === 'propio' && !hayGuardado) { mostrar(inicial === 'propio' ? 'hombre' : inicial, true); if (vieneAEscanear) setTimeout(() => raiz.querySelector('[data-escanear]')?.click(), 350); }
     else await mostrar(elegido);
     for (const k of [...Object.keys(AVATARES), ...(hayGuardado ? ['propio'] : [])]) await retrato(k);
     marcar();
