@@ -9,7 +9,8 @@ import { leer, guardar } from '../almacen.js';
 import { animacionesPara } from './retarget.js';
 import { posesSalud } from './poses.js';
 import { prepararAspecto } from './aspecto.js';
-export { ALTURA, COLORES_ROPA, GORROS } from './aspecto.js';
+import { crearVida } from './vida.js';
+export { ALTURA, COLORES_ROPA, GORROS, PEINADOS } from './aspecto.js';
 
 const CLAVE = 'avatar-avaturn';        // tu elección (lumen_datos)
 const CUBO = 'avatares';               // carpeta privada de Supabase Storage
@@ -61,6 +62,15 @@ export async function modeloPropio() {
   return data;
 }
 
+// Enlace público (temporal en el caso del tuyo) para abrir el avatar en el editor de Avaturn
+export async function enlaceAvatar(eleccion) {
+  if (AVATARES[eleccion]) return new URL(`../../${AVATARES[eleccion].url}`, import.meta.url).href;
+  const uid = await usuario();
+  if (!uid) return null;
+  const { data } = await supabase.storage.from(CUBO).createSignedUrl(`${uid}/avatar.glb`, 3600).catch(() => ({ data: null }));
+  return data?.signedUrl || null;
+}
+
 // Lo que hay que cargar para la elección actual (URL de un avatar de SYNCO o tu GLB)
 export async function fuenteAvatar(eleccion = eleccionAvatar().eleccion) {
   if (eleccion === 'propio') { const b = await modeloPropio(); if (b) return b; eleccion = 'hombre'; }
@@ -80,6 +90,7 @@ export function guardarAjustes(ajustes) {
 // piel y pelo aquí; altura, complexión, ropa y gorro en aspecto.js
 export function aplicarAjustes(av, ajustes = {}) {
   const { piel = '', pelo = '' } = ajustes;
+  av.ajustesActuales = ajustes;
   try { av.aspecto?.aplicar(ajustes, Number(leer('perfil', null)?.altura) || 0); } catch (e) { console.warn('Aspecto del avatar', e); }
   av.objeto.traverse(o => {
     if (!o.isMesh) return;
@@ -130,7 +141,7 @@ export async function elegirAvatar(eleccion, blob = null) {
 
 // Carrera nativa de Avaturn (ciclo de 0,67 s sin desplazamiento), adaptable a cualquier avatar de Avaturn
 let carrera = null;
-const clipCarrera = () => (carrera ||= fetch('media/avatar/avaturn/correr.json').then(r => r.json()).then(j => THREE.AnimationClip.parse(j)));
+const clipCarrera = () => (carrera ||= fetch(new URL('../../media/avatar/avaturn/correr.json', import.meta.url)).then(r => r.json()).then(j => THREE.AnimationClip.parse(j)));
 function adaptarCarrera(base, cadera) {
   const clip = base.clone();
   const p = clip.tracks.find(t => t.name === 'Hips.position');
@@ -175,7 +186,12 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
 
   // Altura, complexión, ropa y gorro editables (se mide todo en la postura de reposo)
   let aspecto = null;
-  try { aspecto = prepararAspecto({ modelo, objeto, giro }); } catch (e) { console.warn('Aspecto editable', e); }
+  try {
+    aspecto = prepararAspecto({ modelo, objeto, giro, fuentesPelo: {
+      corto: new URL('../../media/avatar/avaturn/hombre.glb', import.meta.url).href,
+      coleta: new URL('../../media/avatar/avaturn/mujer.glb', import.meta.url).href,
+    } });
+  } catch (e) { console.warn('Aspecto editable', e); }
 
   // Materiales: que reciban bien la luz del estudio, sin brillos de plástico
   const mallas = []; modelo.traverse(o => { if (o.isMesh) mallas.push(o); });
@@ -221,19 +237,24 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
     if (actual) actual.crossFadeTo(a, fundido, false);
     actual = a;
   }
+  // Capa de vida: inclinación y giro de hombros al correr, respiración, peso, mirada y manos relajadas
+  let vida = null;
+  try { vida = crearVida(objeto, buscar); } catch (e) { console.warn('Capa de vida', e); }
   mixer.addEventListener('finished', e => { if (e.action === acciones[gesto]) { gesto = null; poner(base, 0.45); } });
   poner('idle', 0);
 
   const resultado = {
     objeto, altura, aspecto,
-    estado(n, v = 1) { base = n; vel = v; if (!gesto) poner(n); if (actual === acciones[n]) actual.setEffectiveTimeScale(v); },
+    estado(n, v = 1) { base = n; vel = v; vida?.estado(n); if (!gesto) poner(n); if (actual === acciones[n]) actual.setEffectiveTimeScale(v); },
     gesto(n) { if (!acciones[n]) return; gesto = n; poner(n, 0.3); },
     hueso: n => buscar(new RegExp(`^(mixamorig:?)?${n}$`)),
     tiene: n => !!acciones[n],
-    fijar(n, t) { mixer.stopAllAction(); const a = acciones[n]; a.reset().play(); mixer.setTime(t); actual = a; this.actualizar(0); },
-    actualizar(dt) { mixer.update(dt); modelo.position.y = baseY + balanceo.position.y; },
+    fijar(n, t) { vida?.estado(n); vida?.antes(); mixer.stopAllAction(); const a = acciones[n]; a.reset().play(); mixer.setTime(t); actual = a; modelo.position.y = baseY + balanceo.position.y; vida?.despues(0); },
+    actualizar(dt) { vida?.antes(); mixer.update(dt); modelo.position.y = baseY + balanceo.position.y; vida?.despues(dt); },
     destruir() { mixer.stopAllAction(); objeto.traverse(o => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach(m => m.dispose()); } }); objeto.removeFromParent(); },
   };
+  // Al terminar de cargar otro peinado, se le aplican el color y el gorro
+  if (aspecto) aspecto.alCambiar = () => aplicarAjustes(resultado, resultado.ajustesActuales || {});
   if (ajustes) aplicarAjustes(resultado, ajustes);
   return resultado;
 }

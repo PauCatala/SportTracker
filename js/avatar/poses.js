@@ -173,7 +173,24 @@ export function posesSalud(raiz) {
       }
     });
     for (const b of orden) b.quaternion.copy(reposo.get(b));
-    const tracks = [...pistas].map(([b, vals]) => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, tiempos, vals));
+    // Entre pose y pose el movimiento acelera y frena (como una persona), en vez de ir a velocidad constante
+    const PASOS = 10;
+    const suave = u => u * u * (3 - 2 * u);
+    const tDens = [];
+    for (let i = 0; i < tiempos.length - 1; i++) for (let k = 0; k < PASOS; k++) tDens.push(tiempos[i] + ((tiempos[i + 1] - tiempos[i]) * k) / PASOS);
+    tDens.push(tiempos[tiempos.length - 1]);
+    const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+    const densas = new Map([...pistas].map(([b, vals]) => {
+      const out = new Float32Array(tDens.length * 4);
+      let o = 0;
+      for (let i = 0; i < tiempos.length - 1; i++) {
+        qa.fromArray(vals, i * 4); qb.fromArray(vals, (i + 1) * 4);
+        for (let k = 0; k < PASOS; k++) { qa.clone().slerp(qb, suave(k / PASOS)).toArray(out, o * 4); o++; }
+      }
+      qb.fromArray(vals, (tiempos.length - 1) * 4).toArray(out, o * 4);
+      return [b, out];
+    }));
+    const tracks = [...densas].map(([b, vals]) => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, tDens, vals));
     tracks.push(new THREE.VectorKeyframeTrack('avatar_balanceo.position', [0, def.duracion], [0, 0, 0, 0, 0, 0]));
     // Respiración suave: el tronco sube y baja un poco sobre la pose
     clips[nombre] = new THREE.AnimationClip(nombre, def.duracion, tracks);

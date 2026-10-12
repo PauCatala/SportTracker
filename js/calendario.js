@@ -12,8 +12,8 @@ import { aviso } from './utils.js';
 import { leerICS, crearICS } from './ical.js';
 import { fotosDe, domingoDe } from './fotos.js';
 import {
-  CATEGORIAS, COLORES_CAL, eventosEntre, ajustesCal, guardarDesdeFormulario, datosDe, alternarHecho,
-  borrar, mover, minutos, sumarMin, marcarSemanasConFoto,
+  CATEGORIAS, COLORES_CAL, PALETA, eventosEntre, ajustesCal, guardarDesdeFormulario, datosDe, alternarHecho,
+  borrar, mover, minutos, sumarMin, marcarSemanasConFoto, cambiarActividad, seRepite, quitarDelPlan, restaurarPlan,
 } from './agenda.js';
 
 const H = 48;                                   // alto de una hora en las vistas Día y Semana (px)
@@ -189,10 +189,11 @@ function bloques(lista) {
   }
   return items.map(({ e, a, b, col, n }) => {
     const alto = ((b - a) / 60) * H - 2;
-    return `<button class="cal-ev ${e.hecho ? 'hecho' : ''} ${alto < 34 ? 'corto' : ''} ${e.editable && !e.repite ? 'movible' : ''}" data-ev="${escapar(e.id)}"
+    return `<button class="cal-ev ${e.hecho ? 'hecho' : ''} ${alto < 34 ? 'corto' : ''} ${e.editable ? 'movible' : ''}" data-ev="${escapar(e.id)}"
       style="top:${(a / 60) * H}px; height:${alto}px; left:calc(${(col / n) * 100}% + 1px); width:calc(${100 / n}% - 3px); --c:${e.color}">
       <b>${e.hecho ? icono('check') : ''}${escapar(e.titulo)}</b>
       <small>${e.inicio}${e.fin ? ` – ${e.fin}` : ''}${e.lugar ? ` · ${escapar(e.lugar)}` : ''}</small>
+      ${e.editable ? '<i class="cal-tirador" aria-hidden="true"></i>' : ''}
     </button>`;
   }).join('');
 }
@@ -301,15 +302,18 @@ function conectar(raiz) {
     if (celda) return abrirFormulario({ fecha: celda.dataset.fecha, inicio: '10:00', fin: '11:00' }, celda, () => repintar());
   });
 
-  // Arrastrar un evento para cambiarlo de hora o de día (en el móvil: mantener pulsado)
+  // Arrastrar una actividad para cambiarla de hora o de día (en el móvil: mantener pulsado).
+  // Tirando del borde de abajo se alarga o se acorta.
   let arr = null;
-  const terminar = () => { clearTimeout(arr?.espera); arr?.b.classList.remove('arrastrando'); arr = null; };
+  const terminar = () => { clearTimeout(arr?.espera); arr?.b.classList.remove('arrastrando', 'estirando'); arr = null; };
   raiz.addEventListener('pointerdown', ev => {
     const b = ev.target.closest('.cal-ev.movible');
     if (!b || ev.button > 0) return;
     const e = actuales.get(b.dataset.ev);
-    if (!e) return;
-    arr = { b, e, x0: ev.clientX, y0: ev.clientY, top0: parseFloat(b.style.top), activo: ev.pointerType !== 'touch', movido: false, id: ev.pointerId, col: b.parentElement };
+    if (!e || !e.inicio) return;
+    const estirar = !!ev.target.closest('.cal-tirador');
+    arr = { b, e, estirar, x0: ev.clientX, y0: ev.clientY, activo: ev.pointerType !== 'touch' || estirar, movido: false, id: ev.pointerId,
+      inicio: minutos(e.inicio), fin: e.fin ? minutos(e.fin) : minutos(e.inicio) + 60 };
     if (!arr.activo) arr.espera = setTimeout(() => { if (arr) { arr.activo = true; b.classList.add('arrastrando'); navigator.vibrate?.(10); } }, 380);
   });
   raiz.addEventListener('pointermove', ev => {
@@ -317,28 +321,38 @@ function conectar(raiz) {
     const dx = ev.clientX - arr.x0, dy = ev.clientY - arr.y0;
     if (!arr.activo) { if (Math.hypot(dx, dy) > 8) terminar(); return; }
     if (!arr.movido && Math.hypot(dx, dy) < 5) return;
-    if (!arr.movido) { arr.movido = true; arr.b.classList.add('arrastrando'); arr.b.setPointerCapture?.(ev.pointerId); }
+    if (!arr.movido) { arr.movido = true; arr.b.classList.add(arr.estirar ? 'estirando' : 'arrastrando'); arr.b.setPointerCapture?.(ev.pointerId); }
     const delta = Math.round(((dy / H) * 60) / 15) * 15;
-    const inicio = Math.max(0, Math.min(24 * 60 - 15, minutos(arr.e.inicio) + delta));
-    arr.inicio = inicio;
-    arr.b.style.top = `${(inicio / 60) * H}px`;
-    arr.b.querySelector('small').textContent = `${hhmm(inicio)} – ${hhmm(Math.min(24 * 60 - 1, inicio + (minutos(arr.e.fin || arr.e.inicio) - minutos(arr.e.inicio) || 60)))}`;
-    const bajo = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cs-col');
-    if (bajo && bajo !== arr.b.parentElement) { bajo.appendChild(arr.b); arr.b.style.left = '1px'; arr.b.style.width = 'calc(100% - 3px)'; }
+    const ini0 = minutos(arr.e.inicio), fin0 = arr.e.fin ? minutos(arr.e.fin) : ini0 + 60;
+    if (arr.estirar) {
+      arr.fin = Math.max(ini0 + 15, Math.min(24 * 60 - 1, fin0 + delta));
+      arr.b.style.height = `${((arr.fin - ini0) / 60) * H - 2}px`;
+    } else {
+      arr.inicio = Math.max(0, Math.min(24 * 60 - 15, ini0 + delta));
+      arr.fin = Math.min(24 * 60 - 1, arr.inicio + (fin0 - ini0));
+      arr.b.style.top = `${(arr.inicio / 60) * H}px`;
+      const bajo = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cs-col');
+      if (bajo && bajo !== arr.b.parentElement) { bajo.appendChild(arr.b); arr.b.style.left = '1px'; arr.b.style.width = 'calc(100% - 3px)'; }
+    }
+    arr.b.querySelector('small').textContent = `${hhmm(arr.inicio)} – ${hhmm(arr.fin)}`;
   });
   const soltar = ev => {
     if (!arr || ev.pointerId !== arr.id) return;
-    const { e, b, movido, inicio } = arr;
+    const { e, b, movido, inicio, fin } = arr;
     terminar();
     if (!movido) return;
     suprimirClic = true;
     setTimeout(() => { suprimirClic = false; }, 50);
     const nuevaFecha = b.parentElement?.dataset.fecha || e.fecha;
-    if (nuevaFecha === e.fecha && hhmm(inicio) === e.inicio) return repintar();
-    mover(e, nuevaFecha, hhmm(inicio));
-    actualizarExportacion();
-    aviso(`Movido al ${fmt(nuevaFecha, { weekday: 'long', day: 'numeric' })} a las ${hhmm(inicio)}`);
-    repintar();
+    if (nuevaFecha === e.fecha && hhmm(inicio) === e.inicio && hhmm(fin) === (e.fin || '')) return repintar();
+    const hacer = todas => {
+      mover(e, nuevaFecha, hhmm(inicio), { todas, fin: hhmm(fin) });
+      actualizarExportacion();
+      aviso(`${todas ? 'Todas las semanas: ' : ''}${capitalizar(fmt(nuevaFecha, { weekday: 'long' }))} de ${hhmm(inicio)} a ${hhmm(fin)}`);
+      repintar();
+    };
+    if (seRepite(e)) preguntarAlcance(e, b, hacer, () => repintar());
+    else hacer(false);
   };
   raiz.addEventListener('pointerup', soltar);
   raiz.addEventListener('pointercancel', terminar);
@@ -376,7 +390,116 @@ function avanzar(n, repintar) {
 const REPITE = { semanal: 'Se repite cada semana', anual: 'Se repite cada año' };
 const FUENTE = { gym: 'Tu plan de gimnasio', run: 'Tu plan de running', flex: 'Tu rutina de flexibilidad', foto: 'Recordatorio de Imagen', tarea: 'Tablero de Estudios y trabajo', lista: 'Tu lista de Personal' };
 
+// Selector de color: la paleta de SYNCO y, al final, cualquier color que quieras
+export const selectorColor = (actual, { conTipo = true, colorTipo = '' } = {}) => `
+  <div class="ev-colores" role="radiogroup" aria-label="Color">
+    ${conTipo ? `<label class="ev-color tipo" title="Color de su tipo" style="--c:${colorTipo}"><input type="radio" name="color" value="" ${!actual ? 'checked' : ''}><span></span></label>` : ''}
+    ${PALETA.map(([c, n]) => `<label class="ev-color" title="${n}" style="--c:${c}"><input type="radio" name="color" value="${c}" ${actual?.toLowerCase() === c.toLowerCase() ? 'checked' : ''} aria-label="${n}"><span></span></label>`).join('')}
+    <label class="ev-color libre" title="Otro color"><input type="color" name="colorLibre" value="${actual && !PALETA.some(([c]) => c.toLowerCase() === actual.toLowerCase()) ? actual : '#4F78A8'}" aria-label="Elegir otro color"><span style="${actual && !PALETA.some(([c]) => c.toLowerCase() === actual.toLowerCase()) ? `--c:${actual}` : ''}"></span></label>
+  </div>`;
+// Lee el color elegido en un formulario con selectorColor
+const colorDe = form => (form.dataset.colorLibre || form.querySelector('[name=color]:checked')?.value || '');
+function conectarColor(form) {
+  form.addEventListener('input', ev => {
+    if (ev.target.name === 'colorLibre') {
+      form.dataset.colorLibre = ev.target.value;
+      ev.target.nextElementSibling.style.setProperty('--c', ev.target.value);
+      form.querySelectorAll('[name=color]').forEach(x => { x.checked = false; });
+      ev.target.closest('.ev-color').classList.add('elegido');
+    }
+    if (ev.target.name === 'color') { delete form.dataset.colorLibre; form.querySelector('.ev-color.libre')?.classList.remove('elegido'); }
+  });
+  const libre = form.querySelector('.ev-color.libre');
+  if (libre?.querySelector('span').style.getPropertyValue('--c')) { libre.classList.add('elegido'); form.dataset.colorLibre = libre.querySelector('input').value; }
+}
+
+// Al pinchar una actividad: se edita ahí mismo (título, color, día y horas). Si se repite o es de tu plan,
+// eliges si el cambio es solo para ese día o para todas las semanas.
 export function abrirDetalle(e, origen, alCambiar) {
+  if (!e.editable) return abrirSoloLectura(e, origen);
+  const repite = seRepite(e);
+  const colorTipo = CATEGORIAS[e.cat]?.color || '#6B7A88';
+  abrirModal({
+    origen,
+    titulo: e.deplan ? 'Tu plan' : 'Editar',
+    subtitulo: `<span class="ev-tipo" style="--c:${e.color}"><i></i>${CATEGORIAS[e.cat]?.nombre || 'Evento'}${e.deplan ? ` · ${FUENTE[e.fuente]}` : ''}</span>`,
+    contenido: `
+      <form class="ev-form ev-rapido" autocomplete="off" novalidate>
+        <input class="ev-titulo" name="titulo" value="${escapar(e.titulo)}" aria-label="Título" required>
+        ${selectorColor(e.colorPropio, { colorTipo })}
+        <div class="ev-fila ev-cuando">
+          <label class="campo">Día <input type="date" name="fecha" value="${e.fecha}" required></label>
+          ${e.todoElDia ? '' : `<label class="campo">Empieza <input type="time" name="inicio" value="${e.inicio}" step="300"></label>
+          <label class="campo">Termina <input type="time" name="fin" value="${e.fin || sumarMin(e.inicio, 60)}" step="300"></label>`}
+        </div>
+        ${repite ? `<p class="ev-repite">${icono('calendario')}<span>${e.deplan ? 'Se repite cada semana en tu plan.' : REPITE[e.repite]}${e.cambiado ? ' Este día lo has cambiado.' : ''}</span></p>` : ''}
+        ${e.nota ? `<p class="ev-nota">${escapar(e.nota).replace(/\n/g, '<br>')}</p>` : ''}
+        <p class="error" id="ev-error"></p>
+        <div class="ev-guardar ${repite ? 'doble' : ''}">
+          ${repite
+            ? `<button class="btn suave" type="submit" data-alcance="dia">Solo este día</button>
+               <button class="btn primario" type="submit" data-alcance="todas">Cambiar todas las semanas</button>`
+            : `<button class="btn primario" type="submit" data-alcance="dia">Guardar cambios</button>`}
+        </div>
+        <div class="ev-acciones">
+          ${e.hecho !== null && e.hecho !== undefined && ['tarea', 'lista', 'evento'].includes(e.fuente) ? `<button type="button" class="btn suave chico" data-a="hecho">${icono('check')}${e.hecho ? 'Pendiente' : 'Hecho'}</button>` : ''}
+          ${e.ir ? `<button type="button" class="btn suave chico" data-a="ir">Abrir en SYNCO ${icono('der')}</button>` : ''}
+          ${!e.deplan ? `<button type="button" class="btn suave chico" data-a="editar">Más opciones</button>` : ''}
+          <a class="btn suave chico" href="${enlaceGoogle(e)}" target="_blank" rel="noopener">Google Calendar</a>
+        </div>
+        <div class="ev-borrar">${e.deplan
+          ? `${e.cambiado ? `<button type="button" class="btn-texto" data-a="restaurar">Dejarlo como en el plan</button>` : ''}<button type="button" class="btn-texto peligro" data-a="quitar">Quitar solo este día</button>`
+          : e.repite
+            ? `<button type="button" class="btn-texto peligro" data-a="borrar-dia">Borrar solo este día</button><button type="button" class="btn-texto peligro" data-a="borrar">Borrar toda la serie</button>`
+            : `<button type="button" class="btn-texto peligro" data-a="borrar">Borrar</button>`}</div>
+      </form>`,
+    alAbrir: (cuerpo, cerrar) => {
+      const form = cuerpo.querySelector('form');
+      conectarColor(form);
+      // Al cambiar la hora de inicio, se mantiene la duración
+      let dur = e.inicio && e.fin ? minutos(e.fin) - minutos(e.inicio) : 60;
+      form.addEventListener('change', ev => {
+        if (ev.target.name === 'inicio' && ev.target.value) form.elements.fin.value = sumarMin(ev.target.value, dur);
+        if (ev.target.name === 'fin' && ev.target.value) dur = Math.max(15, minutos(ev.target.value) - minutos(form.elements.inicio.value));
+      });
+      form.onsubmit = async ev => {
+        ev.preventDefault();
+        const f = new FormData(form);
+        const datos = { titulo: f.get('titulo').trim(), color: colorDe(form), fecha: f.get('fecha'), inicio: f.get('inicio') || e.inicio, fin: f.get('fin') || e.fin };
+        const error = cuerpo.querySelector('#ev-error');
+        if (!datos.titulo) { error.textContent = 'Ponle un título.'; return; }
+        if (!datos.fecha) { error.textContent = 'Elige el día.'; return; }
+        if (datos.inicio && (!datos.fin || datos.fin <= datos.inicio)) datos.fin = sumarMin(datos.inicio, 60);
+        const todas = ev.submitter?.dataset.alcance === 'todas';
+        cambiarActividad(e, datos, { todas });
+        actualizarExportacion();
+        await cerrar();
+        aviso(todas ? 'Cambiado para todas las semanas' : repite ? 'Cambiado solo este día' : 'Cambios guardados');
+        alCambiar?.();
+      };
+      cuerpo.addEventListener('click', async ev => {
+        const a = ev.target.closest('[data-a]')?.dataset.a;
+        if (!a) return;
+        if (a === 'hecho') { alternarHecho(e); actualizarExportacion(); await cerrar(); return alCambiar?.(); }
+        if (a === 'editar') { await cerrar(); return abrirFormulario({ ...datosDe(e), previo: e }, null, alCambiar); }
+        if (a === 'ir') { await cerrar(); return dispatchEvent(new CustomEvent('ir-a', { detail: e.ir })); }
+        if (a === 'quitar') { quitarDelPlan(e); await cerrar(); aviso('Quitado solo este día'); return alCambiar?.(); }
+        if (a === 'restaurar') { restaurarPlan(e); await cerrar(); aviso('Como en tu plan'); return alCambiar?.(); }
+        if (a === 'borrar' || a === 'borrar-dia') {
+          if (a === 'borrar' && !confirm(e.repite ? '¿Borrar todas las repeticiones?' : '¿Borrar este evento?')) return;
+          borrar(e, a === 'borrar-dia');
+          actualizarExportacion();
+          await cerrar();
+          aviso('Borrado');
+          alCambiar?.();
+        }
+      });
+    },
+  });
+}
+
+// Eventos de calendarios importados: solo se ven (se cambian en su aplicación)
+function abrirSoloLectura(e, origen) {
   const cuando = `${capitalizar(fmt(e.fecha, { weekday: 'long', day: 'numeric', month: 'long' }))}${e.todoElDia ? ' · todo el día' : ` · ${e.inicio}${e.fin ? ` – ${e.fin}` : ''}`}`;
   abrirModal({
     origen,
@@ -384,35 +507,36 @@ export function abrirDetalle(e, origen, alCambiar) {
     subtitulo: `<span class="ev-tipo" style="--c:${e.color}"><i></i>${CATEGORIAS[e.cat]?.nombre || 'Evento'}</span>`,
     contenido: `
       <div class="ev-detalle">
-        <p class="ev-linea">${icono('calendario')}<span>${cuando}${e.repite ? `<small>${REPITE[e.repite]}</small>` : ''}</span></p>
+        <p class="ev-linea">${icono('calendario')}<span>${cuando}</span></p>
         ${e.lugar ? `<p class="ev-linea">${icono('lugar')}<span>${escapar(e.lugar)}</span></p>` : ''}
         ${e.nota ? `<p class="ev-nota">${escapar(e.nota).replace(/\n/g, '<br>')}</p>` : ''}
-        <p class="tenue">${e.calendario ? `De tu calendario «${escapar(e.calendario)}». Para cambiarlo, hazlo en su aplicación.` : FUENTE[e.fuente] ? `${FUENTE[e.fuente]}.` : ''}</p>
-        <div class="ev-acciones">
-          ${e.hecho !== null && e.hecho !== undefined && ['tarea', 'lista', 'evento'].includes(e.fuente) ? `<button class="btn primario" data-a="hecho">${icono('check')}${e.hecho ? 'Marcar como pendiente' : 'Marcar como hecho'}</button>` : ''}
-          ${e.editable ? `<button class="btn suave" data-a="editar">Editar</button>` : ''}
-          ${e.ir ? `<button class="btn suave" data-a="ir">Abrir en SYNCO ${icono('der')}</button>` : ''}
-          ${e.fuente !== 'importado' ? `<a class="btn suave" href="${enlaceGoogle(e)}" target="_blank" rel="noopener">Añadir a Google Calendar</a>` : ''}
-        </div>
-        ${e.editable ? `<div class="ev-borrar">${e.repite
-          ? `<button class="btn-texto peligro" data-a="borrar-dia">Borrar solo este día</button><button class="btn-texto peligro" data-a="borrar">Borrar toda la serie</button>`
-          : `<button class="btn-texto peligro" data-a="borrar">Borrar</button>`}</div>` : ''}
+        <p class="tenue">${e.calendario ? `De tu calendario «${escapar(e.calendario)}». Para cambiarlo, hazlo en su aplicación.` : ''}</p>
       </div>`,
-    alAbrir: (cuerpo, cerrar) => cuerpo.addEventListener('click', async ev => {
-      const a = ev.target.closest('[data-a]')?.dataset.a;
-      if (!a) return;
-      if (a === 'hecho') { alternarHecho(e); actualizarExportacion(); await cerrar(); return alCambiar?.(); }
-      if (a === 'editar') { await cerrar(); return abrirFormulario({ ...datosDe(e), previo: e }, null, alCambiar); }
-      if (a === 'ir') { await cerrar(); return dispatchEvent(new CustomEvent('ir-a', { detail: e.ir })); }
-      if (a === 'borrar' || a === 'borrar-dia') {
-        if (a === 'borrar' && !confirm(e.repite ? '¿Borrar todas las repeticiones?' : '¿Borrar este evento?')) return;
-        borrar(e, a === 'borrar-dia');
-        actualizarExportacion();
-        await cerrar();
-        aviso('Borrado');
-        alCambiar?.();
-      }
-    }),
+  });
+}
+
+// ¿Solo este día o todas las semanas? (al arrastrar algo que se repite)
+function preguntarAlcance(e, origen, hacer, cancelar) {
+  let elegido = false;
+  abrirModal({
+    origen,
+    titulo: 'Mover',
+    subtitulo: escapar(e.titulo),
+    contenido: `<div class="ev-alcance">
+      <p>${e.deplan ? 'Es parte de tu plan semanal.' : 'Se repite cada semana.'} ¿Lo cambias solo este día o todas las semanas?</p>
+      <div class="ev-guardar doble">
+        <button class="btn suave" data-alcance="dia">Solo este día</button>
+        <button class="btn primario" data-alcance="todas">Todas las semanas</button>
+      </div></div>`,
+    alAbrir: (cuerpo, cerrar) => {
+      cuerpo.addEventListener('click', async ev => {
+        const b = ev.target.closest('[data-alcance]'); if (!b) return;
+        elegido = true; await cerrar(); hacer(b.dataset.alcance === 'todas');
+      });
+      // Si se cierra sin elegir, vuelve a su sitio
+      const obs = new MutationObserver(() => { if (!cuerpo.isConnected) { obs.disconnect(); if (!elegido) cancelar(); } });
+      obs.observe(document.body, { childList: true });
+    },
   });
 }
 
@@ -457,6 +581,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
         <div class="ev-cats" role="radiogroup" aria-label="Tipo">
           ${CATS_FORM.map(c => `<label class="ev-cat" style="--c:${CATEGORIAS[c].color}"><input type="radio" name="cat" value="${c}" ${d.cat === c ? 'checked' : ''}><span><i></i>${CATEGORIAS[c].nombre}</span></label>`).join('')}
         </div>
+        ${selectorColor(d.color || '', { colorTipo: CATEGORIAS[d.cat]?.color })}
         <div class="ev-fila">
           <label class="campo">Día <input type="date" name="fecha" value="${d.fecha}" required></label>
           <label class="interruptor"><input type="checkbox" name="todoElDia" ${d.todoElDia ? 'checked' : ''}><span class="pista"></span>Todo el día</label>
@@ -487,6 +612,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
       </form>`,
     alAbrir: (cuerpo, cerrar) => {
       const form = cuerpo.querySelector('form');
+      conectarColor(form);
       const campo = n => form.elements[n];
       let repetirTocado = !!previo;
       let diasTocados = !!previo && d.repetir === 'semanal';
@@ -536,7 +662,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
         const datos = {
           titulo: f.get('titulo').trim(), cat: f.get('cat'), fecha: f.get('fecha'), todoElDia: !!f.get('todoElDia'),
           inicio: f.get('inicio'), fin: f.get('fin'), repetir: f.get('repetir'), dias: f.getAll('dias').map(Number),
-          hasta: f.get('hasta'), lugar: f.get('lugar').trim(), nota: f.get('nota').trim(),
+          hasta: f.get('hasta'), lugar: f.get('lugar').trim(), nota: f.get('nota').trim(), color: colorDe(form),
         };
         const error = cuerpo.querySelector('#ev-error');
         if (!datos.titulo) { error.textContent = 'Ponle un título.'; return campo('titulo').focus(); }

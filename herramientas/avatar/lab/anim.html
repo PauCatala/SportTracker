@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>Animaciones</title>
+<style>body{margin:0;background:#eef0f2}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../../../vendor/three/three.module.min.js", "three/addons/": "../../../vendor/three/addons/" } }</script>
+<script type="module">
+// Tira de fotogramas de una animación: ?a=hombre&clip=run&n=8&ang=0.6
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { cargarAvatarRealista, aplicarAjustes } from '../../../js/avatar/avaturn.js';
+const q = new URLSearchParams(location.search);
+const N = Number(q.get('n') || 8), W = 1600, Hh = 520;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, Hh); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.append(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color('#eef0f2');
+esc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+const l = new THREE.DirectionalLight(0xffffff, 1.6); l.position.set(1, 3, 2); esc.add(l, new THREE.HemisphereLight(0xffffff, 0xd9dde3, 0.5));
+const av = await cargarAvatarRealista(new URL(`../../../media/avatar/avaturn/${q.get('a') || 'hombre'}.glb`, location.href).href, { ajustes: JSON.parse(q.get('aj') || '{}') });
+av.objeto.scale.setScalar(1.8 / av.altura); esc.add(av.objeto);
+window.pintar = (clip, ang = 0.6, dur = null) => {
+  r.setScissorTest(true);
+  const w = W / N;
+  for (let i = 0; i < N; i++) {
+    av.fijar(clip, ((dur ?? 1) * i) / N);
+    av.objeto.updateMatrixWorld(true);
+    const c = new THREE.PerspectiveCamera(24, w / Hh, 0.05, 20);
+    c.position.set(Math.sin(ang) * 6.2, 1.0, Math.cos(ang) * 6.2); c.lookAt(0, 0.92, 0);
+    r.setViewport(i * w, 0, w, Hh); r.setScissor(i * w, 0, w, Hh); r.render(esc, c);
+  }
+  return true;
+};
+window.angulos = (clip, t, angs, aj) => {
+  if (aj) aplicarAjustes(av, aj);
+  r.setScissorTest(true);
+  const w = W / angs.length;
+  av.fijar(clip, t); av.objeto.updateMatrixWorld(true);
+  angs.forEach((ang, i) => {
+    const c = new THREE.PerspectiveCamera(24, w / Hh, 0.05, 20);
+    c.position.set(Math.sin(ang) * 6.2, 1.0, Math.cos(ang) * 6.2); c.lookAt(0, 0.92, 0);
+    r.setViewport(i * w, 0, w, Hh); r.setScissor(i * w, 0, w, Hh); r.render(esc, c);
+  });
+  return true;
+};
+window.av = av;
+window.listo = true;
+</script>

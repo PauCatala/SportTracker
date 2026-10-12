@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { cargador } from '../marca-anim.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes, ALTURA, COLORES_ROPA, GORROS } from './avaturn.js';
+import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, enlaceAvatar, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes, ALTURA, COLORES_ROPA, GORROS, PEINADOS } from './avaturn.js';
 import { abrirEscaner } from './escaner.js';
 import { leer } from '../almacen.js';
 
@@ -11,6 +11,7 @@ const ICO = {
   cerrar: '<path d="M6 6l12 12M18 6L6 18"/>',
   cara: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="11" r="3.2"/><path d="M7.5 17.2c1.1-1.6 2.7-2.4 4.5-2.4s3.4.8 4.5 2.4"/>',
   subir: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
+  percha: '<path d="M12 7.2a1.8 1.8 0 1 1 1.8-1.8c0 1-.8 1.4-1.8 2v1.4M12 8.8l-8.4 6.1a1 1 0 0 0 .6 1.8h15.6a1 1 0 0 0 .6-1.8L12 8.8z"/>',
   camara: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.5" r="3.4"/>',
   ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 };
@@ -23,11 +24,16 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
   const inicial = eleccionAvatar().eleccion;
   const ajustesIniciales = ajustesAvatar();
   let elegido = vieneAEscanear ? 'propio' : inicial, propioNuevo = null, modo = 'idle', hayGuardado = false, ajustes = { ...ajustesIniciales };
-  const CLAVES = ['piel', 'pelo', 'altura', 'complexion', 'camiseta', 'pantalon', 'zapatos', 'gorro', 'gorroColor'];
+  const CLAVES = ['piel', 'pelo', 'peinado', 'altura', 'peso', 'musculo', 'complexion', 'camiseta', 'pantalon', 'zapatos', 'gorro', 'gorroColor'];
   const cambiaronAjustes = () => CLAVES.some(k => String(ajustes[k] ?? '') !== String(ajustesIniciales[k] ?? ''));
   const alturaPerfil = Number(leer('perfil', null)?.altura) || ALTURA.base;
   const alturaDe = a => THREE.MathUtils.clamp(Number(a.altura) || alturaPerfil, ALTURA.min, ALTURA.max);
-  const textoComplexion = c => (c <= -0.6 ? 'Delgada' : c < -0.2 ? 'Fina' : c <= 0.2 ? 'Media' : c < 0.6 ? 'Atlética' : 'Fuerte');
+  const textoPeso = c => (c <= -0.6 ? 'Muy delgado' : c < -0.2 ? 'Delgado' : c <= 0.2 ? 'Normal' : c < 0.6 ? 'Algo de sobrepeso' : 'Con sobrepeso');
+  const textoMusculo = c => (c < 0.2 ? 'Poca' : c < 0.6 ? 'Media' : 'Mucha');
+  // Valores de peso y musculatura (la "complexión" antigua se reparte entre los dos)
+  const pesoDe = a => (a.peso !== undefined && a.peso !== '' ? Number(a.peso) : Math.min(0, Number(a.complexion) || 0));
+  const musculoDe = a => (a.musculo !== undefined && a.musculo !== '' ? Number(a.musculo) : Math.max(0, Number(a.complexion) || 0));
+  const chips = (tipo, lista, nombre) => `<div class="ta-gorros" role="radiogroup" aria-label="${nombre}">${lista.map(([k, n]) => `<button type="button" role="radio" data-ajuste="${tipo}|${k}">${n}</button>`).join('')}</div>`;
   const muestras = (tipo, lista, nombre) => `<div class="ta-muestras" role="radiogroup" aria-label="${nombre}">${lista.map(([c, n]) =>
     `<button type="button" role="radio" data-ajuste="${tipo}|${c}" title="${n}" aria-label="${n}" class="${c ? '' : 'original'}" style="${c ? `--c:${c}` : ''}"></button>`).join('')}</div>`;
   const fila = (titulo, html) => `<div class="ta-fila"><span>${titulo}</span>${html}</div>`;
@@ -72,17 +78,23 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
       <div class="ta-hoja" data-hoja="cuerpo" hidden>
         <label class="ta-rango"><span>Altura <b data-valor="altura"></b></span>
           <input type="range" data-rango="altura" min="${ALTURA.min}" max="${ALTURA.max}" step="1"></label>
-        <label class="ta-rango"><span>Complexión <b data-valor="complexion"></b></span>
-          <input type="range" data-rango="complexion" min="-100" max="100" step="5"><small><i>Delgada</i><i>Fuerte</i></small></label>
+        <label class="ta-rango"><span>Peso <b data-valor="peso"></b></span>
+          <input type="range" data-rango="peso" min="-100" max="100" step="5"><small><i>Delgado</i><i>Con sobrepeso</i></small></label>
+        <label class="ta-rango"><span>Musculatura <b data-valor="musculo"></b></span>
+          <input type="range" data-rango="musculo" min="0" max="100" step="5"><small><i>Poca</i><i>Mucha</i></small></label>
         ${fila('Piel', muestras('piel', TONOS_PIEL, 'Tono de piel'))}
-        ${fila('Pelo', muestras('pelo', COLORES_PELO, 'Color de pelo'))}
+        ${fila('Peinado', chips('peinado', PEINADOS, 'Peinado'))}
+        ${fila('Color', muestras('pelo', COLORES_PELO, 'Color de pelo'))}
       </div>
       <div class="ta-hoja" data-hoja="ropa" hidden>
         ${fila('Camiseta', muestras('camiseta', COLORES_ROPA, 'Color de la camiseta'))}
         ${fila('Pantalón', muestras('pantalon', COLORES_ROPA, 'Color del pantalón'))}
         ${fila('Calzado', muestras('zapatos', COLORES_ROPA, 'Color del calzado'))}
-        ${fila('Gorro', `<div class="ta-gorros" role="radiogroup" aria-label="Gorro">${GORROS.map(([k, n]) => `<button type="button" role="radio" data-ajuste="gorro|${k}">${n}</button>`).join('')}</div>`)}
+        ${fila('Gorro', chips('gorro', GORROS, 'Gorro'))}
         <div class="ta-fila ta-gorro-color" hidden><span></span>${muestras('gorroColor', COLORES_ROPA.slice(1), 'Color del gorro')}</div>
+        <button type="button" class="ta-vestuario" data-vestuario>
+          <span>${ico('percha')}</span><b>Más prendas y peinados</b><small>Abre el vestuario de Avaturn: camisetas, sudaderas, vestidos, chaquetas, calzado, gafas…</small>
+        </button>
       </div>
       <button class="btn primario ta-usar" data-usar disabled>Usar este avatar</button>
     </div>`;
@@ -209,11 +221,13 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
       const actualT = ajustes[t] || '';
       const si = actualT === c; x.classList.toggle('activo', si); x.setAttribute('aria-checked', String(si));
     });
-    const alt = alturaDe(ajustes), comp = Math.round((Number(ajustes.complexion) || 0) * 100);
+    const alt = alturaDe(ajustes), peso = Math.round(pesoDe(ajustes) * 100), musc = Math.round(musculoDe(ajustes) * 100);
     raiz.querySelector('[data-rango="altura"]').value = alt;
-    raiz.querySelector('[data-rango="complexion"]').value = comp;
+    raiz.querySelector('[data-rango="peso"]').value = peso;
+    raiz.querySelector('[data-rango="musculo"]').value = musc;
     raiz.querySelector('[data-valor="altura"]').textContent = `${alt} cm`;
-    raiz.querySelector('[data-valor="complexion"]').textContent = textoComplexion(comp / 100);
+    raiz.querySelector('[data-valor="peso"]').textContent = textoPeso(peso / 100);
+    raiz.querySelector('[data-valor="musculo"]').textContent = textoMusculo(musc / 100);
     raiz.querySelector('.ta-gorro-color').hidden = !ajustes.gorro;
   }
   // Cambia un ajuste y se ve al momento en el avatar
@@ -224,7 +238,9 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
   }
   raiz.addEventListener('input', e => {
     const r = e.target.closest('[data-rango]'); if (!r) return;
-    ajustar(r.dataset.rango === 'altura' ? { altura: Number(r.value) } : { complexion: Number(r.value) / 100 });
+    const k = r.dataset.rango;
+    // Al tocar peso o musculatura, la "complexión" antigua deja de usarse
+    ajustar(k === 'altura' ? { altura: Number(r.value) } : { complexion: 0, peso: pesoDe(ajustes), musculo: musculoDe(ajustes), [k]: Number(r.value) / 100 });
   });
 
   raiz.addEventListener('click', async e => {
@@ -246,6 +262,7 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
       return;
     }
     if (b.matches('[data-escanear]')) return escanear();
+    if (b.matches('[data-vestuario]')) return vestuario();
     if (b.dataset.elegir) {
       elegido = b.dataset.elegir; error(''); marcar();
       if (elegido !== 'propio' || propioNuevo || cache.propio || hayGuardado) mostrar(elegido);
@@ -286,6 +303,16 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
         const ok = await usarArchivo(blob);
         if (ok) { usar.focus(); }
       },
+      alFallar: msg => error(msg),
+    });
+  }
+  // Vestuario completo de Avaturn: se abre el avatar elegido en su editor y vuelve como avatar propio
+  async function vestuario() {
+    error('');
+    const enlace = await enlaceAvatar(elegido === 'propio' && propioNuevo ? null : elegido).catch(() => null);
+    abrirEscaner({
+      editar: enlace,
+      alTerminar: async blob => { cargando.hidden = false; if (await usarArchivo(blob)) usar.focus(); },
       alFallar: msg => error(msg),
     });
   }

@@ -6,25 +6,32 @@
 // - Camiseta, pantalón y zapatillas: se recolorean conservando pliegues, costuras y sombras.
 // - Gorro: de lana o gorra, a medida de tu cabeza y tu pelo, colgado del hueso de la cabeza.
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const ALTURA = { min: 160, max: 195, base: 175 };
 export const COLORES_ROPA = [['', 'Original'], ['#F2F1EC', 'Blanco'], ['#24272E', 'Negro'], ['#8C919A', 'Gris'], ['#2E4668', 'Azul marino'], ['#7096C2', 'Azul'],
   ['#4E6B52', 'Verde'], ['#A8262B', 'Rojo'], ['#D8C3A0', 'Arena'], ['#D993A6', 'Rosa']];
 export const GORROS = [['', 'Sin gorro'], ['lana', 'Gorro'], ['gorra', 'Gorra']];
+// Peinados: el suyo, o el de los avatares de SYNCO pasado a tu cabeza
+export const PEINADOS = [['', 'El suyo'], ['corto', 'Corto'], ['coleta', 'Coleta'], ['rapado', 'Rapado']];
 
-// Cuánto engorda cada zona con la complexión al máximo (fracción del grosor)
+// Cuerpo: cada vértice se separa de la línea de su hueso. Por zona, cuánto (fracción del grosor) con:
+//  g = peso al máximo (con sobrepeso), d = peso al mínimo (delgado), m = musculatura al máximo
 const ZONAS = {
-  Hips: ['Spine', 0.07], Spine: ['Spine1', 0.12], Spine1: ['Spine2', 0.13], Spine2: ['Neck', 0.11], Neck: ['Head', 0.05],
-  LeftShoulder: ['LeftArm', 0.06], RightShoulder: ['RightArm', 0.06],
-  LeftArm: ['LeftForeArm', 0.15], RightArm: ['RightForeArm', 0.15], LeftForeArm: ['LeftHand', 0.10], RightForeArm: ['RightHand', 0.10],
-  LeftUpLeg: ['LeftLeg', 0.11], RightUpLeg: ['RightLeg', 0.11], LeftLeg: ['LeftFoot', 0.08], RightLeg: ['RightFoot', 0.08],
+  Hips: { fin: 'Spine', g: 0.13, d: 0.08, m: 0 },
+  Spine: { fin: 'Spine1', g: 0.28, d: 0.14, m: 0 }, Spine1: { fin: 'Spine2', g: 0.26, d: 0.13, m: 0.05 },
+  Spine2: { fin: 'Neck', g: 0.15, d: 0.09, m: 0.18 }, Neck: { fin: 'Head', g: 0.18, d: 0.07, m: 0.14 },
+  Shoulder: { fin: 'Arm', g: 0.08, d: 0.04, m: 0.2 },
+  Arm: { fin: 'ForeArm', g: 0.24, d: 0.14, m: 0.3 }, ForeArm: { fin: 'Hand', g: 0.12, d: 0.1, m: 0.2 },
+  UpLeg: { fin: 'Leg', g: 0.2, d: 0.12, m: 0.12 }, Leg: { fin: 'Foot', g: 0.12, d: 0.1, m: 0.14 },
 };
+const zona = n => { const m = n.replace(/^mixamorig:?/, '').match(/^(Left|Right)?(.*)$/); return ZONAS[m[2]] ? { ...ZONAS[m[2]], lado: m[1] || '' } : null; };
 
 const v = new THREE.Vector3(), w = new THREE.Vector3();
 const lineal = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 
 // Se llama una vez al cargar el modelo, en su postura de reposo
-export function prepararAspecto({ modelo, objeto, giro }) {
+export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {} }) {
   objeto.updateMatrixWorld(true);
   const mallas = []; modelo.traverse(o => { if (o.isSkinnedMesh) mallas.push(o); });
   const cuerpos = mallas.map(prepararComplexion).filter(Boolean);
@@ -33,12 +40,25 @@ export function prepararAspecto({ modelo, objeto, giro }) {
   let gorro = null, claveGorro = '';
   const recorte = { uOn: { value: 0 }, uInv: { value: new THREE.Matrix4() } };
 
-  return {
+  const propios = mallas.filter(m => /hair/i.test(m.name + m.material.name));
+  let peinado = '', pedido = '', postizo = [];
+  const api = {
+    alCambiar: null,      // se llama cuando termina de cargar un peinado (para volver a aplicar el color, etc.)
     aplicar(a = {}, alturaPerfil = 0) {
+      // Peinado (puede tardar: se carga el pelo del otro avatar)
+      const quiere = a.peinado || '';
+      if (quiere !== pedido) {
+        pedido = quiere;
+        ponerPeinado(quiere).then(() => api.alCambiar?.()).catch(e => console.warn('Peinado', e));
+      }
       const cm = THREE.MathUtils.clamp(Number(a.altura) || alturaPerfil || ALTURA.base, ALTURA.min, ALTURA.max);
       giro.scale.setScalar(cm / ALTURA.base);
-      const c = THREE.MathUtils.clamp(Number(a.complexion) || 0, -1, 1);
-      for (const k of cuerpos) k.poner(c);
+      // Peso (−1 delgado … 0 normal … 1 con sobrepeso) y musculatura (0 … 1).
+      // Compatibilidad: la "complexión" antigua iba de delgada (−1) a fuerte (1)
+      const viejo = Number(a.complexion) || 0;
+      const peso = THREE.MathUtils.clamp(a.peso !== undefined && a.peso !== '' ? Number(a.peso) : Math.min(0, viejo), -1, 1);
+      const musc = THREE.MathUtils.clamp(a.musculo !== undefined && a.musculo !== '' ? Number(a.musculo) : Math.max(0, viejo), 0, 1);
+      for (const k of cuerpos) k.poner(peso, musc);
       for (const r of ropa) r.poner(a);
       // Gorro: se rehace solo si cambia el tipo o el color
       const clave = a.gorro ? `${a.gorro}|${a.gorroColor || ''}` : '';
@@ -54,54 +74,175 @@ export function prepararAspecto({ modelo, objeto, giro }) {
       }
     },
   };
+
+  // Cambia el pelo: el propio, ninguno o el de otro avatar de Avaturn adaptado a esta cabeza y esqueleto
+  async function ponerPeinado(tipo) {
+    if (tipo === peinado) return;
+    const fuente = fuentesPelo[tipo];
+    let nuevas = [];
+    if (fuente && cabeza) nuevas = await peloDe(fuente, mallas[0], cabeza.medidas);
+    if (pedido !== tipo) { nuevas.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); return; }
+    for (const m of postizo) { m.removeFromParent(); m.geometry.dispose(); m.material.dispose(); }
+    postizo = nuevas;
+    const padre = propios[0]?.parent || mallas[0].parent;
+    for (const m of postizo) padre.add(m);
+    // El pelo propio (y su segunda pasada de bordes suaves) se oculta si hay otro peinado o rapado
+    modelo.traverse(o => { if (o.isMesh && /hair/i.test(o.name + o.material.name) && !postizo.includes(o)) o.visible = !tipo; });
+    peinado = tipo;
+  }
+  return api;
 }
 
-// ---------- Complexión ----------
+// ---------- Pelo de otro avatar ----------
+const cargadorPelo = new GLTFLoader();
+const fuentes = new Map();
+function cargarFuente(url) {
+  if (!fuentes.has(url)) {
+    const p = cargadorPelo.loadAsync(url).then(g => {
+      g.scene.updateMatrixWorld(true);
+      const mallas = []; g.scene.traverse(o => { if (o.isSkinnedMesh) mallas.push(o); });
+      return { mallas, medidas: medirCabeza(mallas, g.scene, false)?.medidas };
+    });
+    p.catch(() => fuentes.delete(url));
+    fuentes.set(url, p);
+  }
+  return fuentes.get(url);
+}
+// Pasa cada vértice del pelo al espacio de su hueso en el avatar de origen y lo vuelve a colocar
+// respecto al mismo hueso del avatar de destino (la cabeza, además, se ajusta a su tamaño)
+async function peloDe(url, destino, medidasDestino) {
+  const src = await cargarFuente(url);
+  const pelos = src.mallas.filter(m => /hair/i.test(m.name + m.material.name));
+  const huesosD = destino.skeleton.bones, nombre = b => b.name.replace(/^mixamorig:?/, '');
+  const porNombreD = new Map(huesosD.map((b, i) => [nombre(b), i]));
+  const cabezaD = porNombreD.get('Head');
+  const escalaCabeza = src.medidas && medidasDestino
+    ? new THREE.Vector3(medidasDestino.rx / src.medidas.rx, (medidasDestino.rx / src.medidas.rx + medidasDestino.rz / src.medidas.rz) / 2, medidasDestino.rz / src.medidas.rz)
+    : new THREE.Vector3(1, 1, 1);
+  const bindD = destino.skeleton.boneInverses.map(m => m.clone().invert());
+  const resultado = [];
+  for (const pelo of pelos) {
+    const geo = pelo.geometry.clone();
+    const pos = geo.attributes.position, nor = geo.attributes.normal, idx = geo.attributes.skinIndex, pes = geo.attributes.skinWeight;
+    const huesosS = pelo.skeleton.bones;
+    const mapa = huesosS.map(b => porNombreD.get(nombre(b)) ?? cabezaD);
+    const nuevaP = new Float32Array(pos.count * 3), nuevaN = nor ? new Float32Array(nor.count * 3) : null;
+    const nuevoI = new Uint16Array(idx.count * 4);
+    const p = new THREE.Vector3(), q = new THREE.Vector3(), suma = new THREE.Vector3(), n = new THREE.Vector3(), sumaN = new THREE.Vector3();
+    const m3 = new THREE.Matrix3();
+    for (let i = 0; i < pos.count; i++) {
+      p.fromBufferAttribute(pos, i).applyMatrix4(pelo.bindMatrix);
+      if (nor) n.fromBufferAttribute(nor, i).transformDirection(pelo.bindMatrix);
+      suma.set(0, 0, 0); sumaN.set(0, 0, 0);
+      let total = 0;
+      for (let j = 0; j < 4; j++) {
+        const w0 = pes.getComponent(i, j), bi = idx.getComponent(i, j);
+        nuevoI[i * 4 + j] = mapa[bi] ?? 0;
+        if (w0 < 1e-4 || mapa[bi] === undefined) continue;
+        q.copy(p).applyMatrix4(pelo.skeleton.boneInverses[bi]);             // en el espacio del hueso (origen)
+        if (mapa[bi] === cabezaD) q.multiply(escalaCabeza);
+        q.applyMatrix4(bindD[mapa[bi]]);                                     // mismo hueso, en el destino
+        suma.addScaledVector(q, w0); total += w0;
+        if (nor) {
+          m3.setFromMatrix4(bindD[mapa[bi]]).multiply(new THREE.Matrix3().setFromMatrix4(pelo.skeleton.boneInverses[bi]));
+          sumaN.addScaledVector(n.clone().applyMatrix3(m3), w0);
+        }
+      }
+      if (total > 0) suma.divideScalar(total);
+      suma.applyMatrix4(destino.bindMatrixInverse).toArray(nuevaP, i * 3);
+      if (nor) sumaN.transformDirection(destino.bindMatrixInverse).toArray(nuevaN, i * 3);
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(nuevaP, 3));
+    if (nor) geo.setAttribute('normal', new THREE.BufferAttribute(nuevaN, 3));
+    geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(nuevoI, 4));
+    const mat = pelo.material.clone();
+    if ('envMapIntensity' in mat) mat.envMapIntensity = 0.85;
+    const crear = material => {
+      const m = new THREE.SkinnedMesh(geo, material);
+      m.name = pelo.name; m.bind(destino.skeleton, destino.bindMatrix);
+      m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
+      return m;
+    };
+    // Igual que el pelo de Avaturn: núcleo sólido y, si es semitransparente, bordes suaves encima
+    if (mat.transparent) {
+      const borde = mat.clone(); borde.alphaTest = 0; borde.depthWrite = false; borde.transparent = true;
+      mat.transparent = false; mat.alphaTest = 0.5; mat.depthWrite = true;
+      const b2 = crear(borde); b2.renderOrder = 2; b2.castShadow = false;
+      resultado.push(crear(mat), b2);
+    } else resultado.push(crear(mat));
+  }
+  return resultado;
+}
+// ---------- Cuerpo: peso y musculatura ----------
 function prepararComplexion(malla) {
   const geo = malla.geometry, pos = geo.attributes.position;
   const idx = geo.attributes.skinIndex, pes = geo.attributes.skinWeight;
   if (!idx || !pes) return null;
   const huesos = malla.skeleton.bones;
+  const nombre = b => b.name.replace(/^mixamorig:?/, '');
   // Posición de cada hueso en el espacio de enlace (el mismo en que se definen los vértices)
   const puntos = malla.skeleton.boneInverses.map(m => new THREE.Vector3().setFromMatrixPosition(m.clone().invert()));
-  const porNombre = Object.fromEntries(huesos.map((b, i) => [b.name.replace(/^mixamorig:?/, ''), i]));
+  const porNombre = Object.fromEntries(huesos.map((b, i) => [nombre(b), i]));
+  const P = n => puntos[porNombre[n]];
+  if (!P('Hips') || !P('Head') || !P('Spine1')) return null;
   const segs = huesos.map(b => {
-    const z = ZONAS[b.name.replace(/^mixamorig:?/, '')];
-    if (!z || porNombre[z[0]] === undefined) return null;
-    const a = puntos[huesos.indexOf(b)], fin = puntos[porNombre[z[0]]];
-    const dir = fin.clone().sub(a); if (dir.lengthSq() < 1e-10) return null;
-    return { a, u: dir.normalize(), k: z[1] };
+    const z = zona(b.name); if (!z) return null;
+    const fin = porNombre[z.lado + z.fin] ?? porNombre[z.fin];
+    if (fin === undefined) return null;
+    const a = puntos[huesos.indexOf(b)], dir = puntos[fin].clone().sub(a);
+    if (dir.lengthSq() < 1e-10) return null;
+    return { a, u: dir.normalize(), ...z, tronco: /^(Hips|Spine1?)$/.test(nombre(b)) };
   });
-  // Posiciones en coma flotante (los GLB de Avaturn vienen cuantizados) y copia de las originales
+  // Escala del cuerpo y hacia dónde mira (los dedos de los pies van delante)
+  const alto = P('Head').y - Math.min(P('LeftFoot')?.y ?? 0, P('RightFoot')?.y ?? 0);
+  const k = alto / 1.6;
+  const pie = P('LeftFoot'), dedo = P('LeftToeBase');
+  const frente = new THREE.Vector3(0, 0, pie && dedo && dedo.z < pie.z ? -1 : 1);
+  const yTripa = P('Spine').y + 0.07 * k;
+  const ejeTronco = { a: P('Hips'), u: P('Spine1').clone().sub(P('Hips')).normalize() };
+
   const base = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) base.set([pos.getX(i), pos.getY(i), pos.getZ(i)], i * 3);
-  const desp = new Float32Array(pos.count * 3);
-  const enlace = malla.bindMatrix, desEnlace = malla.bindMatrixInverse;
-  const lin = new THREE.Matrix3().setFromMatrix4(desEnlace);
+  const gordo = new Float32Array(pos.count * 3), delgado = new Float32Array(pos.count * 3), musculo = new Float32Array(pos.count * 3);
+  const lin = new THREE.Matrix3().setFromMatrix4(malla.bindMatrixInverse);
+  const dG = new THREE.Vector3(), dD = new THREE.Vector3(), dM = new THREE.Vector3(), r = new THREE.Vector3();
   let algo = false;
   for (let i = 0; i < pos.count; i++) {
-    v.fromArray(base, i * 3).applyMatrix4(enlace);
-    const d = new THREE.Vector3();
+    v.fromArray(base, i * 3).applyMatrix4(malla.bindMatrix);
+    dG.set(0, 0, 0); dD.set(0, 0, 0); dM.set(0, 0, 0);
+    let tronco = 0;
     for (let j = 0; j < 4; j++) {
       const p = pes.getComponent(i, j); if (p < 0.01) continue;
       const s = segs[idx.getComponent(i, j)]; if (!s) continue;
       w.copy(v).sub(s.a);
-      w.sub(s.u.clone().multiplyScalar(w.dot(s.u)));   // lo que se aparta de la línea del hueso
-      d.addScaledVector(w, p * s.k);
+      w.sub(r.copy(s.u).multiplyScalar(w.dot(s.u)));   // lo que se aparta de la línea del hueso
+      dG.addScaledVector(w, p * s.g); dD.addScaledVector(w, p * s.d); dM.addScaledVector(w, p * s.m);
+      if (s.tronco) tronco += p;
     }
-    if (d.lengthSq() > 0) { algo = true; d.applyMatrix3(lin); desp.set([d.x, d.y, d.z], i * 3); }
+    // Con sobrepeso, la tripa sale hacia delante
+    if (tronco > 0.05) {
+      w.copy(v).sub(ejeTronco.a); w.sub(r.copy(ejeTronco.u).multiplyScalar(w.dot(ejeTronco.u)));
+      const delante = Math.max(0, w.clone().normalize().dot(frente));
+      const tripa = Math.exp(-(((v.y - yTripa) / (0.21 * k)) ** 2));
+      dG.addScaledVector(frente, tronco * k * (0.085 * delante ** 1.2 * tripa));
+    }
+    if (dG.lengthSq() + dD.lengthSq() + dM.lengthSq() > 0) {
+      algo = true;
+      dG.applyMatrix3(lin).toArray(gordo, i * 3); dD.applyMatrix3(lin).toArray(delgado, i * 3); dM.applyMatrix3(lin).toArray(musculo, i * 3);
+    }
   }
   if (!algo) return null;
   const nueva = new THREE.BufferAttribute(base.slice(), 3);
   geo.setAttribute('position', nueva);
-  let actual = 0;
+  let clave = '0|0';
   return {
-    poner(c) {
-      if (c === actual) return;
-      actual = c;
-      const arr = nueva.array;
-      for (let i = 0; i < arr.length; i++) arr[i] = base[i] + desp[i] * c;
+    poner(peso, musc) {
+      if (`${peso}|${musc}` === clave) return;
+      clave = `${peso}|${musc}`;
+      const arr = nueva.array, campo = peso >= 0 ? gordo : delgado, f = Math.abs(peso) * (peso >= 0 ? 1 : -1);
+      for (let i = 0; i < arr.length; i++) arr[i] = base[i] + campo[i] * f + musculo[i] * musc;
       nueva.needsUpdate = true;
+      geo.computeBoundingSphere();
     },
   };
 }
@@ -209,7 +350,7 @@ function luminanciaMedia(malla, zona) {
 // Mide la cabeza en reposo (el cuero cabelludo y el volumen del pelo) y deja un ancla a la altura
 // donde apoya el gorro, unida al hueso de la cabeza: así sigue a la cabeza al correr
 const percentil = (xs, p) => { const o = [...xs].sort((a, b) => a - b); return o[Math.min(o.length - 1, Math.floor(o.length * p))]; };
-function medirCabeza(mallas, objeto) {
+function medirCabeza(mallas, objeto, conAncla = true) {
   let hueso = null;
   for (const m of mallas) { hueso = m.skeleton.bones.find(b => /Head$/.test(b.name)); if (hueso) break; }
   if (!hueso) return null;
@@ -241,6 +382,7 @@ function medirCabeza(mallas, objeto) {
     rz = THREE.MathUtils.clamp(percentil(encima.map(p => Math.abs(p.z - cz)), 0.9), rz + 0.006, rz + 0.03);
     techo = THREE.MathUtils.clamp(percentil(encima.map(p => p.y), 0.95), arriba + 0.006, arriba + 0.035);
   } else { rx += 0.006; rz += 0.006; techo += 0.006; }
+  if (!conAncla) return { medidas: { rx, rz, alto: techo - nivel } };
   const ancla = new THREE.Group(); ancla.name = 'ancla-gorro';
   ancla.position.set(cx, nivel, cz);
   objeto.add(ancla); objeto.updateMatrixWorld(true);
@@ -259,48 +401,185 @@ function recortarPelo(malla, ancla, u) {
     sh.uniforms.uGorroOn = u.uOn; sh.uniforms.uGorroInv = u.uInv;
     sh.vertexShader = 'varying vec3 vPosMundo;\n' + sh.vertexShader.replace('#include <skinning_vertex>', '#include <skinning_vertex>\n vPosMundo = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'uniform float uGorroOn;\nuniform mat4 uGorroInv;\nvarying vec3 vPosMundo;\n' + sh.fragmentShader.replace('void main() {', `void main() {
-      if (uGorroOn > 0.5 && (uGorroInv * vec4(vPosMundo, 1.0)).y > 0.002) discard;`);
+      if (uGorroOn > 0.5 && (uGorroInv * vec4(vPosMundo, 1.0)).y > -0.008) discard;`);
   };
   m.needsUpdate = true;
 }
 
-let texPunto = null;
-function punto() {   // relieve de punto de lana (canalé vertical)
-  if (texPunto) return texPunto;
-  const c = document.createElement('canvas'); c.width = 64; c.height = 8;
-  const ctx = c.getContext('2d');
-  for (let x = 0; x < 64; x++) { const g = 128 + 110 * Math.sin((x / 64) * Math.PI * 2 * 4); ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(x, 0, 1, 8); }
-  texPunto = new THREE.CanvasTexture(c); texPunto.wrapS = texPunto.wrapT = THREE.RepeatWrapping; texPunto.repeat.set(9, 1);
-  return texPunto;
+// ---------- Texturas de tela, dibujadas una vez ----------
+const lienzo = (w, h, pintar) => { const c = document.createElement('canvas'); c.width = w; c.height = h; pintar(c.getContext('2d'), w, h); return c; };
+const texturas = {};
+// Punto de lana: puntos en V (cuerpo) y canalé 1×1 (vuelta). Sirve de relieve y de sombreado del color.
+function texLana() {
+  if (texturas.lana) return texturas.lana;
+  const c = lienzo(512, 256, (x, W, H) => {
+    x.fillStyle = '#b8b8b8'; x.fillRect(0, 0, W, H);
+    const cols = 32, filas = 16, cw = W / cols, ch = H / filas;
+    for (let j = 0; j < filas; j++) for (let i = 0; i < cols; i++) {
+      const cx = i * cw + cw / 2, cy = j * ch;
+      for (const s of [-1, 1]) {   // dos "patitas" de cada punto, en V
+        const g = x.createLinearGradient(cx, cy, cx + s * cw * 0.45, cy + ch);
+        g.addColorStop(0, '#8a8a8a'); g.addColorStop(0.5, '#ffffff'); g.addColorStop(1, '#949494');
+        x.fillStyle = g; x.beginPath();
+        x.ellipse(cx + s * cw * 0.22, cy + ch * 0.55, cw * 0.2, ch * 0.62, s * 0.5, 0, Math.PI * 2); x.fill();
+      }
+    }
+  });
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace;
+  return (texturas.lana = t);
+}
+function texCanale() {
+  if (texturas.canale) return texturas.canale;
+  const c = lienzo(256, 64, (x, W, H) => {
+    for (let i = 0; i < W; i++) { const sn = Math.sin((i / W) * Math.PI * 2 * 16); const g = 200 + 55 * Math.sign(sn) * Math.abs(sn) ** 0.6; x.fillStyle = `rgb(${g},${g},${g})`; x.fillRect(i, 0, 1, H); }
+  });
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace;
+  return (texturas.canale = t);
+}
+// Gorra de seis paños: costuras con pespunte, ojales y un poco de textura de sarga
+function texGorra() {
+  if (texturas.gorra) return texturas.gorra;
+  const W = 1024, H = 512;
+  const c = lienzo(W, H, (x) => {
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 9000; i++) { const g = 235 + Math.random() * 20; x.fillStyle = `rgba(${g},${g},${g},.5)`; x.fillRect(Math.random() * W, Math.random() * H, 2, 1); }
+    // Sarga: diagonales finas
+    x.strokeStyle = 'rgba(0,0,0,.045)'; x.lineWidth = 1;
+    for (let i = -H; i < W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+    // Costuras: delante en el centro (u = 0,25) y cada 60°
+    for (let k = 0; k < 6; k++) {
+      const u = (k / 6) * W;
+      x.strokeStyle = 'rgba(0,0,0,.42)'; x.lineWidth = 3; x.beginPath(); x.moveTo(u, 0); x.lineTo(u, H); x.stroke();
+      x.setLineDash([6, 5]); x.strokeStyle = 'rgba(0,0,0,.28)'; x.lineWidth = 1.4;
+      for (const d of [-7, 7]) { x.beginPath(); x.moveTo(u + d, 6); x.lineTo(u + d, H); x.stroke(); }
+      x.setLineDash([]);
+      // Ojal de ventilación en mitad de cada paño
+      const uo = ((k + 0.5) / 6) * W, vo = H * 0.42;
+      x.fillStyle = 'rgba(0,0,0,.55)'; x.beginPath(); x.ellipse(uo, vo, 5, 4, 0, 0, Math.PI * 2); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 2; x.beginPath(); x.ellipse(uo, vo, 9, 7, 0, 0, Math.PI * 2); x.stroke();
+    }
+    // Pespunte del borde
+    x.setLineDash([6, 5]); x.strokeStyle = 'rgba(0,0,0,.28)'; x.lineWidth = 1.4;
+    x.beginPath(); x.moveTo(0, H - 14); x.lineTo(W, H - 14); x.stroke(); x.setLineDash([]);
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return (texturas.gorra = t);
+}
+function texVisera2() {
+  if (texturas.visera) return texturas.visera;
+  const c = lienzo(512, 128, (x, W, H) => {
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(0,0,0,.045)'; for (let i = -H; i < W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+    x.setLineDash([7, 5]); x.strokeStyle = 'rgba(0,0,0,.32)'; x.lineWidth = 1.5;
+    for (const f of [0.86, 0.7, 0.54, 0.38]) { x.beginPath(); x.moveTo(0, H * (1 - f)); x.lineTo(W, H * (1 - f)); x.stroke(); }
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return (texturas.visera = t);
+}
+function texVisera(forma) {
+  // Pespuntes paralelos al borde de la visera (se dibujan en el plano de la forma)
+  const W = 512, H = 256;
+  const c = lienzo(W, H, (x) => {
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(0,0,0,.045)'; for (let i = -H; i < W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke(); }
+    x.setLineDash([7, 5]); x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 1.6;
+    for (const f of [0.9, 0.78, 0.66, 0.54]) {
+      x.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const t = (i / 40) * Math.PI;
+        const px = forma.cx + Math.cos(t) * forma.ax, pz = forma.cz + Math.sin(t) * (forma.r0 + (forma.bz - forma.r0) * f);
+        const X = ((px - forma.minx) / (forma.maxx - forma.minx)) * W, Y = ((pz - forma.minz) / (forma.maxz - forma.minz)) * H;
+        i ? x.lineTo(X, Y) : x.moveTo(X, Y);
+      }
+      x.stroke();
+    }
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 function crearGorro(tipo, color, { rx, rz, alto }) {
   const g = new THREE.Group(); g.name = 'gorro';
   const sombra = o => { o.castShadow = true; o.receiveShadow = true; return o; };
   if (tipo === 'lana') {
-    // Gorro de punto: cúpula algo holgada arriba y vuelta doblada en el borde
-    const mat = new THREE.MeshStandardMaterial({ color: color || '#3A4150', roughness: 0.95, bumpMap: punto(), bumpScale: 1.2 });
-    const cupula = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), mat);
-    cupula.scale.set(rx * 1.06, alto + 0.03, rz * 1.06);
-    const vuelta = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.03, 0.052, 48, 1, true), mat.clone());
-    vuelta.material.bumpScale = 0.7; vuelta.material.side = THREE.DoubleSide;
-    vuelta.scale.set(rx * 1.1, 1, rz * 1.1); vuelta.position.y = 0.012;
-    g.add(sombra(cupula), sombra(vuelta));
+    // Perfil (radio relativo, altura): vuelta doblada abajo y cúpula algo holgada arriba
+    const Hc = alto + 0.022, puno = 0.046;
+    const perfil = [];
+    perfil.push(new THREE.Vector2(1.0, -0.012), new THREE.Vector2(1.065, -0.01), new THREE.Vector2(1.075, 0.0));
+    for (let i = 1; i <= 6; i++) perfil.push(new THREE.Vector2(1.075 + 0.004 * Math.sin((i / 6) * Math.PI), (i / 6) * puno));
+    perfil.push(new THREE.Vector2(1.06, puno + 0.006), new THREE.Vector2(1.03, puno + 0.006));
+    for (let i = 0; i <= 18; i++) {
+      const u = i / 18, y = puno + u * (Hc - puno);
+      const r = 1.025 * Math.pow(Math.max(0, 1 - Math.pow(u, 1.9)), 0.5) * (1 + 0.03 * Math.sin(u * Math.PI));
+      perfil.push(new THREE.Vector2(Math.max(0.001, r), y));
+    }
+    // Cúpula (desde lo alto de la vuelta) con punto en V
+    const geo = new THREE.LatheGeometry(perfil.slice(9), 64);
+    geo.scale(rx * 1.04, 1, rz * 1.04);
+    const lana = texLana().clone(); lana.repeat.set(2.5, 3); lana.needsUpdate = true;
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: color || '#3A4150', roughness: 1, metalness: 0, sheen: 1, sheenRoughness: 0.75, sheenColor: new THREE.Color(color || '#3A4150').lerp(new THREE.Color('#ffffff'), 0.45),
+      bumpMap: lana, bumpScale: 5, map: lana,
+    });
+    const gorro = new THREE.Mesh(geo, mat);
+    // La vuelta, con canalé (encima de la cúpula, un pelín más ancha)
+    const vueltaP = perfil.slice(0, 11);
+    const geoV = new THREE.LatheGeometry(vueltaP, 64); geoV.scale(rx * 1.045, 1, rz * 1.045);
+    const canale = texCanale().clone(); canale.repeat.set(9, 1); canale.needsUpdate = true;
+    const matV = new THREE.MeshPhysicalMaterial({ color: mat.color, roughness: 1, sheen: 1, sheenRoughness: 0.75, sheenColor: mat.sheenColor, bumpMap: canale, bumpScale: 4, map: canale });
+    const vuelta = new THREE.Mesh(geoV, matV);
+    g.add(sombra(gorro), sombra(vuelta));
   } else {
-    // Gorra: cúpula baja de seis paños y visera curva hacia delante
-    const mat = new THREE.MeshStandardMaterial({ color: color || '#24272E', roughness: 0.78 });
-    const cupula = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2), mat);
-    cupula.scale.set(rx * 1.05, alto + 0.012, rz * 1.05);
-    const forma = new THREE.Shape();
-    const N = 24, sale = 0.072;
-    for (let i = 0; i <= N; i++) { const t = (i / N) * Math.PI; const x = Math.cos(t) * rx * 0.94, z = Math.sin(t) * rz * 0.98; i ? forma.lineTo(x, z) : forma.moveTo(x, z); }
-    for (let i = N; i >= 0; i--) { const t = (i / N) * Math.PI; forma.lineTo(Math.cos(t) * rx * 0.9, Math.sin(t) * (rz + sale)); }
-    const visera = new THREE.Mesh(new THREE.ExtrudeGeometry(forma, { depth: 0.006, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 2, curveSegments: 4 }), mat);
-    visera.rotation.x = Math.PI / 2 + 0.2;   // tumbada y un poco caída
-    visera.position.y = 0.008;
-    const boton = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), mat);
-    boton.position.y = alto + 0.012;
-    g.add(sombra(cupula), sombra(visera), boton);
+    const col = new THREE.Color(color || '#24272E');
+    const mat = new THREE.MeshPhysicalMaterial({ color: col, map: texGorra(), roughness: 0.82, sheen: 0.4, sheenRoughness: 0.8, sheenColor: col.clone().lerp(new THREE.Color('#ffffff'), 0.3) });
+    // Copa: perfil "superelipse" (lados rectos y techo algo plano), con el frente algo más alto (gorra estructurada)
+    const H = alto + 0.004;
+    const perfil = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = (i / 24) * Math.PI / 2;
+      const r = Math.pow(Math.cos(t), 0.62), y = Math.pow(Math.sin(t), 0.9);
+      perfil.push(new THREE.Vector2(Math.max(0.0005, r), y));
+    }
+    perfil.unshift(new THREE.Vector2(1.0, -0.12));   // un poco más abajo (y = −0,12·H ≈ 1 cm)
+    const geo = new THREE.LatheGeometry(perfil, 72);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const len = Math.hypot(x, z), fr = len < 1e-4 ? 0.5 : Math.max(0, z / len) ** 2;   // 0 detrás … 1 delante (suave)
+      p.setXYZ(i, x * rx * 1.04, y * H * (1 + 0.08 * fr * (1 - y * 0.5)), z * rz * 1.04 * (1 + 0.02 * fr));
+    }
+    geo.computeVertexNormals();
+    const copa = new THREE.Mesh(geo, mat);
+    // Botón de arriba
+    const boton = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+    boton.scale.y = 0.6; boton.position.y = H - 0.002;
+    // Visera: superficie curva unida al borde delantero de la copa; cae por los lados y un poco hacia delante
+    const NS = 48, NT = 10, sale = 0.072;
+    const pts = [], uvs = [], ind = [];
+    for (let j = 0; j <= NT; j++) for (let i = 0; i <= NS; i++) {
+      const t = j / NT;                                         // de la copa a la punta
+      const ang = Math.PI * (0.13 + 0.74 * (i / NS));          // solo la parte de delante
+      const sx = Math.cos(ang) / Math.cos(Math.PI * 0.13);       // −1 … 1 de un lado a otro
+      const rIn = { x: Math.cos(ang) * rx * 1.035, z: Math.sin(ang) * rz * 1.035 };
+      const z = rIn.z + t * sale * Math.sin(ang) ** 1.5;
+      const y = -0.006 - t * (0.014 + 0.026 * sx ** 4);
+      pts.push(rIn.x * (1 + 0.05 * t), y, z);
+      uvs.push(i / NS, t);
+    }
+    for (let j = 0; j < NT; j++) for (let i = 0; i < NS; i++) {
+      const a0 = j * (NS + 1) + i, a1 = a0 + 1, b0 = a0 + NS + 1, b1 = b0 + 1;
+      ind.push(a0, b0, a1, a1, b0, b1);
+    }
+    const gV = new THREE.BufferGeometry();
+    gV.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    gV.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    gV.setIndex(ind); gV.computeVertexNormals();
+    const matV = mat.clone(); matV.side = THREE.DoubleSide; matV.map = texVisera2();
+    const visera = new THREE.Mesh(gV, matV);
+    // Canto de la visera (le da grosor)
+    const canto = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(
+      Array.from({ length: NS + 1 }, (_, i) => new THREE.Vector3().fromArray(pts, (NT * (NS + 1) + i) * 3))), 64, 0.0028, 6, false), mat);
+    g.add(sombra(copa), sombra(visera), sombra(canto), boton);
   }
   return g;
 }
