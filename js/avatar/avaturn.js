@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { supabase } from '../db.js';
 import { leer, guardar } from '../almacen.js';
 import { animacionesPara } from './retarget.js';
+import { posesSalud } from './poses.js';
 
 const CLAVE = 'avatar-avaturn';        // tu elección (lumen_datos)
 const CUBO = 'avatares';               // carpeta privada de Supabase Storage
@@ -98,6 +99,7 @@ function adaptarCarrera(base, cadera) {
 
 // ---------- Modelo en la escena ----------
 const cargador = new GLTFLoader();
+const BUCLES = new Set(['idle', 'walk', 'run', 'fuerza', 'comer', 'estirar']);
 
 /**
  * Carga un GLB de Avaturn (u otro humanoide), lo orienta mirando a +Z con los pies en el suelo
@@ -150,6 +152,7 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
   const reposoCadera = cadera && buscar(/^LeftUpLeg$/) ? cadera.clone(false) : null;
   const { clips, balanceo } = await animacionesPara(giro);
   objeto.add(balanceo);
+  try { Object.assign(clips, posesSalud(giro)); } catch (e) { console.warn('Poses de Salud', e); }
   if (reposoCadera) {
     try { clips.run = adaptarCarrera(await clipCarrera(), reposoCadera); } catch (e) { console.warn('Carrera de Avaturn', e); }
   }
@@ -157,7 +160,7 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
   const acciones = {};
   for (const [n, c] of Object.entries(clips)) {
     const a = mixer.clipAction(c);
-    if (!['idle', 'walk', 'run'].includes(n)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+    if (!BUCLES.has(n)) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
     acciones[n] = a;
   }
   let actual = null, base = 'idle', gesto = null, vel = 1;
@@ -175,6 +178,8 @@ export async function cargarAvatarRealista(fuente, { sombras = true } = {}) {
     objeto, altura,
     estado(n, v = 1) { base = n; vel = v; if (!gesto) poner(n); if (actual === acciones[n]) actual.setEffectiveTimeScale(v); },
     gesto(n) { if (!acciones[n]) return; gesto = n; poner(n, 0.3); },
+    hueso: n => buscar(new RegExp(`^(mixamorig:?)?${n}$`)),
+    tiene: n => !!acciones[n],
     fijar(n, t) { mixer.stopAllAction(); const a = acciones[n]; a.reset().play(); mixer.setTime(t); actual = a; this.actualizar(0); },
     actualizar(dt) { mixer.update(dt); modelo.position.y = baseY + balanceo.position.y; },
     destruir() { mixer.stopAllAction(); objeto.traverse(o => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach(m => m.dispose()); } }); objeto.removeFromParent(); },

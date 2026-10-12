@@ -26,6 +26,7 @@ import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportac
 import { activarPlan } from './agenda.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
 import { renderSocial } from './social.js';
+import { montarCentro } from './salud/centro.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -106,13 +107,16 @@ let bloque = 'nutricion';
 const vistaDe = { gym: 'entrenar', running: 'semana', flex: 'hoy', nutricion: 'hoy' };
 let sesionIniciada = false;
 let datosCargados = false;
-const $ = id => document.getElementById(id);
+const $ = id => (id === 'tabs' ? TABS : document.getElementById(id));
+// Pestañas: en Salud se mueven junto a su contenido, bajo el avatar; fuera de Salud vuelven a la cabecera
+const TABS = document.getElementById('tabs');
+const cabeceraTabs = TABS.parentElement;
 
 // ---------- Pintar ----------
 // Películas de entrada de cada apartado (solo al entrar, no al cambiar de pestaña)
-const INTROS = {
-  flex: introFlexibilidad,
-};
+// En Salud, la entrada la hace ahora el propio centro corporal (el avatar cambia de pose)
+const INTROS = {};
+void introFlexibilidad;
 let ultimoGrupo = null;
 let turno = 0;
 
@@ -142,6 +146,7 @@ function pintarVista() {
   history.replaceState(null, '', `#${seccion}`);
 
   const cont = $('vista');
+  if (TABS.parentElement !== cabeceraTabs) cabeceraTabs.append(TABS);
   cont.onclick = cont.oninput = cont.onchange = null;   // quitamos los "escuchadores" de la vista anterior
   cont.ondragstart = cont.ondragend = cont.ondragover = cont.ondrop = cont.onkeydown = null;
 
@@ -163,9 +168,17 @@ function pintarVista() {
   const grupo = esSalud ? BLOQUES[bloque] : sec;
   if (esSalud) $('subbloques').querySelectorAll('button').forEach(x => x.classList.toggle('activo', x.dataset.bloque === bloque));
 
-  if (grupo.cuenta && !sesionIniciada) return renderPideEntrar(cont, `Entra para ver tu ${grupo.titulo.toLowerCase()}: lo guardamos en tu cuenta.`);
+  // Salud: el centro corporal (avatar y paneles alrededor) y, debajo, la pestaña de siempre
+  let destino = cont;
+  if (esSalud) {
+    const centro = montarCentro(cont, bloque, { sesion: sesionIniciada, datos: datosCargados, abrirLogin });
+    destino = centro.detalle;
+    centro.pestanas.append($('tabs'));
+  }
+
+  if (grupo.cuenta && !sesionIniciada) return renderPideEntrar(destino, `Entra para ver tu ${grupo.titulo.toLowerCase()}: lo guardamos en tu cuenta.`);
   if (grupo.cuenta && !datosCargados) {
-    cont.innerHTML = '<p class="tenue" style="text-align:center;padding:40px 0">Cargando tus datos…</p>';
+    destino.innerHTML = '<p class="tenue" style="text-align:center;padding:40px 0">Cargando tus datos…</p>';
     return;
   }
 
@@ -174,7 +187,7 @@ function pintarVista() {
   $('tabs').innerHTML = grupo.vistas
     .map(([id, nombre]) => `<button data-vista="${id}" class="${id === vista ? 'activo' : ''}">${nombre}</button>`).join('');
   $('tabs').classList.toggle('oculto', grupo.vistas.length < 2);
-  return grupo.vistas.find(v => v[0] === vista)[2](cont);
+  return grupo.vistas.find(v => v[0] === vista)[2](destino);
 }
 const grupoActual = () => (seccion === 'salud' ? bloque : seccion);
 

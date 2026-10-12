@@ -7,7 +7,7 @@ import { aviso, fmtCorta, parseTiempo, fmtTiempo, sumarDias, diasEntre } from '.
 
 export const PERFIL_VACIO = { sexo: 'h', edad: '', altura: '', peso: '', actividad: 1.55, pesoObjetivo: '', meses: '', inicio: null };
 
-const ACTIVIDAD = [
+export const ACTIVIDAD = [
   [1.2, 'Sedentaria (poco o nada de ejercicio)'],
   [1.375, 'Ligera (1-3 días por semana)'],
   [1.55, 'Moderada (3-5 días por semana)'],
@@ -83,9 +83,9 @@ export function caloriasObjetivo(p) {
   const plan = planPeso(p);
   return plan.estado === 'ok' ? plan.kcal : caloriasMantenimiento(p);
 }
-const fmt = (n, d = 1) => Number(n).toLocaleString('es-ES', { maximumFractionDigits: d });
+export const fmt = (n, d = 1) => Number(n).toLocaleString('es-ES', { maximumFractionDigits: d });
 export const imc = p => (perfilCompleto(p) ? p.peso / (p.altura / 100) ** 2 : null);
-function textoImc(v) {
+export function textoImc(v) {
   if (v < 18.5) return 'Bajo peso';
   if (v < 25) return 'Saludable';
   if (v < 30) return 'Sobrepeso';
@@ -111,7 +111,7 @@ function kpisHTML(p) {
 }
 
 // Texto del plan de peso (verde si es realista, aviso si no lo es)
-function planHTML(p) {
+export function planHTML(p) {
   const plan = planPeso(p);
   if (plan.estado === 'incompleto') return '<p class="tenue">Completa edad, altura y peso para calcular tu plan.</p>';
   if (plan.estado === 'mantener') return '<p class="plan-ok">Sin objetivo de cambio: tus calorías son las de mantenimiento.</p>';
@@ -169,8 +169,10 @@ export function renderPerfil(cont) {
   const p = leer('perfil', PERFIL_VACIO);
   const pesos = leer('pesos', []).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const marcas = leer('marcas', []);
+  // En el centro corporal de Salud, "Tus datos", "Tu objetivo" y los indicadores rodean al avatar
+  const enOrbita = !!cont.closest('.cs');
   cont.innerHTML = `
-    <section class="panel">
+    ${enOrbita ? '' : `<section class="panel">
       <div class="panel-cab"><h3>Tus datos</h3><span class="tenue">Se guardan solos</span></div>
       <form class="campos" id="pf-form" autocomplete="off">
         <div class="segmento" role="group" aria-label="Sexo">
@@ -201,7 +203,7 @@ export function renderPerfil(cont) {
       <div id="pf-plan">${planHTML(p)}</div>
     </section>
 
-    <div class="kpis" id="pf-kpis">${kpisHTML(p)}</div>
+    <div class="kpis" id="pf-kpis">${kpisHTML(p)}</div>`}
 
     <section class="panel">
       <div class="panel-cab"><h3>Tu peso</h3><span class="tenue">${pesos.length ? `${pesos.length} ${pesos.length === 1 ? 'registro' : 'registros'}` : 'Pésate por la mañana, en ayunas'}</span></div>
@@ -284,16 +286,19 @@ export function renderPerfil(cont) {
   const form = cont.querySelector('#pf-form');
   const guardarPerfil = (cambios, repintar = false) => {
     guardar('perfil', { ...leer('perfil', PERFIL_VACIO), ...cambios });
+    dispatchEvent(new CustomEvent('lumen-perfil'));
     if (repintar) renderPerfil(cont);
   };
   const refrescar = () => {
     const actual = leer('perfil', PERFIL_VACIO);
-    cont.querySelector('#pf-kpis').innerHTML = kpisHTML(actual);
-    cont.querySelector('#pf-plan').innerHTML = planHTML(actual);
+    if (!enOrbita) {
+      cont.querySelector('#pf-kpis').innerHTML = kpisHTML(actual);
+      cont.querySelector('#pf-plan').innerHTML = planHTML(actual);
+    }
     cont.querySelector('#pf-progreso').innerHTML = progresoPesoHTML(actual);
     pintarGraficaPeso(cont);
   };
-  form.onchange = ev => {
+  if (form) form.onchange = ev => {
     const { name, value } = ev.target;
     if (!name) return;
     guardarPerfil({ [name]: value === '' ? '' : Number(value) });
@@ -303,8 +308,11 @@ export function renderPerfil(cont) {
     }
     refrescar();
   };
+  // El centro corporal avisa cuando cambias tus datos alrededor del avatar
+  if (enOrbita) cont._alPerfil = refrescar;
   // Al cambiar el objetivo o el plazo, el plan empieza hoy con tu peso actual
-  cont.querySelector('#pf-objetivo').onchange = ev => {
+  const formObj = cont.querySelector('#pf-objetivo');
+  if (formObj) formObj.onchange = ev => {
     const { name, value } = ev.target;
     const actual = leer('perfil', PERFIL_VACIO);
     guardarPerfil({ [name]: value === '' ? '' : Number(value), inicio: { fecha: hoyISO(), peso: Number(actual.peso) } });
@@ -315,7 +323,7 @@ export function renderPerfil(cont) {
     const usar = ev.target.closest('[data-usar-meses]');
     if (usar) {
       guardarPerfil({ meses: Number(usar.dataset.usarMeses) });
-      cont.querySelector('#pf-objetivo [name=meses]').value = usar.dataset.usarMeses;
+      const sel = cont.querySelector('#pf-objetivo [name=meses]'); if (sel) sel.value = usar.dataset.usarMeses;
       return refrescar();
     }
     const paso = ev.target.closest('[data-paso]');

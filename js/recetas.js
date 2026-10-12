@@ -363,3 +363,19 @@ export async function renderPlanCompra(cont) {
   };
   pintar();
 }
+
+// Abre la ficha de una receta desde fuera (p. ej. la sugerencia del centro corporal de Salud)
+export async function abrirRecetaPorId(id, origen = null) {
+  const D = await datos();
+  const r = D.recetas.find(x => x.id === id);
+  if (r) abrirReceta(origen, r, D);
+}
+// Receta que mejor encaja con lo que te queda hoy (kcal y proteína), para sugerirla
+export async function recetaSugerida(restante, tipo = null) {
+  const D = await datos();
+  const lista = D.recetas.filter(r => (!tipo || r.t === tipo) && r.kcal <= Math.max(250, restante.kcal + 60));
+  if (!lista.length) return null;
+  const nota = r => -Math.abs(r.kcal - Math.min(restante.kcal, 650)) / 120 + (restante.p > 0 ? Math.min(r.p, restante.p) / 12 : 0) + (r.et.includes('comida-real') ? 0.5 : 0);
+  const dia = Number(hoyISO().replaceAll('-', '')) % 3;       // varía un poco cada día entre las mejores
+  return lista.sort((a, b) => nota(b) - nota(a))[dia] || lista[0];
+}

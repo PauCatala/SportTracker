@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#eef0f0}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../../../vendor/three/three.module.min.js","three/addons/":"../../../vendor/three/addons/"}}</script></head><body>
+<script type="module">
+// Laboratorio de poses de Salud: ?av=hombre|mujer ; window.foto(pose, t, angulo, zoom)
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { cargarAvatarRealista } from '../../../js/avatar/avaturn.js';
+import { crearMancuerna, crearBatido, sostener } from '../../../js/avatar/poses.js';
+const q = new URLSearchParams(location.search);
+const W = 900, Hh = 900;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+r.setSize(W, Hh); r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace; r.shadowMap.enabled = true;
+document.body.append(r.domElement);
+const esc = new THREE.Scene(); esc.background = new THREE.Color(0xeef0f0);
+esc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(2, 4, 3); sol.castShadow = true; esc.add(sol);
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.ShadowMaterial({ opacity: .2 })); suelo.rotation.x = -Math.PI / 2; suelo.receiveShadow = true; esc.add(suelo);
+const av = await cargarAvatarRealista(`../../../media/avatar/avaturn/${q.get('av') || 'hombre'}.glb`);
+av.objeto.scale.setScalar(1.8 / av.altura); esc.add(av.objeto);
+const objetos = { fuerza: crearMancuerna(), comer: crearBatido() };
+const aj = JSON.parse(q.get('aj') || '{}');
+sostener(objetos.fuerza, av, { separacion: aj.sf ?? 0.03 }); sostener(objetos.comer, av, { separacion: aj.sc ?? 0.045 });
+for (const o of Object.values(objetos)) o.visible = false;
+const cam = new THREE.PerspectiveCamera(28, 1, .05, 50);
+window.foto = (pose, t, ang = 0, zoom = 1) => {
+  for (const [k, o] of Object.entries(objetos)) o.visible = k === pose;
+  av.fijar(pose, t);
+  const d = 4.4 / zoom, h = zoom > 1.5 ? 1.25 : 0.95;
+  cam.position.set(Math.sin(ang) * d, h + 0.1, Math.cos(ang) * d); cam.lookAt(0, h, 0);
+  r.render(esc, cam); return true;
+};
+window.av = av; window.dir = (a, b) => { av.objeto.updateMatrixWorld(true); const p = x => av.hueso(x).getWorldPosition(new THREE.Vector3()); return p(b).sub(p(a)).normalize().toArray().map(x => +x.toFixed(2)); };
+window.listo = true;
+</script></body></html>
