@@ -12,6 +12,7 @@ import { objetivosDelDia, totalesDe, comidasDe } from '../nutricion.js';
 import { DIAS_PLAN, diaSugerido, faseDeSemana, SEMANAS_RUN, flexDelDia, MEDIDAS_FLEX } from '../plan.js';
 import { semanaPlan, mesocicloDe, semanaDeMeso, semanasDeMeso, ejercicioPorId } from '../consultas.js';
 import { ritmoDe, resumen } from '../running.js';
+import { perfilRun, semanaConCambios, FASES, lunes as lunesRun } from '../running/motor.js';
 import { cumplimiento } from '../flex.js';
 import { estacion, hayWebGL } from './estacion.js';
 
@@ -280,22 +281,25 @@ function orbitaRunning() {
   const kmSemana = semana.reduce((t, c) => t + kmDe(c), 0);
   const semanas = Array.from({ length: 8 }, (_, i) => sumarDias(lunes, -7 * (7 - i)));
   const km = semanas.map(l => carreras.reduce((t, c) => t + (lunesDe(c.fecha) === l ? kmDe(c) : 0), 0));
-  const n = semanaPlan(hoy), fase = n ? faseDeSemana(Math.min(Math.max(n, 1), SEMANAS_RUN)) : null;
+  const pr = perfilRun();
+  const semR = pr?.inicio ? semanaConCambios(pr, lunesRun(hoy)) : null;
+  const deHoy = semR?.sesiones.find(x => x.fecha === hoy);
+  const fase = semR ? FASES[semR.fase] : null;
   const ultima = carreras.filter(c => c.fecha <= hoy).at(-1);
   const recientes = carreras.filter(c => diasEntre(c.fecha, hoy) <= 30 && ritmoDe(c));
   const mejor = recientes.length ? Math.min(...recientes.map(ritmoDe)) : null;
   return {
     izq: [
-      tarjeta({ titulo: 'Tu plan', ancla: 'cabeza', clase: 'cs-destacada', cuerpo: n
-        ? `${dato(`Semana ${Math.min(n, SEMANAS_RUN)}`, `de ${SEMANAS_RUN}`, fase ? `Fase ${fase.numero} · ${escapar(fase.nombre)}` : '')}<div class="progreso"><i style="width:${Math.min(100, (n / SEMANAS_RUN) * 100)}%"></i></div>${fase ? `<p class="cs-texto">${escapar(fase.foco)}</p>` : ''}`
-        : `<p class="cs-texto">Elige cuándo empieza tu plan para ver la semana y la fase.</p>${accion('Ver la semana', ir('running', 'semana'))}` }),
-      tarjeta({ mitad: true, titulo: 'Esta semana', ancla: 'pies', cuerpo: `${dato(fmtKg(Math.round(kmSemana * 10) / 10), 'km', `${semana.length} ${semana.length === 1 ? 'salida' : 'salidas'}`)}${accion('Registrar salida', ir('running', 'registrar'))}` }),
+      tarjeta({ titulo: 'Hoy toca', ancla: 'cabeza', clase: 'cs-destacada', cuerpo: semR
+        ? `${dato(deHoy ? escapar(deHoy.clave) : 'Descanso', '', deHoy ? `${escapar(deHoy.titulo)} · ${escapar(deHoy.detalle)}` : `Semana ${semR.n} de ${semR.total} · ${escapar(fase.nombre)}`)}<div class="progreso"><i style="width:${Math.min(100, (semR.n / semR.total) * 100)}%"></i></div>${accion('Ver el plan', ir('running', 'semana'))}`
+        : `<p class="cs-texto">Haz un test de nivel y crea tu plan: se adapta a ti cada semana.</p>${accion('Crear mi plan', ir('running', 'semana'))}` }),
+      tarjeta({ mitad: true, titulo: 'Esta semana', ancla: 'pies', cuerpo: `${dato(fmtKg(Math.round(kmSemana * 10) / 10), 'km', `${semana.length} ${semana.length === 1 ? 'salida' : 'salidas'}`)}${accion('Ver historial', ir('running', 'registrar'))}` }),
     ],
     der: [
       tarjeta({ titulo: 'Última salida', ancla: 'pecho', cuerpo: ultima
         ? `${dato(fmtRitmo(ritmoDe(ultima)), '/km', `${fmtCorta(ultima.fecha)} · ${escapar(resumen(ultima))}`)}`
         : '<p class="cs-texto">Aún no has registrado ninguna salida.</p>' }),
-      tarjeta({ mitad: true, titulo: 'Mejor ritmo', ancla: 'piesDer', etiqueta: 'últimos 30 días', cuerpo: dato(mejor ? fmtRitmo(mejor) : '–', mejor ? '/km' : '', fase ? `Objetivo de la fase: ${escapar(fase.objetivo)}` : '') }),
+      tarjeta({ mitad: true, titulo: 'Mejor ritmo', ancla: 'piesDer', etiqueta: 'últimos 30 días', cuerpo: dato(mejor ? fmtRitmo(mejor) : '–', mejor ? '/km' : '', semR ? `Tu nivel: ${semR.vdot.toFixed(1)}` : '') }),
       tarjeta({ titulo: 'Kilómetros', ancla: 'rodilla', etiqueta: '8 semanas', cuerpo: `${barras(km.map(x => Math.round(x * 10) / 10), semanas.map(l => fmtCorta(l).split(' ').slice(1).join(' ')), v => `${fmtKg(v)} km`)}${accion('Ver progreso', ir('running', 'progreso'))}` }),
     ],
   };

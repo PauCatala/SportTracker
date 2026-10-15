@@ -7,9 +7,10 @@
 //  - Calendarios importados (Google, PoliformaT, Outlook…)                  → "calendarios" + "cal-cache:<id>"
 import { leer, guardar, hoyISO, nuevoId } from './almacen.js';
 import { state } from './db.js';
-import { DIAS_PLAN, diaSugerido, flexDelDia, SEMANAS_RUN, faseDeSemana } from './plan.js';
+import { DIAS_PLAN, diaSugerido, flexDelDia, SEMANAS_RUN } from './plan.js';
 import { semanaPlan } from './consultas.js';
 import { lunesDe, sumarDias } from './utils.js';
+import { perfilRun, semanaPlanRun, emparejar, lunes, HORA_DEF } from './running/motor.js';
 const domingoDe = iso => sumarDias(lunesDe(iso), 6);
 
 // Tipos de evento y su color (dentro de la familia de azules, con algún matiz para distinguirlos)
@@ -135,21 +136,6 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
           nota: dia, hecho: d <= hoy ? state.sesiones.some(s => s.fecha === d) : false, editable: false, ir: 'salud|gym|entrenar',
         });
       }
-      if (n >= 1 && n <= SEMANAS_RUN) {
-        const fase = faseDeSemana(n);
-        const lunes = lunesDe(d), domingo = sumarDias(lunes, 6);
-        const semana = state.carreras.filter(c => c.fecha >= lunes && c.fecha <= domingo);
-        for (const [tipo, nombre, tipos] of [['series', 'Series', ['series']], ['easy', 'Easy', ['easy', 'tempo']], ['larga', 'Tirada larga', ['larga']]]) {
-          const r = cfg.run[tipo];
-          if (r.dia !== dow) continue;
-          plan.push({
-            id: `run:${tipo}:${d}`, clave: `run:${tipo}`, fuente: 'run', titulo: `Running · ${nombre}`, cat: 'deporte', color: color('deporte'),
-            fecha: d, inicio: r.hora, fin: sumarMin(r.hora, r.min), todoElDia: false,
-            nota: `Semana ${n} · ${fase?.nombre || ''}\n${fase?.[tipo] || ''}`, hecho: semana.some(c => tipos.includes(c.tipo)),
-            editable: false, ir: 'salud|running|semana',
-          });
-        }
-      }
       if (cfg.flexActiva) {
         const items = flexDelDia(d);
         const hechos = new Set(state.flex_dias.find(f => f.fecha === d)?.completados || []);
@@ -170,6 +156,28 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
       fecha: d, inicio: cfg.fotoHora, fin: sumarMin(cfg.fotoHora, cfg.fotoMin || 15), todoElDia: false,
       nota: 'Por la mañana, en ayunas y antes de hacer ejercicio.', hecho: semanasConFoto.has(domingoDe(d)), editable: false, ir: 'imagen|imagen|progreso',
     });
+  }
+  // Running: tu plan adaptativo (con su test, fases y ritmos), si lo has creado
+  const perfil = perfilRun();
+  if (perfil?.inicio) {
+    const extra = leer('run-extra', {});
+    for (let l = lunes(pd); l <= ph; l = sumarDias(l, 7)) {
+      const sem = semanaPlanRun(perfil, l);
+      if (!sem) continue;
+      const hechas = emparejar(sem.sesiones, state.carreras || [], extra);
+      const cfgRun = leer('cal-ajustes', {}).run || {};
+      for (const x of sem.sesiones) {
+        const fijo = cfgRun[x.slot]?.fijo ? cfgRun[x.slot] : null;
+        const f = fijo && fijo.dia !== undefined ? sumarDias(l, (fijo.dia + 6) % 7) : x.fechaPlan;
+        const inicio = fijo?.hora || HORA_DEF(diaSemana(f));
+        plan.push({
+          id: x.id, clave: `run:${x.slot}`, fuente: 'run', titulo: `Running · ${x.titulo} ${x.clave}`, cat: 'deporte', color: color('deporte'),
+          fecha: f, inicio, fin: sumarMin(inicio, fijo?.min || x.min), todoElDia: false,
+          nota: `${x.detalle}\n${x.pasos.map(p => `· ${p.que}: ${p.cuanto}${p.ritmo ? ` (${p.ritmo})` : ''}`).join('\n')}`,
+          hecho: !!hechas.get(x.id), editable: false, ir: 'salud|running|semana',
+        });
+      }
+    }
   }
   // Tus cambios: primero los de todas las semanas, luego los de ese día
   const est = estilos(), cam = cambiosPlan();
@@ -305,7 +313,7 @@ export function cambiarActividad(ev, datos, { todas = false } = {}) {
       const dow = diaSemana(d.fecha);
       if (ev.fuente === 'run') {
         const tipo = ev.clave.split(':')[1];
-        guardarAjustesCal({ run: { ...cfg.run, [tipo]: { dia: dow, hora: d.inicio, min: dur } } });
+        guardarAjustesCal({ run: { ...(leer('cal-ajustes', {}).run || {}), [tipo]: { dia: dow, hora: d.inicio, min: dur, fijo: true } } });
       } else if (ev.fuente === 'gym') guardarAjustesCal({ gymHora: d.inicio, gymMin: dur });
       else if (ev.fuente === 'flex') guardarAjustesCal({ flexHora: d.inicio, flexMin: dur });
       else if (ev.fuente === 'foto') guardarAjustesCal({ fotoDia: dow, fotoHora: d.inicio, fotoMin: dur });

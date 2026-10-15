@@ -5,6 +5,7 @@ import { renderProgreso } from './progreso.js';
 import { renderEjercicios, renderMesociclos } from './catalogo.js';
 import { renderRutina } from './rutina.js';
 import { renderSemanaRun, renderRegistrarRun, renderProgresoRun } from './running.js';
+import { perfilRun, semanaConCambios, emparejar, lunes as lunesRun } from './running/motor.js';
 import { renderFlexHoy, renderFlexProgreso } from './flex.js';
 import { renderPerfil, PERFIL_VACIO } from './perfil.js';
 import { renderNutriHoy, renderNutriObjetivos, objetivosDelDia, totalesDe } from './nutricion.js';
@@ -64,8 +65,8 @@ const BLOQUES = {
   running: {
     titulo: 'Running', icono: 'running', cuenta: true,
     vistas: [
-      ['semana', 'Semana', renderSemanaRun],
-      ['registrar', 'Registrar', renderRegistrarRun],
+      ['semana', 'Hoy', renderSemanaRun],
+      ['registrar', 'Historial', renderRegistrarRun],
       ['progreso', 'Progreso', renderProgresoRun],
     ],
   },
@@ -209,17 +210,18 @@ function entrenoDeHoy() {
   } else {
     lineas.push({ texto: '<b>Gimnasio</b> · descanso', estado: '' });
   }
-  // Running: entrenos de la semana del plan
-  const n = semanaPlan(hoy);
-  if (n >= 1 && n <= SEMANAS_RUN) {
-    const lunes = lunesDe(hoy), domingo = sumarDias(lunes, 6);
-    const semana = state.carreras.filter(c => c.fecha >= lunes && c.fecha <= domingo);
-    const faltan = [['series', 'series'], ['larga', 'tirada larga'], [['easy', 'tempo'], 'easy']]
-      .filter(([t]) => !semana.some(c => [].concat(t).includes(c.tipo))).map(([, nombre]) => nombre);
+  // Running: lo que toca hoy en tu plan
+  const pr = perfilRun();
+  const semR = pr?.inicio ? semanaConCambios(pr, lunesRun(hoy)) : null;
+  if (semR) {
+    const deHoy = semR.sesiones.find(x => x.fecha === hoy);
+    const hechaR = deHoy && emparejar(semR.sesiones, state.carreras, leer('run-extra', {})).get(deHoy.id);
     lineas.push({
-      texto: `<b>Running</b> · semana ${n}, ${faseDeSemana(n).nombre.toLowerCase()}${faltan.length ? ` · te falta ${faltan.join(', ')}` : ''}`,
-      estado: faltan.length ? 'pendiente' : 'hecho', ir: 'salud|running|semana',
+      texto: deHoy ? `<b>Running</b> · ${escapar(deHoy.titulo.toLowerCase())}: ${escapar(deHoy.clave)}` : `<b>Running</b> · descanso (semana ${semR.n} de ${semR.total})`,
+      estado: deHoy ? (hechaR ? 'hecho' : 'pendiente') : '', ir: 'salud|running|semana',
     });
+  } else if (!pr?.inicio) {
+    lineas.push({ texto: '<b>Running</b> · crea tu plan con un test de nivel', estado: 'pendiente', ir: 'salud|running|semana' });
   }
   // Flexibilidad: rutina de la mañana
   const items = flexDelDia(hoy);
