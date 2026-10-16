@@ -249,6 +249,7 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
     gesto(n) { if (!acciones[n]) return; gesto = n; poner(n, 0.3); },
     hueso: n => buscar(new RegExp(`^(mixamorig:?)?${n}$`)),
     tiene: n => !!acciones[n],
+    perseguir: si => vida?.perseguir(si),
     fijar(n, t) { vida?.estado(n); vida?.antes(); mixer.stopAllAction(); const a = acciones[n]; a.reset().play(); mixer.setTime(t); actual = a; modelo.position.y = baseY + balanceo.position.y; vida?.despues(0); },
     actualizar(dt) { vida?.antes(); mixer.update(dt); modelo.position.y = baseY + balanceo.position.y; vida?.despues(dt); },
     destruir() { mixer.stopAllAction(); objeto.traverse(o => { if (o.isMesh) { o.geometry.dispose(); [].concat(o.material).forEach(m => m.dispose()); } }); objeto.removeFromParent(); },

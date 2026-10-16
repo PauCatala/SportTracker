@@ -35,6 +35,23 @@ export function crearVida(objeto, buscar) {
   // Peso de cada estado, que cambia suave (como el fundido entre animaciones)
   const peso = { run: 0, idle: 1, walk: 0, pose: 0 };
   let estado = 'idle', t = Math.random() * 100;
+  // "Enganchado": en la rueda corre detrás de las publicaciones, mirándolas y estirando la mano para alcanzarlas
+  let perseguir = 0, perseguirObj = 0;
+  const pA = new THREE.Vector3(), pB = new THREE.Vector3(), qA = new THREE.Quaternion(), qB = new THREE.Quaternion(), ident = new THREE.Quaternion();
+  const hijoDe = { LeftArm: 'LeftForeArm', RightArm: 'RightForeArm', LeftForeArm: 'LeftHand', RightForeArm: 'RightHand' };
+  // Orienta un hueso hacia una dirección del espacio del avatar, mezclando con la animación (w = 0 … 1)
+  function apuntar(nombre, dirAvatar, w) {
+    const b = h[nombre], hijo = h[hijoDe[nombre]];
+    if (!b || !hijo || w < 0.01) return;
+    const actual = hijo.getWorldPosition(pA).sub(b.getWorldPosition(pB)).normalize();
+    const obj = dirAvatar.clone().applyQuaternion(qo).normalize();
+    qA.setFromUnitVectors(actual, obj);
+    qB.copy(ident).slerp(qA, w);
+    q1.copy(qB).multiply(b.getWorldQuaternion(q2));
+    b.quaternion.copy(b.parent.getWorldQuaternion(q2).invert().multiply(q1));
+    b.updateMatrixWorld(true);
+  }
+
 
   // Gira un hueso un ángulo alrededor de un eje del espacio del avatar
   function girar(hueso, ejeAvatar, ang) {
@@ -74,6 +91,7 @@ export function crearVida(objeto, buscar) {
 
   return {
     estado(n) { estado = n; },
+    perseguir(si) { perseguirObj = si ? 1 : 0; },
     // Antes del mezclador: los huesos vuelven a su reposo
     antes() { for (const [x, q] of reposo) x.quaternion.copy(q); },
     // Después del mezclador: los toques de vida
@@ -86,6 +104,22 @@ export function crearVida(objeto, buscar) {
       objeto.getWorldQuaternion(qo);
       const { run, idle, walk, pose } = peso;
 
+      perseguir += (perseguirObj - perseguir) * (dt > 0 ? 1 - Math.exp(-dt / 0.6) : 1);
+      const enganche = perseguir * run;
+      let alcanceL = 0, alcanceR = 0;
+      // --- Enganchado: inclinado, mirando arriba a las publicaciones y estirando una mano cada poco ---
+      if (enganche > 0.01) {
+        girar(h.Spine, X, 0.1 * enganche);
+        girar(h.Spine1, X, 0.05 * enganche);
+        girar(h.Neck, X, -0.2 * enganche);
+        girar(h.Head, X, -0.16 * enganche + 0.03 * Math.sin(t * 1.3) * enganche);
+        girar(h.Head, Y, 0.08 * ruido(t * 0.5, 9) * enganche);
+        // Cada ~2,8 s intenta alcanzar una publicación: alterna la mano y dura algo más de un segundo
+        const ciclo = 2.8, fase = (t % ciclo) / ciclo, cual = Math.floor(t / ciclo) % 2;
+        const ventana = fase < 0.45 ? Math.sin((fase / 0.45) * Math.PI) ** 1.5 : 0;
+        if (cual) alcanceR = ventana * enganche; else alcanceL = ventana * enganche;
+      }
+
       // --- Corriendo ---
       if (run > 0.01) {
         const s = balanceoBrazos();
@@ -96,6 +130,16 @@ export function crearVida(objeto, buscar) {
         girar(h.Neck, Y, -0.08 * s * run);                    // la cabeza sigue mirando al frente
         girar(h.Neck, X, -0.06 * run);
         girar(h.Head, X, -0.03 * run + 0.015 * Math.sin(t * 9.4) * run);
+      }
+      if (alcanceL > 0.01 || alcanceR > 0.01) {
+        for (const [lado, w, sx] of [['Left', alcanceL, 1], ['Right', alcanceR, -1]]) {
+          if (w < 0.01) continue;
+          const dir = new THREE.Vector3(sx * 0.12, 0.66, 0.74);   // hacia delante y arriba: donde están las publicaciones
+          apuntar(`${lado}Arm`, dir, w * 0.95);
+          apuntar(`${lado}ForeArm`, dir, w * 0.9);
+          girar(h[`${lado}Shoulder`], Z, sx * -0.18 * w);          // el hombro sube al estirarse
+          girar(h.Spine2, Y, sx * 0.12 * w);                        // y el tronco gira un poco hacia esa mano
+        }
       }
       // --- De pie (y respiración en las poses de Salud) ---
       const quieto = idle + pose * 0.6;
@@ -129,7 +173,8 @@ export function crearVida(objeto, buscar) {
       }
       // Manos: relajadas de pie, medio cerradas al correr (en las poses de Salud las manos van en la pose)
       const mano = 0.32 * idle + 0.4 * walk + 0.78 * run;
-      if (mano > 0.01) { cerrar('Left', mano); cerrar('Right', mano); }
+      // La mano que se estira va abierta, como queriendo agarrar
+      if (mano > 0.01) { cerrar('Left', mano * (1 - alcanceL) + 0.12 * alcanceL); cerrar('Right', mano * (1 - alcanceR) + 0.12 * alcanceR); }
     },
   };
 }

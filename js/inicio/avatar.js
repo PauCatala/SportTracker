@@ -24,7 +24,7 @@ async function cargarInterior() {
     return {
       objeto: av.objeto, altura: () => ALTO_AVATAR,
       estado: (n, v) => av.estado(n, v), gesto: n => av.gesto(n === 'megusta' ? 'agree' : n),
-      actualizar: dt => av.actualizar(dt), destruir: () => av.destruir(),
+      actualizar: dt => av.actualizar(dt), destruir: () => av.destruir(), perseguir: si => av.perseguir?.(si),
     };
   } catch (e) { console.warn('Avatar realista', e); }
   const av = await crearAvatar(leerPerfil());
@@ -48,12 +48,14 @@ export async function cargarAvatar() {
   const ajustarToque = () => { const h = av.altura() / ALTO_REF; toque.scale.y = h; toque.position.y = h / 2; };
   ajustarToque();
 
-  let estado = 'idle', vel = 1, ultimoGesto = 0;
+  let estado = 'idle', vel = 1, ultimoGesto = 0, enganchado = false;
   return {
     objeto: cuerpo,
     mallas: [toque],
     poner(id) { const n = ESTADOS[id] || id; if (n !== estado) { estado = n; av.estado(n, vel); } },
     velocidad(v) { vel = v; av.estado(estado, v); },
+    // En la rueda: corre detrás de las publicaciones, intentando alcanzarlas
+    perseguir(si) { if (si !== enganchado) { enganchado = si; av.perseguir?.(si); } },
     gesto(id) {
       const ahora = performance.now();
       if (ahora - ultimoGesto < 3000 || estado === 'run') return; // los gestos son de pie
@@ -67,6 +69,7 @@ export async function cargarAvatar() {
       av = nuevo;
       cuerpo.add(av.objeto);
       av.estado(estado, vel);
+      av.perseguir?.(enganchado);
       ajustarToque();
     },
     actualizar: dt => av.actualizar(dt),

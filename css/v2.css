@@ -1511,3 +1511,23 @@ html, body { overflow-anchor: none; }
 .rn-prevs .rn-chip { box-shadow: none; background: var(--perla); }
 
 .rn-foco { margin: 4px 0 0; font-size: 13px; color: var(--tinta-3); line-height: 1.45; }
+
+/* Tu avatar: recorrido único (foto → base → ajustes), todo se guarda solo */
+.ta-foto { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 14px; border-radius: 20px; background: linear-gradient(135deg, #22293A, #3A4560); color: #fff; }
+.ta-foto-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: rgba(255, 255, 255, .12); }
+.ta-foto-ico svg { width: 22px; height: 22px; }
+.ta-foto b { display: block; font-size: 15px; font-weight: 600; }
+.ta-foto small { display: block; font-size: 12.5px; line-height: 1.4; opacity: .75; }
+.ta-foto .btn { grid-column: 1 / -1; margin-top: 8px; min-height: 46px; justify-content: center; background: #fff; color: var(--tinta); }
+.ta-foto .btn:hover { background: #F1F2F4; }
+.ta-base { display: grid; gap: 6px; }
+.ta-base > span { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tinta-3); }
+.ta-base .ta-retrato { width: 56px; height: 56px; }
+.ta-base .ta-opcion { padding: 6px 4px 8px; gap: 4px; }
+.ta-nota { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--tinta-3); }
+.ta-pie { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
+.ta-guardado { flex: 1; font-size: 12.5px; color: #3F8F6B; font-weight: 600; min-height: 1em; }
+.ta-pie .ta-subir-enlace { justify-self: auto; font-size: 12.5px; }
+.ta-pie .ta-usar { min-height: 46px; padding-inline: 28px; }
+@media (max-width: 899px) { .ta-pie { position: sticky; bottom: 0; background: rgba(255,255,255,.94); margin: 0 -16px; padding: 10px 16px 0; } .ta-pie .ta-usar { box-shadow: none; } }
+@media (max-width: 899px) { .ta-pie { z-index: 3; } .ta-panel { padding-bottom: 0; } }

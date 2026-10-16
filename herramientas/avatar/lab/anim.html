@@ -39,6 +39,20 @@ window.angulos = (clip, t, angs, aj) => {
   });
   return true;
 };
+window.secuencia = (clip, paso, ang = 0.6, enganche = false) => {
+  av.estado(clip); av.perseguir?.(enganche);
+  for (let k = 0; k < 120; k++) av.actualizar(1 / 60);   // que se asiente
+  r.setScissorTest(true);
+  const w = W / N;
+  for (let i = 0; i < N; i++) {
+    for (let k = 0; k < Math.round(paso * 60); k++) av.actualizar(1 / 60);
+    av.objeto.updateMatrixWorld(true);
+    const c = new THREE.PerspectiveCamera(24, w / Hh, 0.05, 20);
+    c.position.set(Math.sin(ang) * 6.2, 1.0, Math.cos(ang) * 6.2); c.lookAt(0, 0.92, 0);
+    r.setViewport(i * w, 0, w, Hh); r.setScissor(i * w, 0, w, Hh); r.render(esc, c);
+  }
+  return true;
+};
 window.av = av;
 window.listo = true;
 </script>
