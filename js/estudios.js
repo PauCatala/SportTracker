@@ -1,6 +1,6 @@
-// ESTUDIOS Y TRABAJO: tablero de tareas (Por hacer · En curso · Hecho) y notas.
+// ESTUDIOS Y TRABAJO: tablero de tareas (Por hacer · En curso · Hecho) y concentración (métodos de estudio).
 import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
-import { renderPostits } from './notas.js';
+import { renderFoco } from './foco.js';
 import { icono } from './iconos.js';
 import { fmtCorta, diasEntre } from './utils.js';
 
@@ -45,7 +45,7 @@ export function renderTablero(cont) {
         <button class="btn primario" type="submit">${icono('mas')}Añadir tarea</button>
       </form>
     </section>
-    <section class="panel" id="t-postits"></section>
+    <section class="panel" id="t-foco"></section>
     </div>
 
     <div class="chips">
@@ -77,7 +77,7 @@ export function renderTablero(cont) {
       }).join('')}
     </div>`;
 
-  renderPostits(cont.querySelector('#t-postits'), 'notas-estudios');
+  renderFoco(cont.querySelector('#t-foco'));
 
   const cambiar = (id, fn) => { guardar('tareas', leer('tareas', []).map(t => (t.id === id ? fn(t) : t))); renderTablero(cont); };
 
