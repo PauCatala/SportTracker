@@ -54,7 +54,11 @@ export function renderCalendario(cont) {
           <button class="btn primario chico" data-nuevo>${icono('mas')}<span>Nuevo</span></button>
         </div>
       </div>
-      <div class="cal-filtros" id="cal-filtros"></div>
+      <aside class="cal-lado">
+        <div class="cal-mini" id="cal-mini"></div>
+        <h4 class="cal-lado-tit">Mis calendarios</h4>
+        <div class="cal-filtros" id="cal-filtros"></div>
+      </aside>
       <div class="cal-cuerpo" id="cal-cuerpo"></div>
     </div>`;
   const raiz = cont.querySelector('.cal');
@@ -71,8 +75,30 @@ export function renderCalendario(cont) {
 
 function pintarFiltros(raiz) {
   const o = ocultas();
+  // Cuántas cosas hay de cada tipo en lo que estás viendo
+  const [desde, hasta] = rango();
+  const cuenta = {};
+  for (const e of eventosEntre(desde, hasta)) cuenta[e.cat] = (cuenta[e.cat] || 0) + 1;
   raiz.querySelector('#cal-filtros').innerHTML = Object.entries(CATEGORIAS).map(([id, c]) =>
-    `<button class="cal-filtro ${o.has(id) ? 'apagado' : ''}" data-filtro-cal="${id}" style="--c:${c.color}" aria-pressed="${!o.has(id)}"><i></i>${c.nombre}</button>`).join('');
+    `<button class="cal-filtro ${o.has(id) ? 'apagado' : ''}" data-filtro-cal="${id}" style="--c:${c.color}" aria-pressed="${!o.has(id)}"><i></i><span>${c.nombre}</span><em>${cuenta[id] || ''}</em></button>`).join('');
+}
+
+// Mes pequeño del lateral (ordenador): ves dónde estás y saltas a cualquier día
+function pintarMini(raiz) {
+  const cont = raiz.querySelector('#cal-mini');
+  if (!cont) return;
+  const mesRef = cont.dataset.mes || ref.slice(0, 7);
+  cont.dataset.mes = mesRef;
+  const ini = lunesDe(`${mesRef}-01`), hoy = hoyISO();
+  const [desde, hasta] = rango();
+  const conAlgo = new Set(eventosEntre(ini, sumarDias(ini, 41)).map(e => e.fecha));
+  cont.innerHTML = `
+    <div class="cm2-cab"><b>${capitalizar(fmt(`${mesRef}-01`, { month: 'long', year: 'numeric' }))}</b>
+      <span><button class="btn-icono" data-mini="-1" aria-label="Mes anterior">${icono('izq')}</button><button class="btn-icono" data-mini="1" aria-label="Mes siguiente">${icono('der')}</button></span></div>
+    <div class="cm2-rejilla">${INICIALES.map(d => `<span>${d}</span>`).join('')}${Array.from({ length: 42 }, (_, i) => {
+      const f = sumarDias(ini, i);
+      return `<button class="${f.slice(0, 7) !== mesRef ? 'fuera' : ''} ${f === hoy ? 'hoy' : ''} ${f >= desde && f <= hasta ? 'en-vista' : ''} ${conAlgo.has(f) ? 'con' : ''}" data-ir-dia="${f}">${Number(f.slice(8))}</button>`;
+    }).join('')}</div>`;
 }
 
 // Fechas que cubre la vista actual
@@ -97,6 +123,7 @@ function pintarCuerpo(raiz, { animar = 0 } = {}) {
   const scrollPrevio = cuerpo.querySelector('.cs-scroll')?.scrollTop;
   if (scrollPrevio != null) scrollGuardado = scrollPrevio;
   raiz.querySelector('#cal-titulo').textContent = titulo();
+  const mini = raiz.querySelector('#cal-mini'); if (mini) { mini.dataset.mes = ref.slice(0, 7); pintarMini(raiz); pintarFiltros(raiz); }
   const [desde, hasta] = rango();
   const eventos = visibles(desde, hasta);
   actuales.clear();
@@ -261,6 +288,10 @@ function conectar(raiz) {
       scrollGuardado = null;
       return repintar();
     }
+    const mm = t.closest('[data-mini]');
+    if (mm) { const c = raiz.querySelector('#cal-mini'); const d = fecha(`${c.dataset.mes}-01`); d.setMonth(d.getMonth() + Number(mm.dataset.mini)); c.dataset.mes = d.toLocaleDateString('sv-SE').slice(0, 7); return pintarMini(raiz); }
+    const irDia = t.closest('[data-ir-dia]');
+    if (irDia) { ref = irDia.dataset.irDia; scrollGuardado = null; return repintar(); }
     const fil = t.closest('[data-filtro-cal]');
     if (fil) {
       const o = ocultas();
@@ -390,6 +421,62 @@ function avanzar(n, repintar) {
 const REPITE = { semanal: 'Se repite cada semana', anual: 'Se repite cada año' };
 const FUENTE = { gym: 'Tu plan de gimnasio', run: 'Tu plan de running', flex: 'Tu rutina de flexibilidad', foto: 'Recordatorio de Imagen', tarea: 'Tablero de Estudios y trabajo', lista: 'Tu lista de Personal' };
 
+// Hora, sin ruedas: la hora de inicio se elige en una rejilla (horas + cuartos) y el final, por duración
+const DURACIONES = [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [180, '3 h']];
+export function selectorCuando(inicio = '10:00', fin = null) {
+  const ini = minutos(inicio), dur = Math.max(15, (fin ? minutos(fin) : ini + 60) - ini);
+  const h = Math.floor(ini / 60);
+  return `
+    <div class="hs" data-hs>
+      <input type="hidden" name="inicio" value="${inicio}"><input type="hidden" name="fin" value="${hhmm(Math.min(24 * 60 - 1, ini + dur))}">
+      <div class="hs-fila">
+        <button type="button" class="hs-campo" data-hs-abrir aria-expanded="false"><small>Empieza</small><b class="hs-ini">${inicio}</b></button>
+        <span class="hs-flecha" aria-hidden="true">→</span>
+        <div class="hs-campo fijo"><small>Termina</small><b class="hs-fin"></b></div>
+      </div>
+      <div class="hs-panel" hidden>
+        <div class="hs-horas" role="radiogroup" aria-label="Hora">${Array.from({ length: 24 }, (_, i) => `<button type="button" data-hs-h="${i}" class="${i < 6 ? 'temprano' : ''}">${String(i).padStart(2, '0')}</button>`).join('')}</div>
+        <div class="hs-pie">
+          <button type="button" class="btn-texto hs-madrugada" data-hs-temprano>${h < 6 ? 'Ocultar madrugada' : 'Ver de 00 a 05'}</button>
+          <div class="hs-min" role="radiogroup" aria-label="Minutos">${[0, 15, 30, 45].map(m => `<button type="button" data-hs-m="${m}">:${String(m).padStart(2, '0')}</button>`).join('')}</div>
+        </div>
+      </div>
+      <div class="hs-dur" role="radiogroup" aria-label="Duración"><small>Duración</small>
+        ${DURACIONES.map(([m, n]) => `<button type="button" data-hs-d="${m}">${n}</button>`).join('')}
+        <label class="hs-otra"><input type="number" min="5" max="720" step="5" inputmode="numeric" data-hs-otra placeholder="Otra"> min</label>
+      </div>
+    </div>`;
+}
+function conectarCuando(form) {
+  const hs = form.querySelector('[data-hs]'); if (!hs) return;
+  const ini = form.elements.inicio, fin = form.elements.fin, panel = hs.querySelector('.hs-panel');
+  let dur = Math.max(15, minutos(fin.value) - minutos(ini.value));
+  if (minutos(ini.value) < 6 * 60) panel.classList.add('con-temprano');
+  const pintar = () => {
+    const m = minutos(ini.value);
+    fin.value = hhmm(Math.min(24 * 60 - 1, m + dur));
+    hs.querySelector('.hs-ini').textContent = ini.value;
+    hs.querySelector('.hs-fin').textContent = fin.value;
+    hs.querySelectorAll('[data-hs-h]').forEach(b => b.classList.toggle('activo', Number(b.dataset.hsH) === Math.floor(m / 60)));
+    hs.querySelectorAll('[data-hs-m]').forEach(b => b.classList.toggle('activo', Number(b.dataset.hsM) === m % 60));
+    const fija = DURACIONES.some(([d]) => d === dur);
+    hs.querySelectorAll('[data-hs-d]').forEach(b => b.classList.toggle('activo', Number(b.dataset.hsD) === dur));
+    const otra = hs.querySelector('[data-hs-otra]'); if (!fija && document.activeElement !== otra) otra.value = dur;
+    hs.querySelector('.hs-otra').classList.toggle('activo', !fija);
+  };
+  hs.addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    if (b.dataset.hsAbrir !== undefined) { panel.hidden = !panel.hidden; b.setAttribute('aria-expanded', String(!panel.hidden)); return; }
+    if (b.dataset.hsTemprano !== undefined) { panel.classList.toggle('con-temprano'); b.textContent = panel.classList.contains('con-temprano') ? 'Ocultar madrugada' : 'Ver de 00 a 05'; return; }
+    if (b.dataset.hsH) { ini.value = hhmm(Number(b.dataset.hsH) * 60 + (minutos(ini.value) % 60)); }
+    if (b.dataset.hsM) { ini.value = hhmm(Math.floor(minutos(ini.value) / 60) * 60 + Number(b.dataset.hsM)); panel.hidden = true; }
+    if (b.dataset.hsD) dur = Number(b.dataset.hsD);
+    pintar();
+  });
+  hs.addEventListener('input', ev => { if (ev.target.matches('[data-hs-otra]') && Number(ev.target.value) >= 5) { dur = Number(ev.target.value); pintar(); } });
+  pintar();
+}
+
 // Selector de color: la paleta de SYNCO y, al final, cualquier color que quieras
 export const selectorColor = (actual, { conTipo = true, colorTipo = '' } = {}) => `
   <div class="ev-colores" role="radiogroup" aria-label="Color">
@@ -427,11 +514,8 @@ export function abrirDetalle(e, origen, alCambiar) {
       <form class="ev-form ev-rapido" autocomplete="off" novalidate>
         <input class="ev-titulo" name="titulo" value="${escapar(e.titulo)}" aria-label="Título" required>
         ${selectorColor(e.colorPropio, { colorTipo })}
-        <div class="ev-fila ev-cuando">
-          <label class="campo">Día <input type="date" name="fecha" value="${e.fecha}" required></label>
-          ${e.todoElDia ? '' : `<label class="campo">Empieza <input type="time" name="inicio" value="${e.inicio}" step="300"></label>
-          <label class="campo">Termina <input type="time" name="fin" value="${e.fin || sumarMin(e.inicio, 60)}" step="300"></label>`}
-        </div>
+        <label class="campo">Día <input type="date" name="fecha" value="${e.fecha}" required></label>
+        ${e.todoElDia ? '' : selectorCuando(e.inicio, e.fin || sumarMin(e.inicio, 60))}
         ${repite ? `<p class="ev-repite">${icono('calendario')}<span>${e.deplan ? 'Se repite cada semana en tu plan.' : REPITE[e.repite]}${e.cambiado ? ' Este día lo has cambiado.' : ''}</span></p>` : ''}
         ${e.nota ? `<p class="ev-nota">${escapar(e.nota).replace(/\n/g, '<br>')}</p>` : ''}
         <p class="error" id="ev-error"></p>
@@ -456,12 +540,7 @@ export function abrirDetalle(e, origen, alCambiar) {
     alAbrir: (cuerpo, cerrar) => {
       const form = cuerpo.querySelector('form');
       conectarColor(form);
-      // Al cambiar la hora de inicio, se mantiene la duración
-      let dur = e.inicio && e.fin ? minutos(e.fin) - minutos(e.inicio) : 60;
-      form.addEventListener('change', ev => {
-        if (ev.target.name === 'inicio' && ev.target.value) form.elements.fin.value = sumarMin(ev.target.value, dur);
-        if (ev.target.name === 'fin' && ev.target.value) dur = Math.max(15, minutos(ev.target.value) - minutos(form.elements.inicio.value));
-      });
+      conectarCuando(form);
       form.onsubmit = async ev => {
         ev.preventDefault();
         const f = new FormData(form);
@@ -586,10 +665,9 @@ export function abrirFormulario(inicial, origen, alGuardar) {
           <label class="campo">Día <input type="date" name="fecha" value="${d.fecha}" required></label>
           <label class="interruptor"><input type="checkbox" name="todoElDia" ${d.todoElDia ? 'checked' : ''}><span class="pista"></span>Todo el día</label>
         </div>
-        <div class="ev-fila ev-horas">
-          <label class="campo">Empieza <input type="time" name="inicio" value="${d.inicio}" step="300"></label>
-          <label class="campo">Termina <input type="time" name="fin" value="${d.fin}" step="300"></label>
-        </div>
+        <div class="ev-horas">${selectorCuando(d.inicio, d.fin)}</div>
+        <details class="ev-mas" ${d.repetir !== 'no' || d.lugar || d.nota ? 'open' : ''}>
+          <summary>Repetir, lugar y notas</summary>
         <label class="campo">Repetir
           <select name="repetir">
             <option value="no" ${d.repetir === 'no' ? 'selected' : ''}>No se repite</option>
@@ -603,6 +681,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
         </div>
         <label class="campo"><span class="ev-lugar-txt">Lugar</span><input name="lugar" value="${escapar(d.lugar || '')}" placeholder="Aula, dirección o enlace"></label>
         <label class="campo">Notas <textarea name="nota" rows="2">${escapar(d.nota || '')}</textarea></label>
+        </details>
         <p class="ev-destino"></p>
         <p class="error" id="ev-error"></p>
         <div class="ev-acciones fin">
@@ -613,6 +692,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
     alAbrir: (cuerpo, cerrar) => {
       const form = cuerpo.querySelector('form');
       conectarColor(form);
+      conectarCuando(form);
       const campo = n => form.elements[n];
       let repetirTocado = !!previo;
       let diasTocados = !!previo && d.repetir === 'semanal';
@@ -627,6 +707,8 @@ export function abrirFormulario(inicial, origen, alGuardar) {
         const rep = campo('repetir').value;
         form.classList.toggle('sin-horas', campo('todoElDia').checked);
         form.classList.toggle('con-semanal', rep === 'semanal');
+        const resumenMas = cuerpo.querySelector('.ev-mas summary');
+        if (resumenMas) resumenMas.textContent = rep === 'semanal' ? 'Se repite cada semana · lugar y notas' : rep === 'anual' ? 'Se repite cada año · lugar y notas' : 'Repetir, lugar y notas';
         cuerpo.querySelector('.ev-lugar-txt').textContent = ['estudio', 'trabajo'].includes(cat) && rep === 'no' ? 'Asignatura o proyecto' : 'Lugar';
         const destino = rep === 'no' && ['estudio', 'trabajo'].includes(cat) ? 'tarea' : rep === 'no' && cat === 'hogar' ? 'lista' : 'evento';
         cuerpo.querySelector('.ev-destino').textContent = DESTINO[destino];
