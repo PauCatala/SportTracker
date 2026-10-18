@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { cargador } from '../marca-anim.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes, ALTURA, COLORES_ROPA, GORROS, PEINADOS } from './avaturn.js';
+import { AVATARES, eleccionAvatar, modeloPropio, elegirAvatar, cargarAvatarRealista, TONOS_PIEL, COLORES_PELO, ajustesAvatar, guardarAjustes, aplicarAjustes, ALTURA, COLORES_ROPA, GORROS, PEINADOS, ATUENDOS, CALZADOS } from './avaturn.js';
 import { abrirEscaner } from './escaner.js';
 import { leer } from '../almacen.js';
 
@@ -24,7 +24,7 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
   const inicial = eleccionAvatar().eleccion;
   const ajustesIniciales = ajustesAvatar();
   let elegido = vieneAEscanear ? 'propio' : inicial, propioNuevo = null, modo = 'idle', hayGuardado = false, ajustes = { ...ajustesIniciales };
-  const CLAVES = ['piel', 'pelo', 'peinado', 'altura', 'peso', 'musculo', 'complexion', 'camiseta', 'pantalon', 'zapatos', 'gorro', 'gorroColor'];
+  const CLAVES = ['piel', 'pelo', 'peinado', 'altura', 'peso', 'musculo', 'complexion', 'atuendo', 'calzado', 'camiseta', 'pantalon', 'zapatos', 'gorro', 'gorroColor'];
   const cambiaronAjustes = () => CLAVES.some(k => String(ajustes[k] ?? '') !== String(ajustesIniciales[k] ?? ''));
   const alturaPerfil = Number(leer('perfil', null)?.altura) || ALTURA.base;
   const alturaDe = a => THREE.MathUtils.clamp(Number(a.altura) || alturaPerfil, ALTURA.min, ALTURA.max);
@@ -89,12 +89,14 @@ export function abrirPersonalizacion({ escanear: vieneAEscanear = false } = {}) 
         ${fila('Color', muestras('pelo', COLORES_PELO, 'Color de pelo'))}
       </div>
       <div class="ta-hoja" data-hoja="ropa" hidden>
-        ${fila('Camiseta', muestras('camiseta', COLORES_ROPA, 'Color de la camiseta'))}
-        ${fila('Pantalón', muestras('pantalon', COLORES_ROPA, 'Color del pantalón'))}
-        ${fila('Calzado', muestras('zapatos', COLORES_ROPA, 'Color del calzado'))}
+        ${fila('Conjunto', chips('atuendo', ATUENDOS, 'Tipo de ropa'))}
+        ${fila('Arriba', muestras('camiseta', COLORES_ROPA, 'Color de la prenda de arriba'))}
+        ${fila('Abajo', muestras('pantalon', COLORES_ROPA, 'Color de la prenda de abajo'))}
+        ${fila('Calzado', chips('calzado', CALZADOS, 'Tipo de calzado'))}
+        ${fila('', muestras('zapatos', COLORES_ROPA, 'Color del calzado'))}
         ${fila('Gorro', chips('gorro', GORROS, 'Gorro'))}
         <div class="ta-fila ta-gorro-color" hidden><span></span>${muestras('gorroColor', COLORES_ROPA.slice(1), 'Color del gorro')}</div>
-        <p class="ta-nota">¿Otro tipo de prenda (sudadera, vestido, chaqueta…)? Usa «Hacerme la foto»: en ese paso eliges entre todo el vestuario.</p>
+        <p class="ta-nota">¿Más prendas (sudadera, vestido, chaqueta…)? Con «Hacerme la foto» eliges entre todo el vestuario de Avaturn.</p>
       </div>
       <footer class="ta-pie">
         <span class="ta-guardado" aria-live="polite"></span>

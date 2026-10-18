@@ -348,7 +348,7 @@ export async function crearRueda(cont, { lienzos, areas, alDestacar, alElegir, a
         const superficie = rapidez * R;
         const marcha = rapidez < 0.06 ? 'quieto' : superficie < 1.3 ? 'andar' : 'correr';
         avatar.poner(marcha, 0.35);
-        avatar.perseguir?.(marcha === 'correr');
+        avatar.perseguir?.(false);   // carrera normal (sin estirar la mano)
         avatar.velocidad(marcha === 'correr' ? THREE.MathUtils.clamp(superficie / VEL_PIE, 0.5, 1.4)
           : marcha === 'andar' ? THREE.MathUtils.clamp(superficie / VEL_PIE_ANDAR, 0.5, 1.3) : 1);
         const mira = vel < -0.12 ? Math.PI / 2 : -Math.PI / 2;

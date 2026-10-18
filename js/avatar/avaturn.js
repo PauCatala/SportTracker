@@ -10,7 +10,7 @@ import { animacionesPara } from './retarget.js';
 import { posesSalud } from './poses.js';
 import { prepararAspecto } from './aspecto.js';
 import { crearVida } from './vida.js';
-export { ALTURA, COLORES_ROPA, GORROS, PEINADOS } from './aspecto.js';
+export { ALTURA, COLORES_ROPA, GORROS, PEINADOS, ATUENDOS, CALZADOS } from './aspecto.js';
 
 const CLAVE = 'avatar-avaturn';        // tu elección (lumen_datos)
 const CUBO = 'avatares';               // carpeta privada de Supabase Storage
@@ -98,7 +98,7 @@ export function aplicarAjustes(av, ajustes = {}) {
       if (/body/i.test(m.name)) {
         // La piel se tiñe multiplicando la textura (conserva poros, labios y sombras)
         m.userData.colorBase ||= m.color.clone();
-        m.color.copy(piel ? new THREE.Color(piel).multiplyScalar(1.12) : m.userData.colorBase);
+        m.color.copy(piel ? new THREE.Color(piel).multiplyScalar(1.12).multiply(m.userData.colorBase) : m.userData.colorBase);
       }
       if (/hair/i.test(m.name)) colorearPelo(m, pelo);
     }
@@ -187,10 +187,9 @@ export async function cargarAvatarRealista(fuente, { sombras = true, ajustes = a
   // Altura, complexión, ropa y gorro editables (se mide todo en la postura de reposo)
   let aspecto = null;
   try {
-    aspecto = prepararAspecto({ modelo, objeto, giro, fuentesPelo: {
-      corto: new URL('../../media/avatar/avaturn/hombre.glb', import.meta.url).href,
-      coleta: new URL('../../media/avatar/avaturn/mujer.glb', import.meta.url).href,
-    } });
+    const H = new URL('../../media/avatar/avaturn/hombre.glb', import.meta.url).href;
+    const M = new URL('../../media/avatar/avaturn/mujer.glb', import.meta.url).href;
+    aspecto = prepararAspecto({ modelo, objeto, giro, fuentesPelo: { corto: H, coleta: M }, fuentesRopa: { hombre: H, mujer: M } });
   } catch (e) { console.warn('Aspecto editable', e); }
 
   // Materiales: que reciban bien la luz del estudio, sin brillos de plástico

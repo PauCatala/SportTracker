@@ -14,6 +14,11 @@ export const COLORES_ROPA = [['', 'Original'], ['#F2F1EC', 'Blanco'], ['#24272E'
 export const GORROS = [['', 'Sin gorro'], ['lana', 'Gorro'], ['gorra', 'Gorra']];
 // Peinados: el suyo, o el de los avatares de SYNCO pasado a tu cabeza
 export const PEINADOS = [['', 'El suyo'], ['corto', 'Corto'], ['coleta', 'Coleta'], ['rapado', 'Rapado']];
+// Tipo de ropa: la suya, o el conjunto de uno de los avatares de SYNCO ajustado a tu cuerpo
+export const ATUENDOS = [['', 'El suyo'], ['hombre', 'Camiseta y vaqueros'], ['mujer', 'Top y mallas']];
+export const CALZADOS = [['', 'El suyo'], ['hombre', 'Zapatillas blancas'], ['mujer', 'Zapatillas de lona']];
+// Piel que va con cada conjunto (lo que deja al aire): tronco, hombros, brazos y piernas
+const PIEL_DE_ROPA = /^(Hips|Spine\d?|(Left|Right)(Shoulder|Arm|ForeArm|UpLeg|Leg))$/;
 
 // Cuerpo: cada vértice se separa de la línea de su hueso. Por zona, cuánto (fracción del grosor) con:
 //  g = peso al máximo (con sobrepeso), d = peso al mínimo (delgado), m = musculatura al máximo
@@ -31,7 +36,7 @@ const v = new THREE.Vector3(), w = new THREE.Vector3();
 const lineal = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 
 // Se llama una vez al cargar el modelo, en su postura de reposo
-export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {} }) {
+export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {}, fuentesRopa = {} }) {
   objeto.updateMatrixWorld(true);
   const mallas = []; modelo.traverse(o => { if (o.isSkinnedMesh) mallas.push(o); });
   const cuerpos = mallas.map(prepararComplexion).filter(Boolean);
@@ -42,6 +47,12 @@ export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {} }) {
 
   const propios = mallas.filter(m => /hair/i.test(m.name + m.material.name));
   let peinado = '', pedido = '', postizo = [];
+  // Ropa de otro avatar: se oculta la propia y la piel de debajo, y se pone la suya con su piel
+  const ropaPropia = mallas.filter(m => /look|outfit|cloth/i.test(m.name + m.material.name));
+  const zapatosPropios = mallas.filter(m => /shoe/i.test(m.name + m.material.name));
+  const pielPropia = mallas.filter(m => /body/i.test(m.name + m.material.name)).map(m => ocultable(m, PIEL_DE_ROPA)).filter(Boolean);
+  const ropaExtra = { atuendo: { tipo: '', pedido: '', mallas: [], cuerpos: [], tintes: [] }, calzado: { tipo: '', pedido: '', mallas: [], cuerpos: [], tintes: [] } };
+  let ultimo = { a: {}, peso: 0, musc: 0 };
   const api = {
     alCambiar: null,      // se llama cuando termina de cargar un peinado (para volver a aplicar el color, etc.)
     aplicar(a = {}, alturaPerfil = 0) {
@@ -58,8 +69,18 @@ export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {} }) {
       const viejo = Number(a.complexion) || 0;
       const peso = THREE.MathUtils.clamp(a.peso !== undefined && a.peso !== '' ? Number(a.peso) : Math.min(0, viejo), -1, 1);
       const musc = THREE.MathUtils.clamp(a.musculo !== undefined && a.musculo !== '' ? Number(a.musculo) : Math.max(0, viejo), 0, 1);
+      ultimo = { a, peso, musc };
       for (const k of cuerpos) k.poner(peso, musc);
       for (const r of ropa) r.poner(a);
+      for (const parte of ['atuendo', 'calzado']) {
+        const quiereR = a[parte] || '', e = ropaExtra[parte];
+        if (quiereR !== e.pedido) {
+          e.pedido = quiereR;
+          ponerRopa(parte, quiereR).then(() => api.alCambiar?.()).catch(err => console.warn('Ropa', err));
+        }
+        for (const k of e.cuerpos) k.poner(peso, musc);
+        for (const r of e.tintes) r.poner(a);
+      }
       // Gorro: se rehace solo si cambia el tipo o el color
       const clave = a.gorro ? `${a.gorro}|${a.gorroColor || ''}` : '';
       // Con gorro, el pelo que quedaría por encima del borde no se pinta (si no, lo atravesaría)
@@ -90,6 +111,41 @@ export function prepararAspecto({ modelo, objeto, giro, fuentesPelo = {} }) {
     modelo.traverse(o => { if (o.isMesh && /hair/i.test(o.name + o.material.name) && !postizo.includes(o)) o.visible = !tipo; });
     peinado = tipo;
   }
+
+  // Cambia el conjunto (camiseta y pantalón, con la piel que dejan al aire) o el calzado
+  async function ponerRopa(parte, tipo) {
+    const e = ropaExtra[parte];
+    if (tipo === e.tipo) return;
+    const fuente = fuentesRopa[tipo];
+    let nuevas = [];
+    if (fuente) {
+      const filtro = parte === 'atuendo' ? /look|outfit|cloth/i : /shoe/i;
+      nuevas = await transferir(fuente, filtro, mallas[0], null);
+      if (parte === 'atuendo') nuevas.push(...await transferir(fuente, /body/i, mallas[0], null, PIEL_DE_ROPA));
+    }
+    if (e.pedido !== tipo) { nuevas.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); return; }
+    for (const m of e.mallas) { m.removeFromParent(); m.geometry.dispose(); m.material.dispose(); }
+    const padre = mallas[0].parent;
+    for (const m of nuevas) padre.add(m);
+    e.mallas = nuevas;
+    e.cuerpos = nuevas.map(prepararComplexion).filter(Boolean);
+    e.tintes = nuevas.filter(m => !/body/i.test(m.name + m.material.name)).map(prepararRopa).filter(Boolean);
+    // La piel que trae el conjunto, al tono de la tuya (cuello, antebrazos y manos de los dos)
+    const miPiel = mallas.find(m => /body/i.test(m.name + m.material.name));
+    const base = miPiel && colorPiel(miPiel);
+    for (const m of nuevas.filter(m => /body/i.test(m.name + m.material.name))) {
+      const suyo = colorPiel(m);
+      if (!base || !suyo) continue;
+      const k = new THREE.Color(base.r / suyo.r, base.g / suyo.g, base.b / suyo.b);
+      m.material.userData.colorBase = k; m.material.color.copy(k);
+    }
+    const otra = !!fuente;
+    for (const m of parte === 'atuendo' ? ropaPropia : zapatosPropios) m.visible = !otra;
+    if (parte === 'atuendo') for (const p of pielPropia) p.ocultar(otra);
+    e.tipo = tipo;
+    for (const k of e.cuerpos) k.poner(ultimo.peso, ultimo.musc);
+    for (const r of e.tintes) r.poner(ultimo.a);
+  }
   return api;
 }
 
@@ -110,9 +166,12 @@ function cargarFuente(url) {
 }
 // Pasa cada vértice del pelo al espacio de su hueso en el avatar de origen y lo vuelve a colocar
 // respecto al mismo hueso del avatar de destino (la cabeza, además, se ajusta a su tamaño)
-async function peloDe(url, destino, medidasDestino) {
+const peloDe = (url, destino, medidas) => transferir(url, /hair/i, destino, medidas);
+// Mallas de otro avatar (por nombre), ajustadas al esqueleto de destino. soloHuesos: quedarse solo
+// con los triángulos cuyo hueso principal coincida (p. ej. la piel del tronco y las piernas)
+async function transferir(url, filtro, destino, medidasDestino, soloHuesos = null) {
   const src = await cargarFuente(url);
-  const pelos = src.mallas.filter(m => /hair/i.test(m.name + m.material.name));
+  const pelos = src.mallas.filter(m => filtro.test(m.name + m.material.name));
   const huesosD = destino.skeleton.bones, nombre = b => b.name.replace(/^mixamorig:?/, '');
   const porNombreD = new Map(huesosD.map((b, i) => [nombre(b), i]));
   const cabezaD = porNombreD.get('Head');
@@ -155,6 +214,7 @@ async function peloDe(url, destino, medidasDestino) {
     geo.setAttribute('position', new THREE.BufferAttribute(nuevaP, 3));
     if (nor) geo.setAttribute('normal', new THREE.BufferAttribute(nuevaN, 3));
     geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(nuevoI, 4));
+    if (soloHuesos) recortarTriangulos(geo, destino.skeleton.bones, soloHuesos);
     const mat = pelo.material.clone();
     if ('envMapIntensity' in mat) mat.envMapIntensity = 0.85;
     const crear = material => {
@@ -173,6 +233,41 @@ async function peloDe(url, destino, medidasDestino) {
   }
   return resultado;
 }
+// Hueso con más peso de cada vértice (sin el prefijo de Mixamo)
+function huesoPrincipal(geo, huesos, i) {
+  const idx = geo.attributes.skinIndex, pes = geo.attributes.skinWeight;
+  let mejor = 0, peso = -1;
+  for (let j = 0; j < 4; j++) { const p = pes.getComponent(i, j); if (p > peso) { peso = p; mejor = idx.getComponent(i, j); } }
+  return huesos[mejor]?.name.replace(/^mixamorig:?/, '') || '';
+}
+// Deja solo los triángulos cuyos tres vértices pertenecen a los huesos pedidos
+function recortarTriangulos(geo, huesos, patron) {
+  const n = geo.attributes.position.count, dentro = new Uint8Array(n);
+  for (let i = 0; i < n; i++) dentro[i] = patron.test(huesoPrincipal(geo, huesos, i)) ? 1 : 0;
+  const ind = geo.index ? geo.index.array : Array.from({ length: n }, (_, i) => i);
+  const quedan = [];
+  for (let t = 0; t < ind.length; t += 3) if (dentro[ind[t]] && dentro[ind[t + 1]] && dentro[ind[t + 2]]) quedan.push(ind[t], ind[t + 1], ind[t + 2]);
+  geo.setIndex(quedan);
+}
+// La piel propia de esas zonas se puede esconder (cuando se lleva la ropa de otro, que trae la suya)
+function ocultable(malla, patron) {
+  const geo = malla.geometry, huesos = malla.skeleton?.bones;
+  if (!huesos || !geo.attributes.skinIndex) return null;
+  const n = geo.attributes.position.count, zona = new Float32Array(n);
+  for (let i = 0; i < n; i++) zona[i] = patron.test(huesoPrincipal(geo, huesos, i)) ? 1 : 0;
+  geo.setAttribute('pielRopa', new THREE.BufferAttribute(zona, 1));
+  const u = { value: 0 }, m = malla.material, previo = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    previo?.call(m, sh, r);
+    sh.uniforms.uSinPiel = u;
+    sh.vertexShader = 'attribute float pielRopa;\nvarying float vPielRopa;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vPielRopa = pielRopa;');
+    sh.fragmentShader = 'uniform float uSinPiel;\nvarying float vPielRopa;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n  if (uSinPiel > 0.5 && vPielRopa > 0.5) discard;');
+  };
+  m.customProgramCacheKey = () => 'piel-ropa';
+  m.needsUpdate = true;
+  return { ocultar(si) { u.value = si ? 1 : 0; } };
+}
+
 // ---------- Cuerpo: peso y musculatura ----------
 function prepararComplexion(malla) {
   const geo = malla.geometry, pos = geo.attributes.position;
@@ -323,6 +418,28 @@ function clasificarPrendas(malla, zona) {
 }
 
 // Luminancia media de cada prenda en su textura, para que el color elegido salga con su tono real
+// Color medio de la piel que siempre se ve (cuello, antebrazos y manos), en lineal
+function colorPiel(malla) {
+  const img = malla.material.map?.image, uv = malla.geometry.attributes.uv, huesos = malla.skeleton?.bones;
+  if (!img || !uv || !huesos) return null;
+  try {
+    const T = 128, c = document.createElement('canvas'); c.width = c.height = T;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, T, T);
+    const px = ctx.getImageData(0, 0, T, T).data, flip = malla.material.map.flipY;
+    const s = [0, 0, 0]; let k = 0;
+    for (let i = 0; i < uv.count; i += 3) {
+      if (!/Neck|ForeArm|Hand$/.test(huesoPrincipal(malla.geometry, huesos, i))) continue;
+      let x = uv.getX(i), y = uv.getY(i);
+      x = ((x % 1) + 1) % 1; y = ((y % 1) + 1) % 1; if (flip) y = 1 - y;
+      const o = (Math.min(T - 1, Math.floor(y * T)) * T + Math.min(T - 1, Math.floor(x * T))) * 4;
+      for (let j = 0; j < 3; j++) s[j] += lineal(px[o + j] / 255);
+      k++;
+    }
+    return k > 20 ? { r: s[0] / k, g: s[1] / k, b: s[2] / k } : null;
+  } catch { return null; }
+}
+
 function luminanciaMedia(malla, zona) {
   const medias = [0.5, 0.5, 0.5];
   const img = malla.material.map?.image, uv = malla.geometry.attributes.uv;
