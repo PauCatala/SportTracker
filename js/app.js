@@ -29,6 +29,7 @@ import { renderInicio, cerrarInicio } from './inicio.js';
 import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
 import { cargador, quitarArranque } from './marca-anim.js';
+import { montarCaptura } from './captura/nota.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -677,7 +678,10 @@ async function entrar() {
   actualizarExportacion();
   pintarRed();
   pintar();
+  montarCaptura();   // nota rápida: botón flotante y enlaces #nota
 }
+// Lo apuntado desde una nota rápida se ve al momento en la pantalla abierta
+addEventListener('synco:datos', () => { if (sesionIniciada) pintar(); });
 
 $('form-login').onsubmit = async ev => {
   ev.preventDefault();

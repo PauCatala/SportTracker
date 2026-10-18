@@ -15,7 +15,7 @@ export const GORROS = [['', 'Sin gorro'], ['lana', 'Gorro'], ['gorra', 'Gorra']]
 // Peinados: el suyo, o el de los avatares de SYNCO pasado a tu cabeza
 export const PEINADOS = [['', 'El suyo'], ['corto', 'Corto'], ['coleta', 'Coleta'], ['rapado', 'Rapado']];
 // Tipo de ropa: la suya, o el conjunto de uno de los avatares de SYNCO ajustado a tu cuerpo
-export const ATUENDOS = [['', 'El suyo'], ['hombre', 'Camiseta y vaqueros'], ['mujer', 'Top y mallas']];
+export const ATUENDOS = [['', 'El suyo'], ['hombre', 'Camisa y vaqueros'], ['mujer', 'Top y mallas']];
 export const CALZADOS = [['', 'El suyo'], ['hombre', 'Zapatillas blancas'], ['mujer', 'Zapatillas de lona']];
 // Piel que va con cada conjunto (lo que deja al aire): tronco, hombros, brazos y piernas
 const PIEL_DE_ROPA = /^(Hips|Spine\d?|(Left|Right)(Shoulder|Arm|ForeArm|UpLeg|Leg))$/;

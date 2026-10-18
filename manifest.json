@@ -20,5 +20,19 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nota rápida",
+      "short_name": "Nota",
+      "description": "Escribe o dicta y SYNCO lo apunta donde toca",
+      "url": "./#nota",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
