@@ -34,14 +34,15 @@ function tarjetaTarea(t, proyectos) {
   const pr = prioridadDe(t);
   return `
     <article class="pr-tarjeta ${t.estado} ${pr} ${abiertaId === t.id ? 'abierta' : ''}" draggable="${abiertaId === t.id ? 'false' : 'true'}" data-id="${t.id}" tabindex="0">
-      <p>${escapar(t.titulo)}</p>
+      ${abiertaId === t.id
+        ? `<input class="pr-titulo-edit" data-titulo value="${escapar(t.titulo)}" aria-label="Título de la tarea">`
+        : `<p>${escapar(t.titulo)}</p>`}
       <div class="tarea-meta">
         <span class="etiqueta-tipo">${TIPOS[t.tipo] || 'Tarea'}</span>
         ${etiquetaFecha(t.fecha, t.estado)}
       </div>
       <div class="pr-opciones">
         <div class="pr-campos-tarea">
-          <label class="pr-campo-t">Nombre <input data-titulo value="${escapar(t.titulo)}" aria-label="Nombre de la tarea"></label>
           <label class="pr-campo-t">Fecha <input type="date" data-fecha value="${t.fecha || ''}" aria-label="Fecha de entrega o realización"></label>
         </div>
         <div class="pr-grupo" aria-label="Estado">${COLUMNAS.map(([id, n]) => `<button type="button" class="${t.estado === id ? 'activo' : ''}" data-estado="${id}">${n}</button>`).join('')}</div>
@@ -213,50 +214,14 @@ export function renderTablero(cont) {
       if (confirm('¿Borrar esta tarea?')) { guardar('tareas', leer('tareas', []).filter(t => t.id !== id)); renderTablero(cont); }
       return;
     }
-    const abierta = tarjeta.classList.contains('abierta');
-    cont.querySelectorAll('.pr-tarjeta.abierta').forEach(x => { x.classList.remove('abierta'); x.draggable = true; });
-    tarjeta.classList.toggle('abierta', !abierta);
-    tarjeta.draggable = abierta;
-    abiertaId = abierta ? null : id;
+    // Abrir o cerrar la tarjeta; al abrirla, el título pasa a ser editable directamente
+    abiertaId = tarjeta.classList.contains('abierta') ? null : id;
+    renderTablero(cont);
   };
   cont.onkeydown = ev => {
     if (ev.key === 'Enter' && ev.target.matches('.pr-tarjeta')) ev.target.click();
     if (ev.key === 'Enter' && ev.target.matches('[data-titulo]')) ev.target.blur();   // Enter guarda el nombre
   };
-  // Doble clic en el nombre de una tarea: editarlo
-  cont.ondblclick = ev => {
-    const t = ev.target.closest('.pr-tarjeta');
-    if (t && ev.target.closest('p')) renombrar(t);
-  };
-
-  // Cambia el nombre de una tarea ahí mismo: Enter o salir del campo guarda, Escape cancela
-  function renombrar(tarjeta) {
-    const p = tarjeta.querySelector('p');
-    if (!p) return;
-    const id = tarjeta.dataset.id;
-    const actual = leer('tareas', []).find(t => t.id === id)?.titulo || '';
-    const inp = document.createElement('input');
-    inp.className = 'pr-editar';
-    inp.value = actual;
-    inp.setAttribute('aria-label', 'Nombre de la tarea');
-    p.replaceWith(inp);
-    tarjeta.draggable = false;
-    inp.focus(); inp.select();
-    let hecho = false;
-    const terminar = guardarlo => {
-      if (hecho) return; hecho = true;
-      const nuevo = inp.value.trim();
-      if (guardarlo && nuevo && nuevo !== actual) cambiar(id, t => ({ ...t, titulo: nuevo }));
-      else renderTablero(cont);
-    };
-    inp.onkeydown = ev => {
-      ev.stopPropagation();
-      if (ev.key === 'Enter') { ev.preventDefault(); terminar(true); }
-      if (ev.key === 'Escape') terminar(false);
-    };
-    inp.onblur = () => terminar(true);
-  }
-
   function anadirEn(celda) {
     if (celda.querySelector('.pr-nueva')) return celda.querySelector('.pr-nueva input').focus();
     const f = document.createElement('form');
