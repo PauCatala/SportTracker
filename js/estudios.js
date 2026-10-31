@@ -18,7 +18,7 @@ let colMovil = 'todo';   // en el móvil se ve una columna cada vez
 const SIN_PROYECTO = '';
 const ORDEN_PR = { alta: 0, media: 1, baja: 2 };
 // Color de cada proyecto (solo pinta el borde de sus cuadros). Si no se ha elegido, uno de esta paleta
-const PALETA = ['#7C3AED', '#0EA5E9', '#F97316', '#14B8A6', '#DB2777', '#65A30D', '#475569', '#B45309'];
+const PALETA = ['#B9A7E8', '#9CCBEA', '#F4C29B', '#A3D9C9', '#EBB1C8', '#C3DDA0', '#B7C0CC', '#E8D49A'];   // pasteles
 const colorDe = (p, i) => (p ? leer('colorProyectos', {})[p] || PALETA[i % PALETA.length] : '#C9CED6');
 
 // Proyectos (filas del tablero): los guardados + los que aparezcan en alguna tarea
@@ -45,6 +45,7 @@ function tarjetaTarea(t, proyectos) {
           <option value="">Sin proyecto</option>
           ${proyectos.map(p => `<option value="${escapar(p)}" ${(t.area || '') === p ? 'selected' : ''}>${escapar(p)}</option>`).join('')}
         </select>
+        <button type="button" class="pr-renombrar" data-renombrar>Renombrar</button>
         <button type="button" class="btn-icono" data-borrar aria-label="Borrar">${icono('papelera')}</button>
       </div>
     </article>`;
@@ -198,6 +199,8 @@ export function renderTablero(cont) {
     const e = ev.target.closest('[data-estado]'), p = ev.target.closest('[data-prio]');
     if (e) return cambiar(id, t => ({ ...t, estado: e.dataset.estado }));
     if (p) return cambiar(id, t => ({ ...t, prioridad: p.dataset.prio }));
+    if (ev.target.closest('[data-renombrar]')) return renombrar(tarjeta);
+    if (ev.target.closest('.pr-editar')) return;
     if (ev.target.closest('[data-borrar]')) {
       if (confirm('¿Borrar esta tarea?')) { guardar('tareas', leer('tareas', []).filter(t => t.id !== id)); renderTablero(cont); }
       return;
@@ -209,6 +212,39 @@ export function renderTablero(cont) {
   cont.onkeydown = ev => {
     if (ev.key === 'Enter' && ev.target.matches('.pr-tarjeta')) ev.target.click();
   };
+  // Doble clic en el nombre de una tarea: editarlo
+  cont.ondblclick = ev => {
+    const t = ev.target.closest('.pr-tarjeta');
+    if (t && ev.target.closest('p')) renombrar(t);
+  };
+
+  // Cambia el nombre de una tarea ahí mismo: Enter o salir del campo guarda, Escape cancela
+  function renombrar(tarjeta) {
+    const p = tarjeta.querySelector('p');
+    if (!p) return;
+    const id = tarjeta.dataset.id;
+    const actual = leer('tareas', []).find(t => t.id === id)?.titulo || '';
+    const inp = document.createElement('input');
+    inp.className = 'pr-editar';
+    inp.value = actual;
+    inp.setAttribute('aria-label', 'Nombre de la tarea');
+    p.replaceWith(inp);
+    tarjeta.draggable = false;
+    inp.focus(); inp.select();
+    let hecho = false;
+    const terminar = guardarlo => {
+      if (hecho) return; hecho = true;
+      const nuevo = inp.value.trim();
+      if (guardarlo && nuevo && nuevo !== actual) cambiar(id, t => ({ ...t, titulo: nuevo }));
+      else renderTablero(cont);
+    };
+    inp.onkeydown = ev => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); terminar(true); }
+      if (ev.key === 'Escape') terminar(false);
+    };
+    inp.onblur = () => terminar(true);
+  }
 
   function anadirEn(celda) {
     if (celda.querySelector('.pr-nueva')) return celda.querySelector('.pr-nueva input').focus();

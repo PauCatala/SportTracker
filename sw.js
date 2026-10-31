@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v34';
+const CACHE = 'lumen-v35';
 // Recursos del avatar (modelos, texturas, animaciones): no cambian dentro de una versión
 const CACHE_AVATAR = 'lumen-avatar-3';
 const ARCHIVOS = [
@@ -55,7 +55,7 @@ self.addEventListener('fetch', ev => {
   if (url.origin === location.origin) {
     // Archivos de la app: primero internet (para ver siempre la última versión), si falla, la copia
     ev.respondWith(
-      fetch(req).then(res => guardarCopia(req, res))
+      fetch(req, { cache: 'no-cache' }).then(res => guardarCopia(req, res))   // no-cache: pregunta siempre si hay versión nueva
         .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))
     );
   } else {
