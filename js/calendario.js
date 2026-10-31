@@ -13,7 +13,7 @@ import { leerICS, crearICS } from './ical.js';
 import { fotosDe, domingoDe } from './fotos.js';
 import {
   CATEGORIAS, COLORES_CAL, PALETA, eventosEntre, ajustesCal, guardarDesdeFormulario, datosDe, alternarHecho,
-  borrar, mover, minutos, sumarMin, marcarSemanasConFoto, cambiarActividad, seRepite, quitarDelPlan, restaurarPlan,
+  borrar, mover, minutos, sumarMin, marcarSemanasConFoto, cambiarActividad, seRepite, quitarDelPlan, restaurarPlan, guardarAjustesCal,
 } from './agenda.js';
 
 const H = 48;                                   // alto de una hora en las vistas Día y Semana (px)
@@ -532,7 +532,7 @@ export function abrirDetalle(e, origen, alCambiar) {
           <a class="btn suave chico" href="${enlaceGoogle(e)}" target="_blank" rel="noopener">Google Calendar</a>
         </div>
         <div class="ev-borrar">${e.deplan
-          ? `${e.cambiado ? `<button type="button" class="btn-texto" data-a="restaurar">Dejarlo como en el plan</button>` : ''}<button type="button" class="btn-texto peligro" data-a="quitar">Quitar solo este día</button>`
+          ? `${e.cambiado ? `<button type="button" class="btn-texto" data-a="restaurar">Dejarlo como en el plan</button>` : ''}<button type="button" class="btn-texto peligro" data-a="quitar">Quitar solo este día</button>${e.fuente === 'flex' ? `<button type="button" class="btn-texto peligro" data-a="quitar-todo">Quitar del calendario (todos los días)</button>` : ''}`
           : e.repite
             ? `<button type="button" class="btn-texto peligro" data-a="borrar-dia">Borrar solo este día</button><button type="button" class="btn-texto peligro" data-a="borrar">Borrar toda la serie</button>`
             : `<button type="button" class="btn-texto peligro" data-a="borrar">Borrar</button>`}</div>
@@ -563,6 +563,12 @@ export function abrirDetalle(e, origen, alCambiar) {
         if (a === 'editar') { await cerrar(); return abrirFormulario({ ...datosDe(e), previo: e }, null, alCambiar); }
         if (a === 'ir') { await cerrar(); return dispatchEvent(new CustomEvent('ir-a', { detail: e.ir })); }
         if (a === 'quitar') { quitarDelPlan(e); await cerrar(); aviso('Quitado solo este día'); return alCambiar?.(); }
+        // Flexibilidad: deja de aparecer en el calendario (se vuelve a activar en Ajustes del calendario)
+        if (a === 'quitar-todo') {
+          if (!confirm('¿Quitar la flexibilidad del calendario todos los días?')) return;
+          guardarAjustesCal({ flexActiva: false }); actualizarExportacion(); await cerrar();
+          aviso('Flexibilidad quitada del calendario'); return alCambiar?.();
+        }
         if (a === 'restaurar') { restaurarPlan(e); await cerrar(); aviso('Como en tu plan'); return alCambiar?.(); }
         if (a === 'borrar' || a === 'borrar-dia') {
           if (a === 'borrar' && !confirm(e.repite ? '¿Borrar todas las repeticiones?' : '¿Borrar este evento?')) return;
