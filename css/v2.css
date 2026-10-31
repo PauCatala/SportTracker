@@ -1675,25 +1675,38 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
 @media (prefers-reduced-motion: reduce) { .flip-hoja { animation: none !important; } .lt-cara { transition: none; } }
 .fo-controles[hidden] { display: none; }
 
-/* ===== Tareas: tablero por estado × prioridad ===== */
+/* ===== Tareas: tablero por proyecto × estado ===== */
 .pr-tablero { --c-todo: #E4572E; --c-curso: #E5AE1E; --c-hecho: #3A9E5C;
-  display: grid; grid-template-columns: 128px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; margin-top: 4px; }
+  display: grid; grid-template-columns: 168px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; margin-top: 4px; }
+.pr-esquina { align-self: end; padding: 0 4px 10px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); }
 .pr-cab { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 10px; border-bottom: 3px solid var(--c); }
 .pr-cab.todo, .pr-celda.todo, .pr-tarjeta.todo, .pr-pest.todo { --c: var(--c-todo, #E4572E); }
 .pr-cab.curso, .pr-celda.curso, .pr-tarjeta.curso, .pr-pest.curso { --c: var(--c-curso, #E5AE1E); }
 .pr-cab.hecho, .pr-celda.hecho, .pr-tarjeta.hecho, .pr-pest.hecho { --c: var(--c-hecho, #3A9E5C); }
 .pr-cab h3 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; margin: 0; }
-.pr-cab span, .pr-fila-nombre b { font-size: 13px; font-weight: 600; color: var(--tinta-3); }
-.pr-fila-nombre { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 4px; border-top: 1px solid rgba(17, 21, 30, .08); }
-.pr-fila-nombre span { font-size: 14px; font-weight: 650; line-height: 1.2; display: flex; align-items: center; gap: 7px; }
-.pr-fila-nombre span::before, .pr-p::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--p); flex: none; }
-.pr-fila-nombre.alta, .pr-p.alta { --p: #D9443A; }
-.pr-fila-nombre.media, .pr-p.media { --p: #E5AE1E; }
-.pr-fila-nombre.baja, .pr-p.baja { --p: #8D96A5; }
+.pr-cab span { font-size: 13px; font-weight: 600; color: var(--tinta-3); }
+.pr-fila-nombre { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 4px; border-top: 1px solid rgba(17, 21, 30, .08); min-width: 0; }
+.pr-fila-nombre span { font-size: 14px; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.pr-fila-nombre.sin span { color: var(--tinta-3); font-style: italic; }
+.pr-fila-nombre small { font-size: 12px; font-weight: 600; color: var(--tinta-3); }
+.pr-progreso { height: 5px; border-radius: 999px; background: rgba(17, 21, 30, .08); overflow: hidden; }
+.pr-progreso i { display: block; height: 100%; background: var(--c-hecho, #3A9E5C); border-radius: inherit; transition: width .3s; }
+.pr-quitar { align-self: flex-start; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 12px; color: var(--tinta-3); cursor: pointer; text-decoration: underline; }
+.pr-p::before, .pr-dot { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--p); flex: none; display: inline-block; }
+.pr-p.alta, .pr-dot.alta { --p: #D9443A; }
+.pr-p.media, .pr-dot.media { --p: #E5AE1E; }
+.pr-p.baja, .pr-dot.baja { --p: #8D96A5; }
+.pr-dot { margin-right: 7px; vertical-align: 1px; }
+/* Cada celda va marcada con el color de su estado: rojo por hacer, amarillo en curso, verde hecho */
 .pr-celda { display: flex; flex-direction: column; gap: 8px; padding: 10px; min-height: 104px; border-radius: 16px;
-  background: rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 1px rgba(17, 21, 30, .06); transition: background .15s, box-shadow .15s; }
-.pr-celda.encima { background: color-mix(in srgb, var(--c) 9%, #fff); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 55%, transparent); }
+  background: color-mix(in srgb, var(--c) 6%, #fff); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 60%, transparent);
+  transition: background .15s, box-shadow .15s; }
+.pr-celda.encima { background: color-mix(in srgb, var(--c) 12%, #fff); box-shadow: inset 0 0 0 2px var(--c); }
 .pr-celda-pr { display: none; }
+.pr-mover { font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid rgba(17, 21, 30, .12); background: #fff; max-width: 160px; }
+.pr-nuevo-proyecto { grid-column: 1 / -1; }
+.pr-nuevo-proyecto input { width: 100%; border: 1.5px dashed rgba(17, 21, 30, .18); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 14px; background: transparent; }
+.pr-nuevo-proyecto input:focus { outline: none; border-style: solid; background: #fff; }
 .pr-tarjeta { background: #fff; border: 1.5px solid var(--c); border-radius: 12px; padding: 10px 12px; cursor: grab; display: grid; gap: 6px;
   box-shadow: 0 1px 2px rgba(17, 21, 30, .06); transition: transform .15s, box-shadow .15s; outline-offset: 2px; }
 .pr-tarjeta:hover { box-shadow: 0 4px 14px rgba(17, 21, 30, .08); }
@@ -1724,9 +1737,7 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
   .pr-esquina, .pr-cab, .pr-fila-nombre { display: none; }
   .pr-tablero[data-ver="todo"] .pr-celda:not(.todo), .pr-tablero[data-ver="curso"] .pr-celda:not(.curso), .pr-tablero[data-ver="hecho"] .pr-celda:not(.hecho) { display: none; }
   .pr-celda { min-height: 0; }
-  .pr-celda-pr { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 650; color: var(--tinta-2); }
-  .pr-celda.todo .pr-celda-pr::before, .pr-celda.curso .pr-celda-pr::before, .pr-celda.hecho .pr-celda-pr::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--p); }
-  .pr-celda[data-prioridad="alta"] { --p: #D9443A; } .pr-celda[data-prioridad="media"] { --p: #E5AE1E; } .pr-celda[data-prioridad="baja"] { --p: #8D96A5; }
+  .pr-celda-pr { display: block; font-size: 13px; font-weight: 650; color: var(--tinta-2); }
   .pr-mas { opacity: 1; }
   .pr-pestanas { display: flex; width: 100%; gap: 4px; padding: 3px; border-radius: 14px; background: rgba(17, 21, 30, .05); }
   .pr-pest { flex: 1; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; padding: 9px 4px; border-radius: 11px; color: var(--tinta-2); border-bottom: 3px solid transparent; }
