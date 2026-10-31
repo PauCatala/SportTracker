@@ -13,7 +13,8 @@ const TIPOS = { estudio: 'Estudio', trabajo: 'Trabajo' };
 const PRIORIDADES = [['alta', 'Prioridad alta'], ['media', 'Prioridad media'], ['baja', 'Prioridad baja']];
 const prioridadDe = t => (PRIORIDADES.some(p => p[0] === t.prioridad) ? t.prioridad : 'media');
 let filtro = 'todas';
-let colMovil = 'todo';   // en el móvil se ve una columna cada vez
+let colMovil = 'todo';
+let abiertaId = null;   // la tarjeta desplegada sigue abierta tras guardar un cambio   // en el móvil se ve una columna cada vez
 
 const SIN_PROYECTO = '';
 const ORDEN_PR = { alta: 0, media: 1, baja: 2 };
@@ -32,20 +33,23 @@ function proyectosDe(tareas) {
 function tarjetaTarea(t, proyectos) {
   const pr = prioridadDe(t);
   return `
-    <article class="pr-tarjeta ${t.estado} ${pr}" draggable="true" data-id="${t.id}" tabindex="0">
+    <article class="pr-tarjeta ${t.estado} ${pr} ${abiertaId === t.id ? 'abierta' : ''}" draggable="${abiertaId === t.id ? 'false' : 'true'}" data-id="${t.id}" tabindex="0">
       <p>${escapar(t.titulo)}</p>
       <div class="tarea-meta">
         <span class="etiqueta-tipo">${TIPOS[t.tipo] || 'Tarea'}</span>
         ${etiquetaFecha(t.fecha, t.estado)}
       </div>
       <div class="pr-opciones">
+        <div class="pr-campos-tarea">
+          <label class="pr-campo-t">Nombre <input data-titulo value="${escapar(t.titulo)}" aria-label="Nombre de la tarea"></label>
+          <label class="pr-campo-t">Fecha <input type="date" data-fecha value="${t.fecha || ''}" aria-label="Fecha de entrega o realización"></label>
+        </div>
         <div class="pr-grupo" aria-label="Estado">${COLUMNAS.map(([id, n]) => `<button type="button" class="${t.estado === id ? 'activo' : ''}" data-estado="${id}">${n}</button>`).join('')}</div>
         <div class="pr-grupo" aria-label="Prioridad">${PRIORIDADES.map(([id]) => `<button type="button" class="pr-p ${id} ${pr === id ? 'activo' : ''}" data-prio="${id}">${id[0].toUpperCase() + id.slice(1)}</button>`).join('')}</div>
         <select class="pr-mover" data-mover aria-label="Proyecto">
           <option value="">Sin proyecto</option>
           ${proyectos.map(p => `<option value="${escapar(p)}" ${(t.area || '') === p ? 'selected' : ''}>${escapar(p)}</option>`).join('')}
         </select>
-        <button type="button" class="pr-renombrar" data-renombrar>Renombrar</button>
         <button type="button" class="btn-icono" data-borrar aria-label="Borrar">${icono('papelera')}</button>
       </div>
     </article>`;
@@ -173,6 +177,12 @@ export function renderTablero(cont) {
       guardar('colorProyectos', { ...leer('colorProyectos', {}), [filas[+col.dataset.color]]: col.value });
       return renderTablero(cont);
     }
+    const tid = ev.target.closest('.pr-tarjeta')?.dataset.id;
+    if (ev.target.matches('[data-titulo]')) {
+      const nuevo = ev.target.value.trim();
+      return nuevo ? cambiar(tid, t => ({ ...t, titulo: nuevo })) : renderTablero(cont);
+    }
+    if (ev.target.matches('[data-fecha]')) return cambiar(tid, t => ({ ...t, fecha: ev.target.value }));
     const sel = ev.target.closest('[data-mover]');
     if (!sel) return;
     const valor = sel.value;
@@ -194,23 +204,24 @@ export function renderTablero(cont) {
     const mas = ev.target.closest('[data-anadir]');
     if (mas) return anadirEn(mas.closest('.pr-celda'));
     const tarjeta = ev.target.closest('.pr-tarjeta');
-    if (!tarjeta || ev.target.closest('[data-mover]')) return;
+    if (!tarjeta || ev.target.closest('input, select, label')) return;
     const id = tarjeta.dataset.id;
     const e = ev.target.closest('[data-estado]'), p = ev.target.closest('[data-prio]');
     if (e) return cambiar(id, t => ({ ...t, estado: e.dataset.estado }));
     if (p) return cambiar(id, t => ({ ...t, prioridad: p.dataset.prio }));
-    if (ev.target.closest('[data-renombrar]')) return renombrar(tarjeta);
-    if (ev.target.closest('.pr-editar')) return;
     if (ev.target.closest('[data-borrar]')) {
       if (confirm('¿Borrar esta tarea?')) { guardar('tareas', leer('tareas', []).filter(t => t.id !== id)); renderTablero(cont); }
       return;
     }
     const abierta = tarjeta.classList.contains('abierta');
-    cont.querySelectorAll('.pr-tarjeta.abierta').forEach(x => x.classList.remove('abierta'));
+    cont.querySelectorAll('.pr-tarjeta.abierta').forEach(x => { x.classList.remove('abierta'); x.draggable = true; });
     tarjeta.classList.toggle('abierta', !abierta);
+    tarjeta.draggable = abierta;
+    abiertaId = abierta ? null : id;
   };
   cont.onkeydown = ev => {
     if (ev.key === 'Enter' && ev.target.matches('.pr-tarjeta')) ev.target.click();
+    if (ev.key === 'Enter' && ev.target.matches('[data-titulo]')) ev.target.blur();   // Enter guarda el nombre
   };
   // Doble clic en el nombre de una tarea: editarlo
   cont.ondblclick = ev => {
@@ -269,6 +280,7 @@ export function renderTablero(cont) {
   cont.ondragstart = ev => {
     const t = ev.target.closest('.pr-tarjeta');
     if (!t) return;
+    if (t.classList.contains('abierta')) return ev.preventDefault();   // abierta: se está editando, no se arrastra
     ev.dataTransfer.setData('text/plain', t.dataset.id);
     ev.dataTransfer.effectAllowed = 'move';
     t.classList.add('arrastrando');
