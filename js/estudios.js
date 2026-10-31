@@ -17,6 +17,9 @@ let colMovil = 'todo';   // en el móvil se ve una columna cada vez
 
 const SIN_PROYECTO = '';
 const ORDEN_PR = { alta: 0, media: 1, baja: 2 };
+// Color de cada proyecto (solo pinta el borde de sus cuadros). Si no se ha elegido, uno de esta paleta
+const PALETA = ['#7C3AED', '#0EA5E9', '#F97316', '#14B8A6', '#DB2777', '#65A30D', '#475569', '#B45309'];
+const colorDe = (p, i) => (p ? leer('colorProyectos', {})[p] || PALETA[i % PALETA.length] : '#C9CED6');
 
 // Proyectos (filas del tablero): los guardados + los que aparezcan en alguna tarea
 function proyectosDe(tareas) {
@@ -29,8 +32,8 @@ function proyectosDe(tareas) {
 function tarjetaTarea(t, proyectos) {
   const pr = prioridadDe(t);
   return `
-    <article class="pr-tarjeta ${t.estado}" draggable="true" data-id="${t.id}" tabindex="0">
-      <p><i class="pr-dot ${pr}" title="Prioridad ${pr}"></i>${escapar(t.titulo)}</p>
+    <article class="pr-tarjeta ${t.estado} ${pr}" draggable="true" data-id="${t.id}" tabindex="0">
+      <p>${escapar(t.titulo)}</p>
       <div class="tarea-meta">
         <span class="etiqueta-tipo">${TIPOS[t.tipo] || 'Tarea'}</span>
         ${etiquetaFecha(t.fecha, t.estado)}
@@ -109,8 +112,11 @@ export function renderTablero(cont) {
         const pct = fila.length ? Math.round((hechas / fila.length) * 100) : 0;
         const nombre = p || 'Sin proyecto';
         return `
-        <div class="pr-fila-nombre ${p ? '' : 'sin'}">
-          <span>${escapar(nombre)}</span>
+        <div class="pr-fila-nombre ${p ? '' : 'sin'}" style="--proy:${colorDe(p, i)}">
+          <div class="pr-nombre">
+            ${p ? `<label class="pr-color" title="Color del proyecto"><input type="color" value="${colorDe(p, i)}" data-color="${i}" aria-label="Color de ${escapar(p)}"></label>` : ''}
+            <span>${escapar(nombre)}</span>
+          </div>
           <small>${hechas}/${fila.length} hechas</small>
           <div class="pr-progreso" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso de ${escapar(nombre)}"><i style="width:${pct}%"></i></div>
           ${p && !tareas.some(t => (t.area || '').trim() === p) ? `<button type="button" class="pr-quitar" data-quitar="${i}" aria-label="Quitar proyecto ${escapar(p)}">Quitar</button>` : ''}
@@ -118,7 +124,7 @@ export function renderTablero(cont) {
         ${COLUMNAS.map(([id, nombreCol]) => {
           const de = fila.filter(t => t.estado === id).sort((a, b) => ORDEN_PR[prioridadDe(a)] - ORDEN_PR[prioridadDe(b)]);
           return `
-          <section class="pr-celda ${id}" data-columna="${id}" data-fila="${i}" aria-label="${escapar(nombre)}, ${nombreCol}">
+          <section class="pr-celda ${id}" style="--proy:${colorDe(p, i)}" data-columna="${id}" data-fila="${i}" aria-label="${escapar(nombre)}, ${nombreCol}">
             <span class="pr-celda-pr">${escapar(nombre)}</span>
             ${de.map(t => tarjetaTarea(t, proyectos)).join('')}
             <button class="pr-mas" data-anadir aria-label="Añadir tarea aquí">${icono('mas')}</button>
@@ -152,7 +158,20 @@ export function renderTablero(cont) {
     renderTablero(cont);
   };
 
+  // Mientras eliges el color, se ve al momento en toda la fila
+  cont.oninput = ev => {
+    const col = ev.target.closest('[data-color]');
+    if (!col) return;
+    col.closest('.pr-fila-nombre').style.setProperty('--proy', col.value);
+    cont.querySelectorAll(`.pr-celda[data-fila="${col.dataset.color}"]`).forEach(c => c.style.setProperty('--proy', col.value));
+  };
+
   cont.onchange = ev => {
+    const col = ev.target.closest('[data-color]');
+    if (col) {
+      guardar('colorProyectos', { ...leer('colorProyectos', {}), [filas[+col.dataset.color]]: col.value });
+      return renderTablero(cont);
+    }
     const sel = ev.target.closest('[data-mover]');
     if (!sel) return;
     const valor = sel.value;

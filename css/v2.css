@@ -1676,38 +1676,42 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
 .fo-controles[hidden] { display: none; }
 
 /* ===== Tareas: tablero por proyecto × estado ===== */
-.pr-tablero { --c-todo: #E4572E; --c-curso: #E5AE1E; --c-hecho: #3A9E5C;
+.pr-tablero { --c-todo: #1E3A8A; --c-curso: #3B82F6; --c-hecho: #93C5FD;
   display: grid; grid-template-columns: 168px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; margin-top: 4px; }
 .pr-esquina { align-self: end; padding: 0 4px 10px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); }
 .pr-cab { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 10px; border-bottom: 3px solid var(--c); }
-.pr-cab.todo, .pr-celda.todo, .pr-tarjeta.todo, .pr-pest.todo { --c: var(--c-todo, #E4572E); }
-.pr-cab.curso, .pr-celda.curso, .pr-tarjeta.curso, .pr-pest.curso { --c: var(--c-curso, #E5AE1E); }
-.pr-cab.hecho, .pr-celda.hecho, .pr-tarjeta.hecho, .pr-pest.hecho { --c: var(--c-hecho, #3A9E5C); }
+/* Barras de estado en azules: oscuro → medio → claro */
+.pr-cab.todo, .pr-pest.todo { --c: var(--c-todo, #1E3A8A); }
+.pr-cab.curso, .pr-pest.curso { --c: var(--c-curso, #3B82F6); }
+.pr-cab.hecho, .pr-pest.hecho { --c: var(--c-hecho, #93C5FD); }
 .pr-cab h3 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; margin: 0; }
 .pr-cab span { font-size: 13px; font-weight: 600; color: var(--tinta-3); }
 .pr-fila-nombre { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 4px; border-top: 1px solid rgba(17, 21, 30, .08); min-width: 0; }
+.pr-fila-nombre .pr-nombre { display: flex; align-items: center; gap: 8px; }
+.pr-color { position: relative; width: 16px; height: 16px; border-radius: 50%; background: var(--proy, #C9CED6); flex: none; cursor: pointer; box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(17, 21, 30, .12); }
+.pr-color input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: 0; padding: 0; }
 .pr-fila-nombre span { font-size: 14px; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
 .pr-fila-nombre.sin span { color: var(--tinta-3); font-style: italic; }
 .pr-fila-nombre small { font-size: 12px; font-weight: 600; color: var(--tinta-3); }
 .pr-progreso { height: 5px; border-radius: 999px; background: rgba(17, 21, 30, .08); overflow: hidden; }
-.pr-progreso i { display: block; height: 100%; background: var(--c-hecho, #3A9E5C); border-radius: inherit; transition: width .3s; }
+.pr-progreso i { display: block; height: 100%; background: var(--proy, #8D96A5); border-radius: inherit; transition: width .3s; }
 .pr-quitar { align-self: flex-start; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 12px; color: var(--tinta-3); cursor: pointer; text-decoration: underline; }
-.pr-p::before, .pr-dot { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--p); flex: none; display: inline-block; }
-.pr-p.alta, .pr-dot.alta { --p: #D9443A; }
-.pr-p.media, .pr-dot.media { --p: #E5AE1E; }
-.pr-p.baja, .pr-dot.baja { --p: #8D96A5; }
-.pr-dot { margin-right: 7px; vertical-align: 1px; }
+.pr-p::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--p); flex: none; display: inline-block; }
+/* Inmediatez de la tarea: rojo urgente, amarillo pronto, verde sin prisa */
+.pr-p.alta, .pr-tarjeta.alta { --p: #D9443A; }
+.pr-p.media, .pr-tarjeta.media { --p: #E5AE1E; }
+.pr-p.baja, .pr-tarjeta.baja { --p: #3A9E5C; }
 /* Cada celda va marcada con el color de su estado: rojo por hacer, amarillo en curso, verde hecho */
 .pr-celda { display: flex; flex-direction: column; gap: 8px; padding: 10px; min-height: 104px; border-radius: 16px;
-  background: color-mix(in srgb, var(--c) 6%, #fff); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 60%, transparent);
+  background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 2px var(--proy, #C9CED6);
   transition: background .15s, box-shadow .15s; }
-.pr-celda.encima { background: color-mix(in srgb, var(--c) 12%, #fff); box-shadow: inset 0 0 0 2px var(--c); }
+.pr-celda.encima { background: color-mix(in srgb, var(--proy, #C9CED6) 10%, #fff); box-shadow: inset 0 0 0 3px var(--proy, #C9CED6); }
 .pr-celda-pr { display: none; }
 .pr-mover { font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid rgba(17, 21, 30, .12); background: #fff; max-width: 160px; }
 .pr-nuevo-proyecto { grid-column: 1 / -1; }
 .pr-nuevo-proyecto input { width: 100%; border: 1.5px dashed rgba(17, 21, 30, .18); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 14px; background: transparent; }
 .pr-nuevo-proyecto input:focus { outline: none; border-style: solid; background: #fff; }
-.pr-tarjeta { background: #fff; border: 1.5px solid var(--c); border-radius: 12px; padding: 10px 12px; cursor: grab; display: grid; gap: 6px;
+.pr-tarjeta { background: #fff; border: 2px solid var(--p); border-radius: 12px; padding: 10px 12px; cursor: grab; display: grid; gap: 6px;
   box-shadow: 0 1px 2px rgba(17, 21, 30, .06); transition: transform .15s, box-shadow .15s; outline-offset: 2px; }
 .pr-tarjeta:hover { box-shadow: 0 4px 14px rgba(17, 21, 30, .08); }
 .pr-tarjeta.arrastrando { opacity: .4; }
@@ -1724,7 +1728,7 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
 .pr-mas svg { width: 18px; height: 18px; }
 .pr-celda:hover .pr-mas, .pr-mas:focus-visible { opacity: 1; }
 .pr-mas:hover { background: rgba(17, 21, 30, .06); }
-.pr-nueva input { width: 100%; border: 1.5px dashed var(--c); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; background: #fff; }
+.pr-nueva input { width: 100%; border: 1.5px dashed var(--proy, #C9CED6); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; background: #fff; }
 .pr-nueva input:focus { outline: none; border-style: solid; }
 .pr-elegir { display: flex; gap: 6px; flex-wrap: wrap; }
 .pr-elegir label { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; background: #fff; box-shadow: inset 0 0 0 1px rgba(17, 21, 30, .1); font-size: 13.5px; font-weight: 560; cursor: pointer; }
