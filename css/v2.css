@@ -1537,7 +1537,7 @@ html, body { overflow-anchor: none; }
 @media (min-width: 1100px) {
   .cal { grid-template-columns: 236px minmax(0, 1fr); align-items: start; column-gap: 20px; }
   .cal-barra { grid-column: 2; }
-  .cal-lado { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 96px; display: grid; gap: 14px; }
+  .cal-lado { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: calc(var(--nav-alto) + 68px); display: grid; gap: 14px; }   /* debajo de la cabecera compacta */
   .cal-cuerpo { grid-column: 2; }
   .cal-mini { display: block; padding: 14px 12px 12px; border-radius: 22px; background: #fff; box-shadow: var(--sombra-1); }
   .cal-lado-tit { display: block; margin: 6px 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--tinta-3); }
@@ -1847,3 +1847,17 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
 .nr .nr-check input { appearance: auto; width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0; box-shadow: none; accent-color: #11151E; flex: none; }
 .nr .nr-check { white-space: nowrap; }
 .nr [data-vista][hidden] { display: none; }
+
+/* La cabecera grande solo se queda fija cuando se ha compactado. Antes, en páginas cortas
+   (el calendario) no llegaba a compactarse, se quedaba fija a tamaño grande y sin fondo,
+   y el contenido (el calendario pequeño) pasaba por debajo y se mezclaba con el título. */
+.cabecera:not(.compacta) { position: relative; top: 0; }
+
+/* Calendario en el móvil: la tira de la semana (vista Día) obligaba a la columna a medir ~650px,
+   así que todo el calendario se salía por la derecha (se veían LUN–JUE y no cabían «Mes» y «Agenda»). */
+@media (max-width: 1099px) { .cal { grid-template-columns: minmax(0, 1fr); } }
+.cal-tira, .ra-tira { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ct-dia { min-width: 0; }
+/* «todo el día» ocupa dos líneas: la fila crece para que no se monte sobre las horas */
+.cs-todo, .cs-todo.sin-nada { min-height: 34px; }
+.cs-etq { padding-bottom: 6px; }
