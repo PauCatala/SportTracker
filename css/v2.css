@@ -1861,3 +1861,6 @@ button.hs-campo:hover, button.hs-campo[aria-expanded="true"] { box-shadow: inset
 /* «todo el día» ocupa dos líneas: la fila crece para que no se monte sobre las horas */
 .cs-todo, .cs-todo.sin-nada { min-height: 34px; }
 .cs-etq { padding-bottom: 6px; }
+
+/* Nota de la rutina bajo el nombre del ejercicio (lastre, reps por lado, técnica…) */
+.ej-nota { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--tinta-2); }

@@ -4,7 +4,8 @@ import { mesocicloDe, semanaPlan } from './consultas.js';
 import { resetForm, bannerMigracion, navegar } from './gym.js';
 import { seleccionarMeso } from './rutina.js';
 import { hoyISO, sumarDias, fmtCorta, esc, num, aviso, mensajeError, requiereConexion } from './utils.js';
-import { cargarPlan, planCargado, proximoLunes, MESOS_PLAN } from './plan.js';
+import { cargarPlan, planCargado, proximoLunes, PLANES } from './plan.js';
+import { leer, guardar } from './almacen.js';
 import { icono } from './iconos.js';
 
 const compararTexto = (a, b) => a.localeCompare(b, 'es', { numeric: true });
@@ -162,8 +163,11 @@ function panelPlan(hoy) {
     return `
       <section class="hero">
         <p class="hero-sup">Tu plan</p>
-        <h2>Seis mesociclos, cinco días</h2>
-        <p>Carga la rutina completa del PDF: 24 semanas de gimnasio en 6 bloques de 4, la preparación de 15K y la flexibilidad diaria. Lo que ya hayas registrado se conserva.</p>
+        <h2>Seis mesociclos de 4 semanas</h2>
+        <p>Elige tu plan y se crean sus 6 bloques con la rutina de cada día. Lo que ya hayas registrado se conserva.</p>
+        <label class="campo" style="margin-top:16px;color:rgba(255,255,255,.8)">Plan
+          <select id="p-plan">${Object.entries(PLANES).map(([id, p]) => `<option value="${id}" ${leer('plan-gym', 'pau') === id ? 'selected' : ''}>${p.nombre}</option>`).join('')}</select>
+        </label>
         <label class="campo" style="margin-top:16px;color:rgba(255,255,255,.8)">Empieza el lunes
           <input type="date" id="p-inicio" value="${proximoLunes(hoy)}">
         </label>
@@ -173,7 +177,7 @@ function panelPlan(hoy) {
   const n = semanaPlan(hoy);
   return `
     <section class="banner">${icono('calendario')}<div>
-      <b>Plan de 6 meses cargado.</b> Empezó el ${fmtCorta(state.ajustes.inicio_plan).toLowerCase()}${n >= 1 ? `, vas por la semana ${n}` : n != null ? `, empieza en ${1 - n} ${1 - n === 1 ? 'semana' : 'semanas'}` : ''}.
+      <b>${PLANES[leer('plan-gym', 'pau')]?.nombre || 'Plan de 6 meses'}</b> cargado. Empezó el ${fmtCorta(state.ajustes.inicio_plan).toLowerCase()}${n >= 1 ? `, vas por la semana ${n}` : n != null ? `, empieza en ${1 - n} ${1 - n === 1 ? 'semana' : 'semanas'}` : ''}.
       <button class="btn-texto" id="p-recargar">Volver a cargarlo</button>
     </div></section>`;
 }
@@ -228,7 +232,8 @@ async function alPulsarMeso(ev, cont, mesos) {
     if (state.faltaMigracion) return aviso('Primero ejecuta schema_v2.sql en Supabase', 'error');
     b.disabled = true;
     abierto = null;
-    const ok = await cambiar(cont, renderMesociclos, () => cargarPlan(inicio, uid), 'Plan cargado: 6 mesociclos listos');
+    const planId = cont.querySelector('#p-plan')?.value || leer('plan-gym', 'pau');
+    const ok = await cambiar(cont, renderMesociclos, async () => { await cargarPlan(inicio, uid, planId); guardar('plan-gym', planId); }, 'Plan cargado: 6 mesociclos listos');
     if (!ok) b.disabled = false;
     return;
   }
@@ -282,4 +287,4 @@ async function alPulsarMeso(ev, cont, mesos) {
   }
 }
 
-export const NUM_MESOS_PLAN = MESOS_PLAN.length;
+export const NUM_MESOS_PLAN = PLANES.pau.mesos.length;   // todos los planes tienen 6 mesociclos

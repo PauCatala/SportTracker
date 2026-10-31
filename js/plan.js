@@ -2,6 +2,7 @@
 // Si algún día cambias de plan, solo hay que tocar este archivo.
 import { supabase, ejecutar, state } from './db.js';
 import { sumarDias } from './utils.js';
+import { diasPara } from './consultas.js';
 
 /* ============================== GIMNASIO ============================== */
 
@@ -25,7 +26,7 @@ export const DIAS_PLAN = [
 ];
 
 // Ejercicios donde la carga se apunta por lado (mancuerna o brazo)
-const POR_LADO = new Set(['Búlgara con mancuernas', 'Remo con mancuerna a un brazo', 'Pulso en polea unilateral']);
+const POR_LADO = new Set(['Búlgara con mancuernas', 'Remo con mancuerna a un brazo', 'Pulso en polea unilateral', 'Remo renegado con kettlebells', 'Molino con kettlebell (windmill)', 'Turkish get-up con kettlebell', 'Plancha con arrastre de kettlebell']);
 
 // Si ya tenías ejercicios con otro nombre, se renombran para conservar su historial
 const ALIAS = {
@@ -76,6 +77,102 @@ export const MESOS_PLAN = [
     '3x5-7 3x10-12 3x6-8 3x6-8 3x6-8 3x10-12',
     '3x5-7 3x6-8 3x10-12 3x6-8 4x10-12 4x10-12 3x12-15 3x12-15'] },
 ];
+
+/* ===================== PLAN 2: PPL HIPERTROFIA + CORE ===================== */
+// Empuje / Tirón / Pierna dos veces por semana (lunes a sábado). Prioriza dominadas y fondos
+// con lastre, básicos de hipertrofia, algo de calistenia y core con kettlebell.
+// Cada ejercicio: [nombre, papel, nota]. El papel decide las series × reps de cada mesociclo.
+export const DIAS_PPL = [
+  { nombre: 'Día 1 · Empuje A (fuerza)', ejercicios: [
+    ['Dips lastrados', 'lastre', 'Lastre: cuando hagas todas las series al tope del rango, +2,5 kg.'],
+    ['Press banca con barra', 'base'],
+    ['Press militar con barra', 'base'],
+    ['Press inclinado con mancuernas', 'accesorio'],
+    ['Elevaciones laterales', 'aislado'],
+    ['Extensión de tríceps en polea', 'aislado'],
+    ['Molino con kettlebell (windmill)', 'tecnica', 'Core: reps por lado, lento y controlado.'] ] },
+  { nombre: 'Día 2 · Tirón A (fuerza)', ejercicios: [
+    ['Dominadas lastradas', 'lastre', 'Lastre: cuando hagas todas las series al tope del rango, +2,5 kg.'],
+    ['Remo con barra (Pendlay)', 'base'],
+    ['Jalón al pecho agarre neutro', 'accesorio'],
+    ['Face pull', 'aislado'],
+    ['Curl de bíceps con barra', 'aislado'],
+    ['Remo renegado con kettlebells', 'core', 'Core: reps por lado, sin girar la cadera.'] ] },
+  { nombre: 'Día 3 · Pierna A + core', ejercicios: [
+    ['Sentadilla barra alta', 'base'],
+    ['Peso muerto rumano con barra', 'base'],
+    ['Prensa 45°', 'accesorio'],
+    ['Curl femoral tumbado', 'aislado'],
+    ['Gemelo de pie', 'aislado'],
+    ['Swing ruso con kettlebell', 'core', 'Explosivo de cadera, espalda neutra.'],
+    ['Turkish get-up con kettlebell', 'tgu', 'Core: reps por lado. Técnica antes que peso.'] ] },
+  { nombre: 'Día 4 · Empuje B (hipertrofia y calistenia)', ejercicios: [
+    ['Press inclinado con barra', 'base'],
+    ['Fondos en anillas', 'calistenia', 'Si te sobran reps, añade lastre.'],
+    ['Press Arnold con mancuernas', 'accesorio'],
+    ['Cruce de poleas / aperturas', 'aislado'],
+    ['Elevaciones laterales en polea', 'aislado'],
+    ['Press francés / extensión en polea', 'aislado'],
+    ['Plancha con arrastre de kettlebell', 'core', 'Core: reps por lado, cadera quieta.'] ] },
+  { nombre: 'Día 5 · Tirón B (hipertrofia y calistenia)', ejercicios: [
+    ['Dominadas supinas lastradas', 'lastre', 'Lastre: cuando hagas todas las series al tope del rango, +2,5 kg.'],
+    ['Remo con mancuerna a un brazo', 'accesorio'],
+    ['Remo invertido en anillas', 'calistenia', 'Pies más altos para hacerlo más difícil.'],
+    ['Remo bajo en polea a la cintura', 'accesorio'],
+    ['Curl martillo con mancuernas', 'aislado'],
+    ['Pájaros (deltoides posterior)', 'aislado'],
+    ['Elevación de piernas colgado (lastrada)', 'core', 'Core: sin balanceo; kettlebell entre los pies si es fácil.'] ] },
+  { nombre: 'Día 6 · Pierna B + core', ejercicios: [
+    ['Hip thrust', 'base'],
+    ['Búlgara con mancuernas', 'accesorio'],
+    ['Sentadilla goblet con kettlebell', 'accesorio'],
+    ['Extensión de cuádriceps', 'aislado'],
+    ['Gemelo sentado', 'aislado'],
+    ['Russian twist con kettlebell', 'core', 'Core: reps por lado.'] ] },
+];
+
+// Series × reps de cada papel en cada mesociclo
+const PAPELES_PPL = {
+  lastre:     ['3x6-8', '4x4-6', '4x6-8', '5x3-5', '3x8-10', '4x3-5'],
+  base:       ['3x6-8', '3x5-7', '4x6-8', '4x4-6', '3x8-10', '3x5-7'],
+  calistenia: ['3x8-10', '3x6-8', '4x8-10', '4x6-8', '3x10-12', '3x6-8'],
+  accesorio:  ['3x8-10', '3x8-10', '3x10-12', '3x6-8', '3x10-12', '3x8-10'],
+  aislado:    ['3x10-12', '3x10-12', '3x12-15', '3x8-10', '3x15-20', '3x10-12'],
+  core:       ['3x10-12', '3x10-12', '3x12-15', '3x8-10', '4x12-15', '3x10-12'],
+  tecnica:    ['3x6-8', '3x6-8', '3x8-10', '3x5-7', '3x8-10', '3x6-8'],
+  tgu:        ['3x3-5', '3x3-5', '3x3-5', '3x2-4', '3x3-5', '3x2-4'],
+};
+const NOMBRES_MESO_PPL = [
+  ['Volumen base', 'Técnica y volumen de base. RIR 2–3. Encuentra tu lastre de trabajo en dominadas y fondos.'],
+  ['Intensificación', 'Más lastre y más carga en los básicos (4–7 reps). RIR 2.'],
+  ['Volumen', 'Una serie más en básicos y calistenia. Bombeo y densidad.'],
+  ['Fuerza-hipertrofia', 'Fase pesada: lastre a 3–5 reps. RIR 1–2. Tus mejores marcas del bloque.'],
+  ['Bombeo y core', 'Reps altas en aislados y más trabajo de core con kettlebell.'],
+  ['Pico', 'Consolidar lo ganado con las cargas y el lastre más altos.'],
+];
+export const MESOS_PPL = NOMBRES_MESO_PPL.map(([nombre, descripcion], i) => ({
+  numero: i + 1, nombre, descripcion,
+  dias: DIAS_PPL.map(d => d.ejercicios.map(([, papel]) => PAPELES_PPL[papel][i]).join(' ')),
+}));
+
+// Planes que se pueden cargar (los días como en DIAS_PLAN: nombre + lista de ejercicios)
+export const PLANES = {
+  pau: { nombre: 'Project Pau · 5 días', dias: DIAS_PLAN, mesos: MESOS_PLAN, notas: {} },
+  ppl: { nombre: 'PPL hipertrofia + core · 6 días', mesos: MESOS_PPL,
+    dias: DIAS_PPL.map(d => ({ nombre: d.nombre, ejercicios: d.ejercicios.map(([n]) => n) })),
+    notas: Object.fromEntries(DIAS_PPL.flatMap(d => d.ejercicios.filter(e => e[2]).map(([n, , nota]) => [n, nota]))) },
+};
+
+// Día de gimnasio que toca en una fecha según TU rutina (la del mesociclo de esa fecha):
+// lunes = Día 1, martes = Día 2… Si tu rutina tiene 5 días, sábado y domingo son descanso.
+// Sin rutina cargada se usan los días del plan por defecto.
+export function diaGym(fechaISO) {
+  const dias = diasPara(fechaISO);
+  const lista = dias.length && !(dias.length === 1 && dias[0] === 'Sin día') ? dias : DIAS_PLAN.map(d => d.nombre);
+  const [y, m, d] = fechaISO.split('-').map(Number);
+  const i = (new Date(y, m - 1, d).getDay() + 6) % 7;   // 0 = lunes
+  return i < lista.length ? lista[i] : null;
+}
 
 // Qué toca cada semana del mesociclo (método de progresión del plan)
 export const SEMANAS_MESO = [
@@ -159,11 +256,12 @@ export function proximoLunes(fechaISO) {
   return sumarDias(fechaISO, (8 - dia) % 7);
 }
 
-export async function cargarPlan(inicio, uid) {
+export async function cargarPlan(inicio, uid, planId = 'pau') {
+  const { dias: DIAS, mesos: MESOS, notas: NOTAS } = PLANES[planId] || PLANES.pau;
   // 1) Ejercicios: renombrar los antiguos equivalentes y crear los que falten
   const existentes = await ejecutar(supabase.from('ejercicios').select('*'));
   const porNombre = new Map(existentes.map(e => [e.nombre, e]));
-  for (const [viejo, nuevo] of Object.entries(ALIAS)) {
+  for (const [viejo, nuevo] of Object.entries(planId === 'pau' ? ALIAS : {})) {
     if (porNombre.has(viejo) && !porNombre.has(nuevo)) {
       const e = porNombre.get(viejo);
       await ejecutar(supabase.from('ejercicios').update({ nombre: nuevo, activo: true }).eq('id', e.id));
@@ -172,7 +270,7 @@ export async function cargarPlan(inicio, uid) {
     }
   }
   const nuevos = [];
-  DIAS_PLAN.forEach(dia => dia.ejercicios.forEach((nombre, i) => {
+  DIAS.forEach(dia => dia.ejercicios.forEach((nombre, i) => {
     if (!porNombre.has(nombre) && !nuevos.some(n => n.nombre === nombre)) {
       nuevos.push({ nombre, dia: dia.nombre, orden: i, por_lado: POR_LADO.has(nombre) });
     }
@@ -191,7 +289,7 @@ export async function cargarPlan(inicio, uid) {
   }
 
   // 3) Crear los 6 mesociclos (4 semanas cada uno) con su rutina
-  for (const plan of MESOS_PLAN) {
+  for (const plan of MESOS) {
     const ini = sumarDias(inicio, 28 * (plan.numero - 1));
     const fin = sumarDias(ini, 27);
     const meso = await ejecutar(supabase.from('mesociclos').insert({
@@ -199,13 +297,13 @@ export async function cargarPlan(inicio, uid) {
     }).select().single());
 
     const filas = [];
-    DIAS_PLAN.forEach((dia, d) => {
+    DIAS.forEach((dia, d) => {
       plan.dias[d].split(' ').forEach((txt, i) => {
         const [series, rango] = txt.split('x');
         const [min, max] = rango.split('-').map(Number);
         filas.push({
           mesociclo_id: meso.id, dia: dia.nombre, ejercicio_id: porNombre.get(dia.ejercicios[i]).id,
-          orden: i, series: Number(series), reps_min: min, reps_max: max,
+          orden: i, series: Number(series), reps_min: min, reps_max: max, notas: NOTAS[dia.ejercicios[i]] || null,
         });
       });
     });

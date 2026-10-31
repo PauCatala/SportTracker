@@ -193,6 +193,7 @@ function tarjetaEjercicio(id, ctx) {
           ${p && ctx.descarga ? '<span class="etiqueta descarga">Descarga</span>' : ''}
           ${e?.por_lado ? '<span class="etiqueta">Kg por lado</span>' : ''}
         </div>
+        ${p?.notas ? `<p class="ej-nota">${esc(p.notas)}</p>` : ''}
       </div>
       <span style="display:flex">
         ${u ? `<button class="btn-icono" data-acc="copiar" aria-label="Copiar la última vez" title="Copiar la última vez">${icono('copiar')}</button>` : ''}

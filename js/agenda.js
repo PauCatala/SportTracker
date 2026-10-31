@@ -7,7 +7,7 @@
 //  - Calendarios importados (Google, PoliformaT, Outlook…)                  → "calendarios" + "cal-cache:<id>"
 import { leer, guardar, hoyISO, nuevoId } from './almacen.js';
 import { state } from './db.js';
-import { DIAS_PLAN, diaSugerido, flexDelDia, SEMANAS_RUN } from './plan.js';
+import { diaGym, flexDelDia, SEMANAS_RUN } from './plan.js';
 import { semanaPlan } from './consultas.js';
 import { lunesDe, sumarDias } from './utils.js';
 import { perfilRun, semanaPlanRun, emparejar, lunes, HORA_DEF } from './running/motor.js';
@@ -128,8 +128,8 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
       const n = semanaPlan(d);
       const enPlan = n == null || (n >= 1 && n <= SEMANAS_RUN);
       if (!enPlan) continue;
-      if (dow >= 1 && dow <= 5) {
-        const dia = diaSugerido(d, DIAS_PLAN.map(x => x.nombre));
+      const dia = diaGym(d);   // el día de TU rutina que toca (null = descanso)
+      if (dia) {
         plan.push({
           id: `gym:${d}`, clave: 'gym', fuente: 'gym', titulo: `Gimnasio · ${dia.split('·')[1]?.trim() || dia}`, cat: 'deporte', color: color('deporte'),
           fecha: d, inicio: cfg.gymHora, fin: sumarMin(cfg.gymHora, cfg.gymMin), todoElDia: false,

@@ -16,7 +16,7 @@ import { renderProgresoFisico, renderFotosComidas, renderFotosDia } from './imag
 import { avisoProgreso, fotosDe } from './fotos.js';
 import { state } from './db.js';
 import { semanaPlan } from './consultas.js';
-import { DIAS_PLAN, diaSugerido, flexDelDia, SEMANAS_RUN, faseDeSemana } from './plan.js';
+import { diaGym, flexDelDia, SEMANAS_RUN, faseDeSemana } from './plan.js';
 import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.js';
 import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
@@ -202,10 +202,9 @@ function entrenoDeHoy() {
   if (!datosCargados) return [{ texto: 'Cargando tu plan…', estado: '' }];
   const hoy = hoyISO();
   const lineas = [];
-  // Gimnasio: lunes a viernes, un día del plan
-  const dow = new Date().getDay();
-  if (dow >= 1 && dow <= 5) {
-    const dia = diaSugerido(hoy, DIAS_PLAN.map(d => d.nombre));
+  // Gimnasio: el día de tu rutina que toca hoy (lunes = Día 1…)
+  const dia = diaGym(hoy);
+  if (dia) {
     const hecho = state.sesiones.some(x => x.fecha === hoy);
     lineas.push({ texto: `<b>Gimnasio</b> · ${escapar(dia.split('·')[1]?.trim() || dia)}`, estado: hecho ? 'hecho' : 'pendiente', ir: 'salud|gym|entrenar' });
   } else {

@@ -9,7 +9,7 @@ import { hoyISO, sumarDias, lunesDe, fmtKg, fmtRitmo, fmtCorta, diasEntre } from
 import { state } from '../db.js';
 import { PERFIL_VACIO, ACTIVIDAD, imc, textoImc, caloriasMantenimiento, caloriasObjetivo, planPeso, planHTML, fmt, perfilCompleto } from '../perfil.js';
 import { objetivosDelDia, totalesDe, comidasDe } from '../nutricion.js';
-import { DIAS_PLAN, diaSugerido, faseDeSemana, SEMANAS_RUN, flexDelDia, MEDIDAS_FLEX } from '../plan.js';
+import { diaGym, faseDeSemana, SEMANAS_RUN, flexDelDia, MEDIDAS_FLEX } from '../plan.js';
 import { semanaPlan, mesocicloDe, semanaDeMeso, semanasDeMeso, ejercicioPorId } from '../consultas.js';
 import { ritmoDe, resumen } from '../running.js';
 import { perfilRun, semanaConCambios, FASES, lunes as lunesRun } from '../running/motor.js';
@@ -244,7 +244,7 @@ function orbitaGym() {
   const sesionSemana = new Map(state.sesiones.map(s => [s.id, lunesDe(s.fecha)]));
   const vol = semanas.map(l => state.series.reduce((t, se) => t + (sesionSemana.get(se.sesion_id) === l ? (Number(se.kg) || 0) * (Number(se.reps) || 0) : 0), 0));
   const dow = new Date().getDay();
-  const tocaDia = dow >= 1 && dow <= 5 ? diaSugerido(hoy, DIAS_PLAN.map(d => d.nombre)) : null;
+  const tocaDia = diaGym(hoy);
   const hecho = tocaDia && state.sesiones.some(s => s.fecha === hoy);
   const meso = mesocicloDe(hoy);
   const ultima = state.sesiones.filter(s => s.fecha <= hoy).at(-1);
