@@ -21,7 +21,10 @@ App personal de seguimiento de entrenamiento (PWA). HTML + CSS + JavaScript puro
 | `js/graficos.js` | Estilo común de las gráficas |
 | `js/iconos.js` | Iconos SVG propios |
 | `js/app.js` | Arranque, login y navegación |
-| `sw.js` | Service worker: permite abrir la app sin internet |
+| `js/avisos.js` | Avisos en el móvil: calcula los de los próximos 14 días y activa cada dispositivo |
+| `sw.js` | Service worker: permite abrir la app sin internet y muestra los avisos |
+| `sql/avisos.sql` | Tablas de avisos y tarea programada que los envía cada minuto |
+| `supabase/functions/enviar-avisos` | Función de Supabase que manda las notificaciones |
 | `manifest.json` + `icons/` | Nombre e icono al instalarla en el móvil |
 
 ## Bloques
@@ -31,3 +34,9 @@ App personal de seguimiento de entrenamiento (PWA). HTML + CSS + JavaScript puro
 - [x] Flexibilidad
 - [ ] Bici
 - [ ] Nutrición
+
+## Avisos
+
+Se activan en Calendario → Sincronizar → Avisos, en cada móvil u ordenador por separado.
+En iPhone solo funcionan con SYNCO instalada en la pantalla de inicio (iOS 16.4 o posterior).
+Las claves que firman las notificaciones están en el Vault de Supabase, no en este repositorio.

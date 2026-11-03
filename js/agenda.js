@@ -78,7 +78,7 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
     const base = {
       fuente: 'evento', ref: e.id, titulo: e.titulo, cat: e.cat, color: e.color || color(e.cat), colorPropio: e.color || '',
       inicio: e.todoElDia ? null : e.inicio, fin: e.todoElDia ? null : e.fin, todoElDia: !!e.todoElDia,
-      lugar: e.lugar, nota: e.nota, editable: true, repite: e.repetir !== 'no' ? e.repetir : null,
+      lugar: e.lugar, nota: e.nota, editable: true, repite: e.repetir !== 'no' ? e.repetir : null, aviso: e.aviso,
     };
     const hecho = d => (e.hechos || []).includes(d);
     const marcable = ['estudio', 'trabajo', 'hogar', 'personal', 'deporte'].includes(e.cat);
@@ -103,7 +103,7 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
       id: `ta:${t.id}`, fuente: 'tarea', ref: t.id, titulo: t.titulo, cat, color: t.color || color(cat), colorPropio: t.color || '', fecha: t.fecha,
       inicio: t.hora || null, fin: t.hora ? (t.horaFin || sumarMin(t.hora, 60)) : null, todoElDia: !t.hora,
       lugar: t.area || '', nota: t.nota || '', hecho: t.estado === 'hecho', editable: true, ir: 'estudios|estudios|tablero',
-      etiqueta: t.hora ? null : 'Entrega',
+      etiqueta: t.hora ? null : 'Entrega', aviso: t.aviso,
     });
   }
 
@@ -113,7 +113,7 @@ export function eventosEntre(desde, hasta, { conImportados = true } = {}) {
     salida.push({
       id: `li:${x.id}`, fuente: 'lista', ref: x.id, titulo: x.texto, cat: 'hogar', color: x.color || color('hogar'), colorPropio: x.color || '', fecha: x.fecha,
       inicio: x.hora || null, fin: x.hora ? (x.horaFin || sumarMin(x.hora, 30)) : null, todoElDia: !x.hora,
-      hecho: !!x.hecho, editable: true, ir: 'personal|personal|lista',
+      hecho: !!x.hecho, editable: true, ir: 'personal|personal|lista', aviso: x.aviso,
     });
   }
 
@@ -229,12 +229,12 @@ export function guardarDesdeFormulario(datos, previo) {
   if (destino === 'tarea') {
     const tareas = leer('tareas', []);
     const vieja = tareas.find(t => t.id === id);
-    const nueva = { ...(vieja || { estado: 'todo', creada: hoyISO() }), id, titulo: datos.titulo, tipo: datos.cat, area: datos.lugar || '', fecha: datos.fecha, hora, horaFin, nota: datos.nota, color: datos.color || undefined };
+    const nueva = { ...(vieja || { estado: 'todo', creada: hoyISO() }), id, titulo: datos.titulo, tipo: datos.cat, area: datos.lugar || '', fecha: datos.fecha, hora, horaFin, nota: datos.nota, color: datos.color || undefined, aviso: datos.aviso || undefined };
     guardar('tareas', vieja ? tareas.map(t => (t.id === id ? nueva : t)) : [...tareas, nueva]);
   } else if (destino === 'lista') {
     const lista = leer('lista', []);
     const vieja = lista.find(x => x.id === id);
-    const nueva = { ...(vieja || { hecho: false }), id, texto: datos.titulo, fecha: datos.fecha, hora, horaFin, color: datos.color || undefined };
+    const nueva = { ...(vieja || { hecho: false }), id, texto: datos.titulo, fecha: datos.fecha, hora, horaFin, color: datos.color || undefined, aviso: datos.aviso || undefined };
     guardar('lista', vieja ? lista.map(x => (x.id === id ? nueva : x)) : [...lista, nueva]);
   } else {
     const eventos = leer('eventos', []);
@@ -242,7 +242,7 @@ export function guardarDesdeFormulario(datos, previo) {
     const nuevo = {
       ...(viejo || {}), id, titulo: datos.titulo, cat: datos.cat, fecha: datos.fecha, todoElDia: datos.todoElDia,
       inicio: hora, fin: horaFin, repetir: datos.repetir, dias: datos.dias, hasta: datos.hasta || null,
-      lugar: datos.lugar, nota: datos.nota, color: datos.color || undefined,
+      lugar: datos.lugar, nota: datos.nota, color: datos.color || undefined, aviso: datos.aviso || undefined,
     };
     guardar('eventos', viejo ? eventos.map(e => (e.id === id ? nuevo : e)) : [...eventos, nuevo]);
   }
@@ -257,11 +257,11 @@ export function datosDe(ev) {
   }
   if (ev.fuente === 'tarea') {
     const t = leer('tareas', []).find(x => x.id === ev.ref);
-    if (t) return { titulo: t.titulo, cat: t.tipo === 'trabajo' ? 'trabajo' : 'estudio', fecha: t.fecha, todoElDia: !t.hora, inicio: t.hora, fin: t.horaFin, repetir: 'no', dias: [], lugar: t.area, nota: t.nota, color: t.color || '' };
+    if (t) return { titulo: t.titulo, cat: t.tipo === 'trabajo' ? 'trabajo' : 'estudio', fecha: t.fecha, todoElDia: !t.hora, inicio: t.hora, fin: t.horaFin, repetir: 'no', dias: [], lugar: t.area, nota: t.nota, color: t.color || '', aviso: t.aviso || '' };
   }
   if (ev.fuente === 'lista') {
     const x = leer('lista', []).find(y => y.id === ev.ref);
-    if (x) return { titulo: x.texto, cat: 'hogar', fecha: x.fecha, todoElDia: !x.hora, inicio: x.hora, fin: x.horaFin, repetir: 'no', dias: [], color: x.color || '' };
+    if (x) return { titulo: x.texto, cat: 'hogar', fecha: x.fecha, todoElDia: !x.hora, inicio: x.hora, fin: x.horaFin, repetir: 'no', dias: [], color: x.color || '', aviso: x.aviso || '' };
   }
   return null;
 }

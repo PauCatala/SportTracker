@@ -1,7 +1,7 @@
 // SERVICE WORKER: un pequeño programa que el navegador ejecuta "por detrás".
 // Guarda una copia de la app en el móvil para que se abra aunque no haya internet.
 
-const CACHE = 'lumen-v40';
+const CACHE = 'lumen-v41';
 // Recursos del avatar (modelos, texturas, animaciones): no cambian dentro de una versión
 const CACHE_AVATAR = 'lumen-avatar-3';
 const ARCHIVOS = [
@@ -10,7 +10,7 @@ const ARCHIVOS = [
   './js/gym.js', './js/progreso.js', './js/catalogo.js', './js/plan.js', './js/running.js',
   './js/flex.js', './js/graficos.js', './js/iconos.js', './js/rutina.js',
   './js/almacen.js', './js/perfil.js', './js/nutricion.js', './js/notas.js', './js/estudios.js', './js/personal.js',
-  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/ical.js', './js/agenda.js', './js/calendario.js',
+  './js/fotos.js', './js/imagen.js', './js/interaccion.js', './js/ical.js', './js/agenda.js', './js/calendario.js', './js/avisos.js',
   './js/inicio.js', './js/social.js', './js/inicio/rueda.js', './js/inicio/publicaciones.js', './js/inicio/avatar.js',
   './js/avatar/motor.js', './js/avatar/parametros.js', './js/avatar/animacion.js', './js/avatar/elegir.js', './js/avatar/aspecto.js', './js/avatar/escaner.js', './js/avatar/vida.js', './js/running/motor.js', './js/foco.js', './js/captura/analizar.js', './js/captura/nota.js', './vendor/avaturn-sdk.js', './js/avatar/bienvenida.js',
   './js/avatar/avaturn.js', './js/avatar/retarget.js',
@@ -62,4 +62,25 @@ self.addEventListener('fetch', ev => {
     // Librerías y tipografía externas (Supabase, Chart.js, Google Fonts): primero la copia, que no cambian
     ev.respondWith(caches.match(req).then(r => r || fetch(req).then(res => guardarCopia(req, res))));
   }
+});
+
+// AVISOS: llega una notificación desde Supabase (función enviar-avisos) y se muestra aunque la app esté cerrada
+self.addEventListener('push', ev => {
+  let d = {};
+  try { d = ev.data ? ev.data.json() : {}; } catch { d = { titulo: 'SYNCO', cuerpo: ev.data?.text() || '' }; }
+  ev.waitUntil(self.registration.showNotification(d.titulo || 'SYNCO', {
+    body: d.cuerpo || '', tag: d.tag, data: { url: d.url || './' },
+    icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', lang: 'es',
+  }));
+});
+
+// Al tocar el aviso: abre SYNCO (o la trae al frente) en la sección que toca
+self.addEventListener('notificationclick', ev => {
+  ev.notification.close();
+  const url = new URL(ev.notification.data?.url || './', self.registration.scope).href;
+  ev.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ventanas => {
+    const abierta = ventanas.find(v => v.url.startsWith(self.registration.scope));
+    if (abierta) return abierta.navigate(url).then(v => (v || abierta).focus()).catch(() => abierta.focus());
+    return self.clients.openWindow(url);
+  }));
 });

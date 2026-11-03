@@ -22,10 +22,15 @@ export function leer(clave, porDefecto) {
   }
 }
 
+// Quien quiera enterarse de los cambios (p. ej. los avisos, que se recalculan al cambiar la agenda)
+const oyentes = new Set();
+export const escuchar = f => oyentes.add(f);
+
 // Guarda un dato (al momento en el navegador; a la nube medio segundo después)
 export function guardar(clave, valor) {
   try { localStorage.setItem(PREFIJO + clave, JSON.stringify(valor)); } catch (e) { console.warn(e); }
   if (usuario) programarSubida(clave, valor);
+  oyentes.forEach(f => { try { f(clave); } catch (e) { console.warn(e); } });
 }
 
 function programarSubida(clave, valor) {

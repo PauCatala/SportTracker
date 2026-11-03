@@ -25,6 +25,7 @@ import { revelar, indicador, abrirModal, carruseles, transicion } from './intera
 import { introFlexibilidad } from './intro-flex.js';
 import { renderCalendario, pintarAgendaResumen, avisarCuenta, actualizarExportacion } from './calendario.js';
 import { activarPlan } from './agenda.js';
+import { iniciarAvisos } from './avisos.js';
 import { renderInicio, cerrarInicio } from './inicio.js';
 import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
@@ -675,6 +676,7 @@ async function entrar() {
   import('./avatar/bienvenida.js').then(m => m.bienvenidaAvatar()).catch(e => console.warn('Bienvenida', e));
   activarPlan(true);
   actualizarExportacion();
+  iniciarAvisos(session.user.id);   // avisos en el móvil: se recalculan con cada cambio de la agenda
   pintarRed();
   pintar();
   montarCaptura();   // nota rápida: botón flotante y enlaces #nota

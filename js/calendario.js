@@ -11,6 +11,7 @@ import { abrirModal, indicador } from './interaccion.js';
 import { aviso } from './utils.js';
 import { leerICS, crearICS } from './ical.js';
 import { fotosDe, domingoDe } from './fotos.js';
+import { OPCIONES_EVENTO, OPCIONES_ANTES, ajustesAvisos, guardarAjustesAvisos, estadoDispositivo, activarEnEsteDispositivo, desactivarEnEsteDispositivo, avisoDePrueba, proximosAvisos } from './avisos.js';
 import {
   CATEGORIAS, COLORES_CAL, PALETA, eventosEntre, ajustesCal, guardarDesdeFormulario, datosDe, alternarHecho,
   borrar, mover, minutos, sumarMin, marcarSemanasConFoto, cambiarActividad, seRepite, quitarDelPlan, restaurarPlan, guardarAjustesCal,
@@ -672,6 +673,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
           <label class="interruptor"><input type="checkbox" name="todoElDia" ${d.todoElDia ? 'checked' : ''}><span class="pista"></span>Todo el día</label>
         </div>
         <div class="ev-horas">${selectorCuando(d.inicio, d.fin)}</div>
+        <label class="campo ev-aviso">Avisarme <select name="aviso">${OPCIONES_EVENTO.map(([v, t]) => `<option value="${v}" ${String(d.aviso ?? '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <details class="ev-mas" ${d.repetir !== 'no' || d.lugar || d.nota ? 'open' : ''}>
           <summary>Repetir, lugar y notas</summary>
         <label class="campo">Repetir
@@ -750,7 +752,7 @@ export function abrirFormulario(inicial, origen, alGuardar) {
         const datos = {
           titulo: f.get('titulo').trim(), cat: f.get('cat'), fecha: f.get('fecha'), todoElDia: !!f.get('todoElDia'),
           inicio: f.get('inicio'), fin: f.get('fin'), repetir: f.get('repetir'), dias: f.getAll('dias').map(Number),
-          hasta: f.get('hasta'), lugar: f.get('lugar').trim(), nota: f.get('nota').trim(), color: colorDe(form),
+          hasta: f.get('hasta'), lugar: f.get('lugar').trim(), nota: f.get('nota').trim(), color: colorDe(form), aviso: f.get('aviso') || '',
         };
         const error = cuerpo.querySelector('#ev-error');
         if (!datos.titulo) { error.textContent = 'Ponle un título.'; return campo('titulo').focus(); }
@@ -909,6 +911,8 @@ export function abrirSincronizar(origen, alCambiar) {
 
         <section class="sync-bloque" id="sync-export"></section>
 
+        <section class="sync-bloque" id="sync-avisos"></section>
+
         <section class="sync-bloque">
           <h3 class="modal-h3">Horas de tu entreno</h3>
           <p class="sync-txt">Para colocar tu plan en el calendario. Puedes cambiarlas cuando quieras.</p>
@@ -952,6 +956,7 @@ export function abrirSincronizar(origen, alCambiar) {
       };
       pintarLista();
       pintarExport();
+      pintarAvisos(cuerpo.querySelector('#sync-avisos'));
 
       const error = cuerpo.querySelector('#sync-error');
       const form = cuerpo.querySelector('#sync-form');
@@ -1037,6 +1042,61 @@ export function abrirSincronizar(origen, alCambiar) {
         alCambiar?.();
       });
     },
+  });
+}
+
+/* ============================== AVISOS ============================== */
+const ESTADO_AVISOS = {
+  activo: 'Activados en este dispositivo.',
+  inactivo: 'Aún no están activados en este dispositivo.',
+  denegado: 'El navegador tiene bloqueadas las notificaciones de SYNCO. Actívalas en los ajustes del navegador (icono del candado junto a la dirección) y vuelve aquí.',
+  'ios-instalar': 'En el iPhone, los avisos solo funcionan con SYNCO instalada: en Safari pulsa Compartir → «Añadir a pantalla de inicio», ábrela desde ese icono y actívalos aquí.',
+  'no-soportado': 'Este navegador no permite notificaciones. Prueba con Chrome, Edge, Firefox o con SYNCO instalada en el móvil.',
+};
+const ENTREGAS = [['', 'No avisar'], ['vispera', 'La víspera a las 20:00'], ['dia', 'El mismo día a las 9:00'], ['ambas', 'La víspera y el mismo día']];
+const opciones = (lista, actual) => lista.map(([v, t]) => `<option value="${v}" ${String(actual ?? '') === v ? 'selected' : ''}>${t}</option>`).join('');
+const cuandoTxt = d => `${d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+
+async function pintarAvisos(caja) {
+  if (!conCuenta) {
+    caja.innerHTML = '<h3 class="modal-h3">Avisos</h3><p class="tenue">Entra en tu cuenta para recibir avisos en el móvil.</p>';
+    return;
+  }
+  const estado = await estadoDispositivo();
+  const cfg = ajustesAvisos();
+  const proximos = cfg.activo ? proximosAvisos(3) : [];
+  caja.innerHTML = `
+    <h3 class="modal-h3">Avisos</h3>
+    <p class="sync-txt">SYNCO te avisa en el móvil u ordenador antes de cada clase, entrega o entreno, aunque la app esté cerrada.</p>
+    <p class="${estado === 'activo' ? '' : 'tenue'}">${ESTADO_AVISOS[estado]}</p>
+    <div class="fila-botones">
+      ${estado === 'inactivo' ? '<button class="btn primario" data-avisos-activar>Activar avisos aquí</button>' : ''}
+      ${estado === 'activo' ? '<button class="btn suave" data-avisos-prueba>Enviar una prueba</button><button class="btn-texto peligro" data-avisos-quitar>Desactivar aquí</button>' : ''}
+    </div>
+    <p class="error" id="avisos-error"></p>
+    <form class="sync-horas" id="avisos-form">
+      <div class="sh-fila"><b>Clases y eventos</b><select name="eventos">${opciones(OPCIONES_ANTES, cfg.eventos)}</select></div>
+      <div class="sh-fila"><b>Entregas y tareas sin hora</b><select name="entregas">${opciones(ENTREGAS, cfg.entregas)}</select></div>
+      <div class="sh-fila"><b>Entreno</b><select name="entreno">${opciones(OPCIONES_ANTES, cfg.entreno)}</select></div>
+      <div class="sh-fila"><b>Foto de progreso</b><select name="foto">${opciones(OPCIONES_ANTES, cfg.foto)}</select></div>
+      <div class="sh-fila"><b>Calendarios importados</b><label class="interruptor"><input type="checkbox" name="importados" ${cfg.importados ? 'checked' : ''}><span class="pista"></span>PoliformaT, Google…</label></div>
+    </form>
+    <p class="tenue">En cada evento puedes cambiarlo con «Avisarme».</p>
+    ${proximos.length ? `<p class="tenue">Próximos: ${proximos.map(a => `<b>${escapar(a.titulo)}</b> (${cuandoTxt(a.cuando)})`).join(' · ')}</p>` : ''}`;
+
+  const error = caja.querySelector('#avisos-error');
+  const accion = async (boton, hacer, ok) => {
+    boton.disabled = true; error.textContent = '';
+    try { await hacer(); if (ok) aviso(ok); } catch (e) { error.textContent = e.message; }
+    pintarAvisos(caja);
+  };
+  caja.querySelector('[data-avisos-activar]')?.addEventListener('click', ev => accion(ev.currentTarget, activarEnEsteDispositivo, 'Avisos activados'));
+  caja.querySelector('[data-avisos-prueba]')?.addEventListener('click', ev => accion(ev.currentTarget, avisoDePrueba, 'Prueba enviada: llegará en menos de un minuto'));
+  caja.querySelector('[data-avisos-quitar]')?.addEventListener('click', ev => accion(ev.currentTarget, desactivarEnEsteDispositivo, 'Avisos desactivados aquí'));
+  caja.querySelector('#avisos-form').addEventListener('change', ev => {
+    const f = new FormData(ev.currentTarget);
+    const num = k => (f.get(k) === '' ? null : Number(f.get(k)));
+    guardarAjustesAvisos({ eventos: num('eventos'), entregas: f.get('entregas') || null, entreno: num('entreno'), foto: num('foto'), importados: !!f.get('importados') });
   });
 }
 
