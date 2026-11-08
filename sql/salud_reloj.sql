@@ -150,3 +150,16 @@ create policy "solo mis datos" on public.actividades for all
 create index if not exists actividades_user_fecha on public.actividades (user_id, fecha desc);
 
 -- Las carreras que llegan de Strava no se duplican: carreras.strava_id ya es único.
+
+-- 6) ¿Existe este código? (para el botón «Probar» de SYNCO; no devuelve ningún dato tuyo)
+create or replace function public.salud_codigo_valido(p_token text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from salud_conexion where token = p_token and length(p_token) >= 24);
+$$;
+revoke all on function public.salud_codigo_valido(text) from public;
+grant execute on function public.salud_codigo_valido(text) to anon, authenticated;

@@ -36,7 +36,8 @@ self.addEventListener('activate', ev => {
 });
 
 const guardarCopia = (req, res) => {
-  if (res.ok) { const copia = res.clone(); caches.open(CACHE).then(c => c.put(req, copia)); }
+  // Las direcciones con ?… (p. ej. la vuelta de Strava con su código) no se guardan
+  if (res.ok && !new URL(req.url).search) { const copia = res.clone(); caches.open(CACHE).then(c => c.put(req, copia)); }
   return res;
 };
 

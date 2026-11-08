@@ -8,8 +8,9 @@
 //
 // Acciones:
 //   GET  ?accion=estado                  → ¿está configurado Strava en Vercel?
+//   POST ?accion=iniciar                 → estado firmado con tu id (protege la vuelta de Strava)
 //   GET  ?accion=autorizar&state=…       → te manda a Strava para dar permiso
-//   POST ?accion=canjear  {code}         → guarda la conexión (tras volver de Strava)
+//   POST ?accion=canjear  {code, state}  → guarda la conexión (tras volver de Strava)
 //   POST ?accion=sincronizar             → trae los entrenos nuevos
 //   POST ?accion=desconectar             → quita el permiso y borra la conexión
 const SUPABASE_URL = 'https://lqbqlgkuubyukqbhckck.supabase.co';
@@ -64,6 +65,7 @@ function aActividad(a) {
 // workout_type de Strava para correr: 1 = competición, 2 = tirada larga, 3 = entrenamiento (series)
 function aCarrera(a) {
   const km = a.distance ? Math.round(a.distance / 100) / 10 : null;
+  // Una competición se guarda como tempo (es un esfuerzo fuerte y continuo; Running no tiene tipo «carrera»)
   const tipo = a.workout_type === 3 ? 'series' : a.workout_type === 2 ? 'larga' : a.workout_type === 1 ? 'tempo' : km >= 14 ? 'larga' : 'easy';
   return {
     fecha: String(a.start_date_local || a.start_date).slice(0, 10),
@@ -92,8 +94,10 @@ const responder = (res, status, cuerpo) => {
   res.end(JSON.stringify(cuerpo));
 };
 async function leerCuerpo(req) {
-  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body;
-  const t = typeof req.body === 'string' ? req.body : await new Promise(ok => { let s = ''; req.on('data', c => { s += c; }); req.on('end', () => ok(s)); req.on('error', () => ok('')); });
+  let cuerpo;
+  try { cuerpo = req.body; } catch { return {}; }     // JSON mal formado
+  if (cuerpo && typeof cuerpo === 'object' && !Buffer.isBuffer(cuerpo)) return cuerpo;
+  const t = typeof cuerpo === 'string' ? cuerpo : await new Promise(ok => { let s = ''; req.on('data', c => { s += c; }); req.on('end', () => ok(s)); req.on('error', () => ok('')); });
   try { return JSON.parse(t || '{}'); } catch { return {}; }
 }
 // Supabase con tu sesión
@@ -124,9 +128,26 @@ async function token(cuerpo) {
   return d;
 }
 
+// ---------- Firma del permiso ----------
+// Antes de ir a Strava, la app pide aquí un "estado" firmado con tu id. Al volver, solo se acepta el
+// código de Strava si ese estado es tuyo y tiene menos de 30 minutos: nadie puede colarte su cuenta.
+const crypto = require('crypto');
+const firmar = texto => crypto.createHmac('sha256', SECRETO()).update(texto).digest('base64url').slice(0, 32);
+function crearEstado(uid) {
+  const base = `${uid}.${Math.floor(Date.now() / 1000) + 1800}`;
+  return `${base}.${firmar(base)}`;
+}
+function estadoValido(estado, uid) {
+  const m = String(estado || '').match(/^([0-9a-f-]{36})\.(\d{10})\.([A-Za-z0-9_-]{32})$/);
+  if (!m || m[1] !== uid || Number(m[2]) < Date.now() / 1000) return false;
+  const esperado = firmar(`${m[1]}.${m[2]}`);
+  return crypto.timingSafeEqual(Buffer.from(esperado), Buffer.from(m[3]));
+}
+
 // ---------- Acciones ----------
-async function canjear(u, { code }) {
+async function canjear(u, { code, state }) {
   if (!code || !/^[A-Za-z0-9]{10,80}$/.test(code)) return [400, { ok: false, mensaje: 'Falta el permiso de Strava.' }];
+  if (!estadoValido(state, u.id)) return [403, { ok: false, mensaje: 'Este enlace de Strava no es tuyo o ha caducado. Vuelve a pulsar «Conectar con Strava».' }];
   const t = await token({ code, grant_type: 'authorization_code' });
   const alcance = String(t.scope || '');
   const fila = {
@@ -149,15 +170,16 @@ async function sincronizar(u) {
   if (!c.expira || c.expira < Date.now() / 1000 + 120) {
     const t = await token({ grant_type: 'refresh_token', refresh_token: c.refresh_token });
     acceso = t.access_token;
-    await q('strava_conexion', { method: 'PATCH', body: { access_token: t.access_token, refresh_token: t.refresh_token, expira: t.expires_at, actualizado: new Date().toISOString() } });
+    await q(`strava_conexion?user_id=eq.${u.id}`, { method: 'PATCH', body: { access_token: t.access_token, refresh_token: t.refresh_token, expira: t.expires_at, actualizado: new Date().toISOString() } });
   }
   // Desde la última vez (con 7 días de margen por si subes algo con retraso). La primera vez, 90 días.
   const desde = c.ultimo_sync ? c.ultimo_sync - 7 * 86400 : Math.floor(Date.now() / 1000) - 90 * 86400;
   const todas = [];
+  let cortado = false;     // Strava nos frenó (límite de peticiones): no se da por terminada
   for (let pagina = 1; pagina <= 4; pagina++) {
     const r = await fetch(`${STRAVA}/api/v3/athlete/activities?after=${desde}&per_page=100&page=${pagina}`, { headers: { Authorization: `Bearer ${acceso}` } });
     if (r.status === 401) return [401, { ok: false, mensaje: 'Strava ha retirado el permiso. Vuelve a conectar.' }];
-    if (r.status === 429) break;     // límite de Strava: lo que falte llegará la próxima vez
+    if (r.status === 429) { cortado = true; break; }     // límite de Strava: lo que falte llegará la próxima vez
     if (!r.ok) throw new Error(`Strava ${r.status}`);
     const lote = await r.json();
     todas.push(...lote);
@@ -184,15 +206,20 @@ async function sincronizar(u) {
     }
   }
   const ultimo = todas.reduce((m, a) => Math.max(m, Math.floor(new Date(a.start_date).getTime() / 1000) || 0), c.ultimo_sync || 0);
-  await q('strava_conexion', { method: 'PATCH', body: { ultimo_sync: ultimo || Math.floor(Date.now() / 1000) - 7 * 86400, actualizado: new Date().toISOString() } });
+  const cambios = { actualizado: new Date().toISOString() };
+  if (!cortado) cambios.ultimo_sync = ultimo || Math.floor(Date.now() / 1000) - 7 * 86400;
+  await q(`strava_conexion?user_id=eq.${u.id}`, { method: 'PATCH', body: cambios });
   return [200, { ok: true, nuevas: todas.length, carreras: todas.filter(a => deporteDe(a.sport_type || a.type) === 'correr').length }];
 }
 
 async function desconectar(u) {
   const q = db(u.jwt);
-  const [c] = await q('strava_conexion?select=access_token');
+  const [c] = await q('strava_conexion?select=access_token,refresh_token,expira');
+  if (c?.expira && c.expira < Date.now() / 1000 + 60 && c.refresh_token) {
+    try { const t = await token({ grant_type: 'refresh_token', refresh_token: c.refresh_token }); c.access_token = t.access_token; } catch { /* sigue: se borra igual */ }
+  }
   if (c?.access_token) await fetch(`${STRAVA}/oauth/deauthorize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: c.access_token }) }).catch(() => {});
-  await q('strava_conexion', { method: 'DELETE' });
+  await q(`strava_conexion?user_id=eq.${u.id}`, { method: 'DELETE' });
   return [200, { ok: true }];
 }
 
@@ -207,7 +234,7 @@ async function manejador(req, res) {
 
   if (accion === 'autorizar') {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const estado = (params.get('state') || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64);
+    const estado = (params.get('state') || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 120);
     const vuelta = `https://${host}/?strava=vuelta`;
     const url = `${STRAVA}/oauth/authorize?client_id=${encodeURIComponent(ID())}&response_type=code&approval_prompt=auto`
       + `&scope=read,activity:read_all&redirect_uri=${encodeURIComponent(vuelta)}&state=${estado}`;
@@ -220,7 +247,8 @@ async function manejador(req, res) {
   const u = await usuario(req);
   if (!u) return responder(res, 401, { ok: false, mensaje: 'Inicia sesión en SYNCO.' });
   try {
-    const [status, cuerpo] = accion === 'canjear' ? await canjear(u, await leerCuerpo(req))
+    const [status, cuerpo] = accion === 'iniciar' ? [200, { ok: true, state: crearEstado(u.id) }]
+      : accion === 'canjear' ? await canjear(u, await leerCuerpo(req))
       : accion === 'sincronizar' ? await sincronizar(u)
       : accion === 'desconectar' ? await desconectar(u)
       : [400, { ok: false, mensaje: 'Acción desconocida.' }];

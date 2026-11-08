@@ -45,7 +45,8 @@ export function cargarReloj(forzar = false) {
   })().catch(e => { reloj.error = e.message; reloj.cargado = true; return reloj; });
   return cargando;
 }
-const avisarCambio = () => dispatchEvent(new CustomEvent('synco:datos'));
+// Repinta solo si estás viendo Reloj (así no se borra un formulario a medias en otra pantalla)
+const avisarCambio = () => { if (document.querySelector('.cs[data-bloque="reloj"]')) dispatchEvent(new CustomEvent('synco:datos')); };
 
 /* ---------- Llamadas a las funciones de Vercel ---------- */
 async function api(ruta, opciones = {}) {
@@ -57,33 +58,31 @@ async function api(ruta, opciones = {}) {
 }
 
 /* ---------- Strava ---------- */
-const CLAVE_ESTADO = 'synco-strava-estado';
 const CLAVE_ULTIMO = 'synco-strava-ultimo';
 const aleatorio = (n = 32) => { const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; const v = crypto.getRandomValues(new Uint8Array(n)); return [...v].map(x => abc[x % abc.length]).join(''); };
 
 // Al volver de Strava la dirección trae ?strava=vuelta&code=…&state=… (se lee nada más cargar, antes de que la app la cambie)
-const vuelta = (() => {
+let vuelta = (() => {
   const p = new URLSearchParams(location.search);
   if (p.get('strava') !== 'vuelta') return null;
   history.replaceState(null, '', location.pathname + location.hash);
   return { code: p.get('code'), state: p.get('state'), error: p.get('error') };
 })();
 
-export function conectarStrava() {
-  const estado = aleatorio();
-  try { localStorage.setItem(CLAVE_ESTADO, estado); } catch { /* sin almacenamiento: se pedirá confirmación al volver */ }
-  location.href = `/api/strava?accion=autorizar&state=${estado}`;
+// El servidor firma un "estado" con tu id: al volver, solo se acepta si es tuyo (nadie puede colarte su cuenta)
+export async function conectarStrava() {
+  const r = await api('strava?accion=iniciar', { method: 'POST' });
+  if (!r.ok || !r.state) return aviso(r.mensaje || 'No se pudo empezar la conexión con Strava', 'error');
+  location.href = `/api/strava?accion=autorizar&state=${encodeURIComponent(r.state)}`;
 }
 
 // Se llama al entrar en la cuenta: termina la conexión si venimos de Strava
 export async function terminarConexionStrava() {
   if (!vuelta) return false;
-  if (vuelta.error || !vuelta.code) { aviso('No se ha conectado Strava: no diste permiso.', 'error'); return false; }
-  let guardado = null;
-  try { guardado = localStorage.getItem(CLAVE_ESTADO); localStorage.removeItem(CLAVE_ESTADO); } catch { /* nada */ }
-  // Si el permiso se pidió desde otro navegador (pasa en el iPhone con la app instalada), confirmamos antes
-  if (guardado !== vuelta.state && !confirm('¿Conectar tu cuenta de Strava con SYNCO?')) return false;
-  const r = await api('strava?accion=canjear', { method: 'POST', body: JSON.stringify({ code: vuelta.code }) });
+  const { code, state, error } = vuelta;
+  vuelta = null;     // se usa una sola vez
+  if (error || !code) { aviso('No se ha conectado Strava: no diste permiso.', 'error'); return false; }
+  const r = await api('strava?accion=canjear', { method: 'POST', body: JSON.stringify({ code, state }) });
   if (!r.ok) { aviso(r.mensaje || 'No se pudo conectar Strava', 'error'); return false; }
   aviso(r.aviso || `Strava conectado${r.nombre ? `: ${r.nombre}` : ''}. Trayendo tus entrenos…`, r.aviso ? 'error' : 'ok');
   await cargarReloj(true);
@@ -101,7 +100,7 @@ export function sincronizarStrava({ forzar = false } = {}) {
   try { ultimo = Number(localStorage.getItem(CLAVE_ULTIMO)) || 0; } catch { /* nada */ }
   if (!forzar && Date.now() - ultimo < 20 * 60000) return Promise.resolve(null);
   sincronizando = (async () => {
-    const r = await api('strava?accion=sincronizar', { method: 'POST' });
+    const r = await api('strava?accion=sincronizar', { method: 'POST' }).catch(() => ({ ok: false, mensaje: 'Sin conexión: Strava se sincronizará más tarde' }));
     try { localStorage.setItem(CLAVE_ULTIMO, String(Date.now())); } catch { /* nada */ }
     if (r.ok) {
       const antes = new Set(reloj.actividades.map(a => a.externo_id));
@@ -286,6 +285,11 @@ async function preparar(cont) {
     cont.innerHTML = `<section class="panel"><h3>Falta un paso en la base de datos</h3><p>Ejecuta <code>sql/salud_reloj.sql</code> en el editor SQL de Supabase y vuelve a abrir SYNCO.</p></section>`;
     return false;
   }
+  if (reloj.error) {
+    cont.innerHTML = `<section class="panel"><h3>No se han podido cargar tus datos del reloj</h3><p class="tenue">${navigator.onLine ? 'Inténtalo de nuevo en un momento.' : 'Parece que no tienes conexión.'}</p><button class="btn chico" data-reintentar>Reintentar</button></section>`;
+    cont.onclick = async ev => { if (ev.target.closest('[data-reintentar]')) { cont.innerHTML = cargador('Cargando…'); await cargarReloj(true); dispatchEvent(new CustomEvent('synco:datos')); } };
+    return false;
+  }
   return true;
 }
 const sinConexion = () => !reloj.salud?.ultimo_envio && !reloj.strava && !reloj.dias.length && !reloj.actividades.length;
@@ -413,8 +417,9 @@ function pieSync() {
 }
 async function botonSincronizar(b) {
   b.disabled = true; b.textContent = 'Sincronizando…';
-  await Promise.all([sincronizarStrava({ forzar: true }), cargarReloj(true)]);
-  avisarCambio();
+  try { await Promise.all([sincronizarStrava({ forzar: true }), cargarReloj(true)]); }
+  catch (e) { aviso('Sin conexión: inténtalo más tarde', 'error'); }
+  finally { avisarCambio(); b.disabled = false; b.textContent = 'Sincronizar ahora'; }
 }
 
 function filaActividad(a) {
@@ -643,8 +648,8 @@ export async function renderRelojConectar(cont) {
       if (b.matches('[data-renovar]')) {
         if (!confirm('Se creará una dirección nueva y la anterior dejará de funcionar. Tendrás que pegarla otra vez en el Atajo. ¿Seguir?')) return;
         const t = await codigoAtajo(true);
-        await navigator.clipboard.writeText(urlAtajo(t)).catch(() => {});
-        aviso('Dirección nueva copiada');
+        const copiada = await navigator.clipboard.writeText(urlAtajo(t)).then(() => true, () => false);
+        aviso(copiada ? 'Dirección nueva copiada' : 'Dirección nueva creada: pulsa «Copiar dirección»');
         return renderRelojConectar(cont);
       }
       if (b.matches('[data-conectar-strava]')) return conectarStrava();
@@ -665,7 +670,13 @@ export async function renderRelojConectar(cont) {
     const f = new FormData(ev.target);
     const fila = { fecha: f.get('fecha'), fuente: 'Manual' };
     const s = String(f.get('sueno') || '').trim();
-    if (s) { const m = s.match(/^(\d{1,2})(?:[:h.,]\s*(\d{1,2}))?/); if (m) fila.sueno_min = Number(m[1]) * 60 + Number(m[2] || 0); }
+    // «7:30» o «7h30» → 7 h 30 min · «7,5» o «7.5» → 7 h y media
+    if (s) {
+      const hm = s.match(/^(\d{1,2})\s*[:h]\s*(\d{1,2})?/i), dec = s.match(/^(\d{1,2})(?:[.,](\d+))?$/);
+      if (hm) fila.sueno_min = Number(hm[1]) * 60 + Number(hm[2] || 0);
+      else if (dec) fila.sueno_min = Math.round(Number(`${dec[1]}.${dec[2] || 0}`) * 60);
+      if (!(fila.sueno_min >= 0 && fila.sueno_min <= 1440)) return aviso('El sueño no tiene buen formato: usa 7:30', 'error');
+    }
     for (const k of ['pasos', 'fc_reposo']) if (f.get(k)) fila[k] = Number(f.get(k));
     if (Object.keys(fila).length <= 2) return aviso('Escribe al menos un dato', 'error');
     const { error } = await supabase.from('salud_dias').upsert(fila, { onConflict: 'user_id,fecha' });
@@ -681,6 +692,7 @@ export async function renderRelojConectar(cont) {
    ===================================================================== */
 export function orbitaReloj({ tarjeta, dato, anillo, accion, ir }) {
   if (!reloj.cargado) return { izq: [tarjeta({ titulo: 'Reloj', cuerpo: cargador('Cargando…') })], der: [], despues: () => cargarReloj().then(avisarCambio) };
+  if (reloj.error) return { izq: [tarjeta({ titulo: 'Reloj', cuerpo: '<p class="cs-texto">No se han podido cargar tus datos ahora mismo.</p>' })], der: [] };
   if (sinConexion()) {
     return {
       izq: [tarjeta({ titulo: 'Tu reloj', ancla: 'manoIzq', clase: 'cs-destacada', cuerpo: `<p class="cs-texto">Conecta Apple Salud y Strava: sueño, pulso, pasos y entrenos llegarán solos.</p>${accion('Conectar', ir('reloj', 'conectar'))}` })],

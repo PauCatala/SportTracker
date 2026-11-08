@@ -32,7 +32,9 @@ function numero(v) {
 // Solo para el TOTAL de sueño, un número de 16 o menos se entiende como horas (nadie duerme 16 minutos en total).
 function minutos(v, { horasSiPequeno = false } = {}) {
   if (v === null || v === undefined || v === '') return null;
-  if (Array.isArray(v)) {        // lista de duraciones (p. ej. tramos de sueño): se suman
+  if (Array.isArray(v)) {        // lista de duraciones (p. ej. tramos de sueño): números → se suman y luego se interpreta el total
+    const nums = v.map(numero).filter(x => x !== null);
+    if (nums.length === v.length && v.every(x => typeof x === 'number' || /^[\d.,\s]+$/.test(String(x)))) return porTamano(nums.reduce((a, b) => a + b, 0), horasSiPequeno);
     const ns = v.map(x => minutos(x)).filter(x => x !== null);
     return ns.length ? ns.reduce((a, b) => a + b, 0) : null;
   }
@@ -40,9 +42,9 @@ function minutos(v, { horasSiPequeno = false } = {}) {
   const s = String(v).trim().toLowerCase();
   let m = s.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
   if (m) return Number(m[1]) * 60 + Number(m[2]) + (m[3] ? Number(m[3]) / 60 : 0);
-  const h = s.match(/([\d.,]+)\s*(h|hr|hrs|hora|horas)\b/);
-  const mi = s.match(/([\d.,]+)\s*(m|min|mins|minuto|minutos)\b/);
-  const se = s.match(/([\d.,]+)\s*(s|seg|sec|segundo|segundos)\b/);
+  const h = s.match(/([\d.,]+)\s*(h|hr|hrs|hora|horas|hour|hours)\b/);
+  const mi = s.match(/([\d.,]+)\s*(m|min|mins|minuto|minutos|minute|minutes)\b/);
+  const se = s.match(/([\d.,]+)\s*(s|seg|sec|secs|segundo|segundos|second|seconds)\b/);
   if (h || mi || se) return (h ? numero(h[1]) * 60 : 0) + (mi ? numero(mi[1]) : 0) + (se ? numero(se[1]) / 60 : 0);
   m = s.match(/^(\d+)\s*h\s*(\d+)$/);
   if (m) return Number(m[1]) * 60 + Number(m[2]);
@@ -68,7 +70,7 @@ function fecha(v) {
   if (s === 'hoy' || s === 'today') return hoyEn();
   if (s === 'ayer' || s === 'yesterday') return hoyEn(ZONA, -1);
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  if (m) return iso(m[1], m[2], m[3]);      // también descarta fechas imposibles (30 de febrero)
   m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
   if (m) return iso(m[3], m[2], m[1]);
   m = s.match(/(\d{1,2})\s+(?:de\s+)?([a-zé]{3})[a-zé]*\.?\s+(?:de\s+)?(\d{4})/);
@@ -125,7 +127,11 @@ function limpiar(cuerpo, ahora = { hoy: hoyEn() }) {
   // Duración con la unidad en el nombre (sueno_seg, sueno_h, sueno_min) o deducida (sueno)
   const mins = (k, opciones) => {
     for (const [suf, f] of [['_min', 1], ['_seg', 1 / 60], ['_s', 1 / 60], ['_h', 60], ['_horas', 60]]) {
-      const v = numero(campoExacto(cuerpo, ALIAS[k].map(a => a.replace(/_min$/, '') + suf)));
+      const bruto = campoExacto(cuerpo, ALIAS[k].map(a => a.replace(/_min$/, '') + suf));
+      if (bruto === undefined) continue;
+      // Si trae su propia unidad escrita ("7 h 30 min"), manda la unidad del texto
+      if (typeof bruto === 'string' && /[a-z:]/i.test(bruto)) return minutos(bruto);
+      const v = numero(bruto);
       if (v !== null) return v * f;
     }
     return minutos(campo(cuerpo, k), opciones);
@@ -135,7 +141,8 @@ function limpiar(cuerpo, ahora = { hoy: hoyEn() }) {
   let dist = n('distancia_km');
   if (dist !== null && dist > 200) dist /= 1000;               // llegó en metros
   const dia = {
-    fecha: fecha(campo(cuerpo, 'fecha')) || ahora.hoy,
+    // Sin fecha → hoy. Con una fecha que no se entiende → null (se avisa en vez de guardarla en otro día)
+    fecha: campo(cuerpo, 'fecha') === undefined ? ahora.hoy : fecha(campo(cuerpo, 'fecha')),
     pasos: entre(n('pasos'), 0, 150000),
     distancia_km: entre(dist, 0, 200, 2),
     kcal_activas: entre(n('kcal_activas'), 0, 10000),
@@ -165,8 +172,10 @@ function limpiar(cuerpo, ahora = { hoy: hoyEn() }) {
 
 // ---------- Lectura del cuerpo de la petición ----------
 async function leerCuerpo(req) {
-  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body;
-  let texto = typeof req.body === 'string' ? req.body : Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
+  let cuerpo;
+  try { cuerpo = req.body; } catch { return {}; }     // Vercel lanza error si el JSON viene mal formado
+  if (cuerpo && typeof cuerpo === 'object' && !Buffer.isBuffer(cuerpo)) return cuerpo;
+  let texto = typeof cuerpo === 'string' ? cuerpo : Buffer.isBuffer(cuerpo) ? cuerpo.toString('utf8') : '';
   if (!texto) texto = await new Promise(ok => { let t = ''; req.on('data', c => { t += c; if (t.length > 100000) req.destroy(); }); req.on('end', () => ok(t)); req.on('error', () => ok('')); });
   texto = texto.trim();
   if (!texto) return {};
@@ -197,7 +206,16 @@ async function manejador(req, res) {
   const token = (params.get('t') || req.headers['x-synco-codigo'] || '').trim();
   if (!/^[A-Za-z0-9]{24,64}$/.test(token)) return responder(res, 401, { ok: false, mensaje: 'Falta tu código de SYNCO o no es válido.' });
 
-  if (req.method === 'GET') return responder(res, 200, { ok: true, mensaje: 'SYNCO está listo para recibir tus datos. El Atajo debe enviarlos con el método POST.' });
+  if (req.method === 'GET') {
+    // Prueba de la dirección: comprueba de verdad que el código existe
+    const valido = await fetch(`${SUPABASE_URL}/rest/v1/rpc/salud_codigo_valido`, {
+      method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_token: token }),
+    }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    if (valido === null) return responder(res, 502, { ok: false, mensaje: 'No se ha podido comprobar ahora mismo. Inténtalo en un rato.' });
+    return valido
+      ? responder(res, 200, { ok: true, mensaje: 'SYNCO está listo para recibir tus datos. El Atajo debe enviarlos con el método POST.' })
+      : responder(res, 401, { ok: false, mensaje: 'Esta dirección ya no es válida: cópiala de nuevo en SYNCO.' });
+  }
   if (req.method !== 'POST') return responder(res, 405, { ok: false, mensaje: 'Usa POST.' });
 
   const cuerpo = await leerCuerpo(req);
@@ -207,6 +225,7 @@ async function manejador(req, res) {
   for (const crudo of lista) {
     if (!crudo || typeof crudo !== 'object') continue;
     const dia = limpiar(crudo);
+    if (!dia.fecha) { resultados.push({ fecha: '?', ok: false, mensaje: 'La fecha no se entiende: usa AAAA-MM-DD o quita el campo fecha.' }); continue; }
     const datos = Object.entries(dia).filter(([k, v]) => k !== 'fecha' && v !== null).length;
     if (!datos) { resultados.push({ fecha: dia.fecha, ok: false, mensaje: 'No ha llegado ningún dato que se entienda.' }); continue; }
     let r;
