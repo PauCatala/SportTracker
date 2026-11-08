@@ -163,3 +163,37 @@ as $$
 $$;
 revoke all on function public.salud_codigo_valido(text) from public;
 grant execute on function public.salud_codigo_valido(text) to anon, authenticated;
+
+-- 7) BANDEJA DEL IPHONE: lo que escribes en el Atajo «Apuntar en SYNCO» espera aquí hasta que abres la app
+create table if not exists public.notas_entrada (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users on delete cascade,
+  texto text not null check (char_length(texto) between 1 and 2000),
+  creada timestamptz not null default now(),
+  procesada timestamptz
+);
+alter table public.notas_entrada enable row level security;
+drop policy if exists "solo mis datos" on public.notas_entrada;
+create policy "solo mis datos" on public.notas_entrada for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create index if not exists notas_entrada_pendientes on public.notas_entrada (user_id, creada) where procesada is null;
+
+-- Guarda una nota con tu código secreto (como mucho 200 sin colocar, para que nadie llene tu bandeja)
+create or replace function public.nota_entrada(p_token text, p_texto text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user uuid;
+begin
+  if p_token is null or length(p_token) < 24 then return 'codigo'; end if;
+  select user_id into v_user from salud_conexion where token = p_token;
+  if v_user is null then return 'codigo'; end if;
+  if p_texto is null or char_length(btrim(p_texto)) = 0 then return 'vacio'; end if;
+  if (select count(*) from notas_entrada where user_id = v_user and procesada is null) >= 200 then return 'lleno'; end if;
+  insert into notas_entrada (user_id, texto) values (v_user, left(btrim(p_texto), 2000));
+  return 'ok';
+end;
+$$;
+revoke all on function public.nota_entrada(text, text) from public;
+grant execute on function public.nota_entrada(text, text) to anon, authenticated;

@@ -4,11 +4,15 @@
 //   «press banca 3x15 80 kg»                    → series en tu sesión de gimnasio de ese día
 //   «he corrido 8 km en 42 min»                 → salida de running
 //   «comprar leche»                             → tu lista de Personal
+//   «lista de la compra: leche, huevos y pan»   → lista de la compra de Nutrición (un artículo por cosa)
 // Todo se hace aquí, en el móvil, sin enviar el texto a ningún sitio (y sin coste).
 // Sin dependencias: se puede probar con Node.
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+// Meses completos o abreviados (ene, feb, mar, abr, may, jun, jul, ago, sep/sept/set, oct, nov, dic)
+const MES_PATRON = [...MESES, 'sept', 'set', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'].join('|');
+const mesDe = t => (t === 'set' ? 8 : MESES.findIndex(x => x.startsWith(t.slice(0, 3))));
 const NUMEROS = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12,
   trece: 13, catorce: 14, quince: 15, dieciseis: 16, veinte: 20, treinta: 30 };
 
@@ -47,12 +51,15 @@ function buscarFecha(t, hoy, pasado) {
     if (!m[3] && !pasado && iso(d) < hoy) d.setFullYear(a + 1);
     if (d.getMonth() === Number(m[2]) - 1) return quitar(m, iso(d));
   }
-  // el 25 de octubre / 25 de octubre
-  if ((m = new RegExp(`\\b(?:el\\s+)?(?:(?:${DIAS.join('|')})\\s+)?(\\d{1,2})\\s+de\\s+(${MESES.join('|')})(?:\\s+de\\s+(\\d{4}))?\\b`).exec(t))) {
+  // el 25 de octubre / 25 octubre / 25 oct / 25 de oct. de 2027
+  if ((m = new RegExp(`\\b(?:el\\s+)?(?:(?:${DIAS.join('|')})\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MES_PATRON})\\.?(?:\\s+(?:de\\s+|del\\s+)?(\\d{4}))?(?![a-zñ])`).exec(t))) {
+    const mes = mesDe(m[2]), dia = Number(m[1]);
     const a = m[3] ? Number(m[3]) : desdeISO(hoy).getFullYear();
-    const d = new Date(a, MESES.indexOf(m[2]), Number(m[1]), 12);
-    if (!m[3] && !pasado && iso(d) < hoy) d.setFullYear(a + 1);
-    return quitar(m, iso(d));
+    const d = new Date(a, mes, dia, 12);
+    if (d.getMonth() === mes && d.getDate() === dia) {      // «36 de abril» no es una fecha
+      if (!m[3] && !pasado && iso(d) < hoy) d.setFullYear(a + 1);
+      return quitar(m, iso(d));
+    }
   }
   // el lunes, este jueves, el próximo viernes, el viernes que viene
   if ((m = new RegExp(`\\b(?:el\\s+|este\\s+|esta\\s+)?(?:(proximo|siguiente)\\s+)?(${DIAS.join('|')})(\\s+que\\s+viene|\\s+pasado)?\\b`).exec(t))) {
@@ -275,14 +282,32 @@ function trocear(texto) {
   return trozos;
 }
 
+/* ---------------- Lista de la compra ---------------- */
+// «lista de la compra: leche, huevos y pan» · «compra: tomates, pasta» · «añade a la compra yogures»
+// «leche y huevos para la compra» → un artículo por cosa, en la lista de la compra de Nutrición
+const RE_COMPRA_ANTES = /^\s*(?:(?:añade|anade|añadir|anadir|apunta|apuntar|pon|poner|mete|meter)(?:me)?\s+(?:a|en)\s+la\s+(?:lista\s+de\s+(?:la\s+)?)?compra|(?:la\s+)?lista\s+de\s+(?:la\s+)?compra|para\s+la\s+compra|a\s+la\s+compra)\s*[:,\-–]?\s+(.+)$|^\s*compra\s*:\s*(.+)$/i;
+const RE_COMPRA_DESPUES = /^(.+?)\s+(?:a|para|en)\s+la\s+(?:lista\s+de\s+(?:la\s+)?)?compra\s*[.!]?$/i;
+function articulosCompra(trozo) {
+  const m = trozo.match(RE_COMPRA_ANTES) || trozo.match(RE_COMPRA_DESPUES);
+  if (!m) return null;
+  const items = (m[1] || m[2]).split(/\s*,\s*|\s+y\s+|\s+e\s+(?=[^aeiouáéíóú]?[a-zñ])/i)
+    .map(x => x.replace(/^(?:y|e|unas?|unos?|algo\s+de|un\s+poco\s+de)\s+/i, '').replace(/[.!;]+$/, '').trim())
+    .filter(Boolean);
+  return items.length ? items.map(x => capital(x)) : null;
+}
+
 /* ---------------- Analizar ---------------- */
 // hoy: «AAAA-MM-DD». ejercicios: tu catálogo de gimnasio ({id, nombre, dia, activo}).
 // Devuelve una lista de acciones (cada una con su tipo y sus datos, editables antes de guardar).
-export function analizar(texto, { hoy, ejercicios = [] } = {}) {
+// ahora: «HH:MM» (opcional; por defecto, la hora de este dispositivo). Sirve para saber si «a las 9» ya ha pasado hoy.
+export function analizar(texto, { hoy, ahora, ejercicios = [] } = {}) {
   hoy ||= iso(new Date());
+  ahora ||= hh(new Date().getHours(), new Date().getMinutes());
   const acciones = [];
   let ultimaFecha = null;   // «ayer: press 3x10, sentadilla 4x8» → la fecha vale para lo que sigue
   for (const trozo of trocear(texto)) {
+    const compra = articulosCompra(trozo);
+    if (compra) { acciones.push(...compra.map(texto => ({ tipo: 'compra', texto }))); continue; }
     const n0 = cifras(normalizar(trozo));
     const esGym = pareceGym(n0), esRun = !esGym && pareceRun(n0);
     const pasado = esGym || esRun || /\b(he|hice|hizo|fui|estuve|corri|entrene|termine|acabe)\b/.test(n0);
@@ -318,7 +343,7 @@ export function analizar(texto, { hoy, ejercicios = [] } = {}) {
 
     if (h.inicio || (RE_EVENTO.test(n0) && fecha && !verbo)) {
       const cat = CATEGORIA.find(([re]) => re.test(n0))?.[1] || 'personal';
-      acciones.push({ tipo: 'evento', titulo, fecha: fecha || (h.inicio && h.inicio < hh(new Date().getHours(), new Date().getMinutes()) ? mas(hoy, 1) : hoy),
+      acciones.push({ tipo: 'evento', titulo, fecha: fecha || (h.inicio && h.inicio < ahora ? mas(hoy, 1) : hoy),
         todoElDia: !h.inicio, inicio: h.inicio, fin: h.inicio ? (fin || sumarMin(h.inicio, 60)) : null, cat, texto: trozo });
     } else if (verbo || fecha || PRIORIDAD_ALTA.test(n0)) {
       // Estudios o trabajo → tablero de tareas; casa y recados → tu lista de Personal

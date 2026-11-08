@@ -341,7 +341,7 @@ export async function renderPlanCompra(cont) {
         <div class="panel-cab"><h3>Lista de la compra</h3>${compra.length ? '<button class="btn chico" data-vaciar>Vaciar</button>' : ''}</div>
         ${compra.length ? Object.entries(secciones).map(([s, its]) => `
           <h4 class="compra-seccion">${escapar(s)}</h4>
-          <ul class="compra">${its.map(it => `<li><label><input type="checkbox" data-hecho="${it.id}" ${it.hecho ? 'checked' : ''}><span>${escapar(D.ingredientes[it.ing]?.[0] || it.ing)}</span><b>${gramos(it.g)}</b></label></li>`).join('')}</ul>`).join('')
+          <ul class="compra">${its.map(it => `<li><label><input type="checkbox" data-hecho="${it.id}" ${it.hecho ? 'checked' : ''}><span>${escapar(D.ingredientes[it.ing]?.[0] || it.ing)}</span><b>${it.g ? gramos(it.g) : ''}</b></label></li>`).join('')}</ul>`).join('')
         : '<p class="tenue">Vacía. Añade ingredientes desde una receta o genera la lista de tu semana.</p>'}
       </section>`;
   }

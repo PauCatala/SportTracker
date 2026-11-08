@@ -174,3 +174,23 @@
   .rj-kpis b { font-size: 19px; }
 }
 @media (prefers-reduced-motion: reduce) { .rj-aro .valor { transition: none; } }
+
+/* ---------- Nota rápida · En el iPhone (js/captura/bandeja.js) ---------- */
+.nr-iphone { overflow: auto; padding: 10px 18px 22px; }
+.nr-iphone[hidden] { display: none; }
+.nr-ip { display: grid; gap: 14px; }
+.nr-ip-intro { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--tinta-2); }
+.nr-ip-url { display: grid; gap: 6px; justify-items: start; padding: 14px; border-radius: 16px; background: #fff; box-shadow: inset 0 0 0 1px rgba(17, 21, 30, .06); }
+.nr-ip-url span { font-size: 12px; color: var(--tinta-3); }
+.nr-ip-url code { font-size: 12.5px; color: var(--tinta); word-break: break-all; }
+.nr-ip-pasos { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
+.nr-ip-pasos b { font-size: 14.5px; color: var(--tinta); }
+.nr-ip-pasos p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--tinta-2); }
+.nr-ip-pasos code { font-weight: 600; color: var(--tinta); }
+.nr-ip-frases span { font-size: 13px; padding: 7px 11px; border-radius: 999px; background: rgba(17, 21, 30, .05); color: var(--tinta-2); }
+.nr-ip-pie { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--tinta-3); }
+.nr-origen { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--cielo-2); color: var(--marca); font-size: 11.5px; font-weight: 600; }
+
+.nr-nota.revisar { box-shadow: inset 0 0 0 1px rgba(201, 164, 76, .55); }
+@media (max-width: 420px) { .nr-pestanas button { padding: 7px 10px; font-size: 13.5px; } }
+.nr-hechos .nr-revisar { background: #FBF1D9; color: #8A5E00; white-space: normal; }

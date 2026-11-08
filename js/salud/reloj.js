@@ -124,8 +124,9 @@ export async function iniciarReloj() {
   avisarCambio();
 }
 
-/* ---------- Código del Atajo ---------- */
-async function codigoAtajo(renovar = false) {
+/* ---------- Código de los Atajos del iPhone (el mismo para Salud y para apuntar notas) ---------- */
+export async function codigoAtajo(renovar = false) {
+  if (!reloj.cargado) await cargarReloj();
   if (reloj.salud?.token && !renovar) return reloj.salud.token;
   const token = aleatorio(40);
   const { error } = await supabase.from('salud_conexion').upsert({ token }, { onConflict: 'user_id' });

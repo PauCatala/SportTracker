@@ -692,6 +692,7 @@ async function entrar() {
   pintar();
   montarCaptura();   // nota rápida: botón flotante y enlaces #nota
   iniciarReloj().catch(e => console.warn('Reloj', e));   // datos de Apple Salud y entrenos nuevos de Strava
+  import('./captura/bandeja.js').then(m => m.vigilarBandeja()).catch(e => console.warn('Bandeja', e));   // notas escritas en el Atajo del iPhone
 }
 // Lo apuntado desde una nota rápida se ve al momento en la pantalla abierta
 addEventListener('synco:datos', () => { if (sesionIniciada) pintar(); });

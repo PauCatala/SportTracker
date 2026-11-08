@@ -13,6 +13,7 @@ const CLAVE = 'notas-rapidas';
 const TIPOS = {
   evento: { nombre: 'Calendario', icono: '<rect x="4" y="5.5" width="16" height="14" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>' },
   tarea: { nombre: 'Tarea', icono: '<rect x="4.5" y="4.5" width="15" height="15" rx="4"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>' },
+  compra: { nombre: 'Compra', icono: '<path d="M4 5h2l2.2 10.2a1.5 1.5 0 001.5 1.2h7.6a1.5 1.5 0 001.5-1.1L20 9H7"/><circle cx="10" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/>' },
   lista: { nombre: 'Tu lista', icono: '<path d="M9 7h10M9 12h10M9 17h10"/><circle cx="5" cy="7" r=".9"/><circle cx="5" cy="12" r=".9"/><circle cx="5" cy="17" r=".9"/>' },
   gym: { nombre: 'Gimnasio', icono: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>' },
   run: { nombre: 'Running', icono: '<circle cx="15" cy="4.5" r="1.8"/><path d="M9 20l3-5.5 3 2.5V21M6 12.5l3-3.5 4 1 2.5 3.5 3 .5"/>' },
@@ -20,7 +21,7 @@ const TIPOS = {
 };
 const TIPOS_RUN = { easy: 'Rodaje suave', larga: 'Tirada larga', series: 'Series', tempo: 'Umbral / tempo' };
 const PRIOS = [['alta', 'Alta'], ['media', 'Media'], ['baja', 'Baja']];
-const EJEMPLOS = ['Mañana a las 17 reunión con Laura', 'Press banca 3x10 80 kg', 'He corrido 8 km en 42 min', 'Entregar la práctica el viernes, urgente', 'Comprar leche'];
+const EJEMPLOS = ['Mañana a las 17 reunión con Laura', 'Lista de la compra: leche, huevos y pan', 'Press banca 3x10 80 kg', 'He corrido 8 km en 42 min', 'Entregar la práctica el viernes, urgente', 'Comprar leche'];
 const svg = (d, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONO_NOTA = '<path d="M5 19.5l1-4L15.5 6a2.1 2.1 0 013 3L9 18.5z"/><path d="M13.5 8l3 3"/><path d="M19 15.5v4M17 17.5h4"/>';
 const ICONO_MIC = '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0013 0M12 18v2.5"/>';
@@ -59,6 +60,7 @@ export function abrirCaptura(textoInicial = '') {
         <div class="nr-pestanas" role="tablist">
           <button role="tab" aria-selected="true" data-pest="nueva">Nueva</button>
           <button role="tab" aria-selected="false" data-pest="notas">Mis notas <b data-n></b></button>
+          <button role="tab" aria-selected="false" data-pest="iphone">En el iPhone</button>
         </div>
         <button class="nr-x" data-cerrar aria-label="Cerrar">${svg('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>')}</button>
       </header>
@@ -75,6 +77,7 @@ export function abrirCaptura(textoInicial = '') {
         </footer>
       </section>
       <section class="nr-lista" data-vista="notas" hidden></section>
+      <section class="nr-iphone" data-vista="iphone" hidden></section>
     </div>`;
   document.body.append(capa);
   document.documentElement.classList.add('sin-scroll');
@@ -201,6 +204,7 @@ export function abrirCaptura(textoInicial = '') {
     capa.querySelectorAll('[data-pest]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
     capa.querySelectorAll('[data-vista]').forEach(v => { v.hidden = v.dataset.vista !== b.dataset.pest; });
     if (b.dataset.pest === 'notas') pintarNotas();
+    else if (b.dataset.pest === 'iphone') import('./bandeja.js').then(m => m.pintarGuiaIphone($('.nr-iphone')));
     else area.focus();
   };
   function pintarNotas() {
@@ -209,9 +213,10 @@ export function abrirCaptura(textoInicial = '') {
     lista.innerHTML = notas.length ? notas.map(n => {
       const [primera, ...resto] = n.texto.split('\n');
       return `
-      <article class="nr-nota" data-id="${n.id}">
+      <article class="nr-nota${n.revisar ? ' revisar' : ''}" data-id="${n.id}">
         <h4>${escapar(primera)}</h4>
-        <p><time>${cuando(n.creada)}</time> ${escapar(resto.join(' ').slice(0, 90))}</p>
+        <p><time>${cuando(n.creada)}</time>${n.desde === 'iphone' ? ' <span class="nr-origen">desde el iPhone</span>' : ''} ${escapar(resto.join(' ').slice(0, 90))}</p>
+        ${n.revisar ? '<div class="nr-hechos"><span class="nr-revisar">No la he entendido del todo: ábrela y pulsa «Volver a apuntar» para corregirla</span></div>' : ''}
         ${n.hechos?.length ? `<div class="nr-hechos">${n.hechos.map(h => `<span>${escapar(h)}</span>`).join('')}</div>` : ''}
         <div class="nr-nota-acc">
           <button type="button" class="btn-texto" data-reusar>Volver a apuntar</button>
@@ -227,6 +232,7 @@ export function abrirCaptura(textoInicial = '') {
       guardar(CLAVE, leer(CLAVE, []).filter(n => n.id !== art.dataset.id)); pintarNotas(); contar(); return;
     }
     if (e.target.closest('[data-reusar]') && nota) {
+      if (nota.revisar) guardar(CLAVE, leer(CLAVE, []).map(n => (n.id === nota.id ? { ...n, revisar: false } : n)));
       capa.querySelector('[data-pest="nueva"]').click();
       area.value = nota.texto; interpretar();
       return;
@@ -259,6 +265,8 @@ function tarjeta(a, i) {
       + campo('De', `<select data-k="tipoTarea"><option value="estudio" ${a.tipoTarea === 'estudio' ? 'selected' : ''}>Estudio</option><option value="trabajo" ${a.tipoTarea === 'trabajo' ? 'selected' : ''}>Trabajo</option></select>`);
   } else if (a.tipo === 'lista') {
     cuerpo = campo('Qué', inp('texto', a.texto), 'ancho') + campo('Día', inp('fecha', a.fecha, 'type="date"'));
+  } else if (a.tipo === 'compra') {
+    cuerpo = campo('Qué', inp('texto', a.texto), 'ancho');
   } else if (a.tipo === 'gym') {
     const ejs = (state.ejercicios || []).filter(e => e.activo !== false);
     cuerpo = campo('Ejercicio', ejs.length
@@ -297,6 +305,7 @@ function convertir(a, tipo) {
   if (tipo === 'evento') return { ...base, tipo, titulo: texto, fecha: fecha || hoyISO(), todoElDia: false, inicio: '10:00', fin: '11:00', cat: 'personal' };
   if (tipo === 'tarea') return { ...base, tipo, titulo: texto, fecha, prioridad: 'media', tipoTarea: 'estudio' };
   if (tipo === 'lista') return { ...base, tipo, texto, fecha };
+  if (tipo === 'compra') return { ...base, tipo, texto };
   return { ...base, tipo: 'nota', texto: a.texto || texto };
 }
 
@@ -308,9 +317,18 @@ function leerSeriesTexto(v) {
 }
 
 /* ---------------- Guardar en cada sitio ---------------- */
-async function aplicar(acciones) {
+export async function aplicar(acciones) {
   const hechos = [];
   const pendGym = [];
+  // Lista de la compra (Nutrición → Plan y compra): un artículo por cosa, sin repetir los que ya están
+  const compra = acciones.filter(a => a.tipo === 'compra' && a.texto?.trim());
+  if (compra.length) {
+    const lista = leer('nutri-compra', []);
+    const ya = new Set(lista.filter(x => !x.hecho).map(x => String(x.ing).toLowerCase()));
+    const nuevos = compra.map(a => a.texto.trim()).filter(t => !ya.has(t.toLowerCase()));
+    guardar('nutri-compra', [...lista, ...nuevos.map(t => ({ id: nuevoId(), ing: t, g: null, hecho: false }))]);
+    hechos.push(`Compra: ${compra.map(a => a.texto.trim()).join(', ')}`);
+  }
   for (const a of acciones) {
     if (a.tipo === 'evento') {
       if (!a.titulo || !a.fecha) throw new Error('Al evento le falta el título o el día');
@@ -377,8 +395,9 @@ async function apuntarGym(lista) {
   return hechos;
 }
 
-function guardarNota(texto, hechos) {
-  guardar(CLAVE, [{ id: nuevoId(), texto, creada: new Date().toISOString(), hechos }, ...leer(CLAVE, [])].slice(0, 300));
+// extra: { desde: 'iphone', creada } para las notas que llegan del Atajo del iPhone
+export function guardarNota(texto, hechos, extra = {}) {
+  guardar(CLAVE, [{ id: nuevoId(), texto, creada: new Date().toISOString(), hechos, ...extra }, ...leer(CLAVE, [])].slice(0, 300));
 }
 function cuando(isoFecha) {
   const d = new Date(isoFecha), hoy = new Date();

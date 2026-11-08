@@ -2,7 +2,17 @@
   "headers": [
     {
       "source": "/media/avatar/avaturn/(.*)",
-      "headers": [{ "key": "Access-Control-Allow-Origin", "value": "*" }]
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
     }
-  ]
+  ],
+  "functions": {
+    "api/nota.js": {
+      "includeFiles": "js/captura/analizar.js"
+    }
+  }
 }
