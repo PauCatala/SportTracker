@@ -1,5 +1,5 @@
 // ESTUDIOS Y TRABAJO: tablero de tareas (Por hacer · En curso · Hecho) y concentración (métodos de estudio).
-import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
+import { leer, guardar, hoyISO, nuevoId, escapar, diasParaBorrar, textoBorra, borrarHechasAntiguas, DIAS_HECHAS } from './almacen.js';
 import { renderFoco } from './foco.js';
 import { icono } from './iconos.js';
 import { fmtCorta, diasEntre } from './utils.js';
@@ -40,6 +40,7 @@ function tarjetaTarea(t, proyectos) {
       <div class="tarea-meta">
         <span class="etiqueta-tipo">${TIPOS[t.tipo] || 'Tarea'}</span>
         ${etiquetaFecha(t.fecha, t.estado)}
+        ${t.estado === 'hecho' && diasParaBorrar(t) !== null ? `<span class="se-borra" title="Las tareas hechas se borran solas a los ${DIAS_HECHAS} días">${textoBorra(diasParaBorrar(t))}</span>` : ''}
       </div>
       <div class="pr-opciones">
         <div class="pr-campos-tarea">
@@ -70,6 +71,7 @@ function etiquetaFecha(fecha, estado) {
 // ============================== TABLERO ==============================
 // Filas = proyectos (asignatura, TFM, prácticas…), columnas = estado. Dentro de cada celda, por prioridad.
 export function renderTablero(cont) {
+  borrarHechasAntiguas();
   const tareas = leer('tareas', []);
   const visibles = tareas.filter(t => filtro === 'todas' || t.tipo === filtro);
   const proyectos = proyectosDe(tareas);

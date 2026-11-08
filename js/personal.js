@@ -1,5 +1,5 @@
 // PERSONAL: hábitos (verde = hecho, rojo = no hecho), lista general de tareas y notas.
-import { leer, guardar, hoyISO, nuevoId, escapar } from './almacen.js';
+import { leer, guardar, hoyISO, nuevoId, escapar, diasParaBorrar, textoBorra, borrarHechasAntiguas, DIAS_HECHAS } from './almacen.js';
 import { icono } from './iconos.js';
 import { sumarDias, parseISO, lunesDe, fmtCorta } from './utils.js';
 import { grafica, ejeX, ejeY } from './graficos.js';
@@ -197,12 +197,13 @@ export function renderHabitos(cont) {
 export const pendientesLista = () => leer('lista', []).filter(x => !x.hecho);
 
 export function renderLista(cont) {
+  borrarHechasAntiguas();
   const lista = leer('lista', []);
   const pendientes = lista.filter(x => !x.hecho), hechas = lista.filter(x => x.hecho);
   const item = x => `
     <li class="item-lista ${x.hecho ? 'hecho' : ''}">
       <button class="caja-lista" data-marcar="${x.id}" aria-pressed="${x.hecho}" aria-label="${x.hecho ? 'Desmarcar' : 'Marcar como hecha'}">${icono('check')}</button>
-      <span>${escapar(x.texto)}${x.fecha ? ` <span class="fecha-tarea">${icono('calendario')}${fmtCorta(x.fecha)}${x.hora ? ` · ${x.hora}` : ''}</span>` : ''}</span>
+      <span>${escapar(x.texto)}${x.fecha ? ` <span class="fecha-tarea">${icono('calendario')}${fmtCorta(x.fecha)}${x.hora ? ` · ${x.hora}` : ''}</span>` : ''}${x.hecho && diasParaBorrar(x) !== null ? ` <span class="se-borra">${textoBorra(diasParaBorrar(x))}</span>` : ''}</span>
       <button class="btn-icono" data-borrar="${x.id}" aria-label="Borrar">${icono('papelera')}</button>
     </li>`;
 
@@ -219,6 +220,7 @@ export function renderLista(cont) {
     ${hechas.length ? `
     <section class="panel">
       <div class="panel-cab"><h3>Hechas</h3><button class="btn-texto" data-limpiar>Borrar hechas</button></div>
+      <p class="tenue">Se borran solas a los ${DIAS_HECHAS} días de marcarlas.</p>
       <ul class="lista-tareas">${hechas.map(item).join('')}</ul>
     </section>` : ''}`;
 

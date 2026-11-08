@@ -26,8 +26,48 @@ export function leer(clave, porDefecto) {
 const oyentes = new Set();
 export const escuchar = f => oyentes.add(f);
 
+// ---------- Tareas hechas: se borran solas a los 7 días ----------
+// Al guardar, cada tarea apunta cuándo se marcó como hecha (hechaEn). Si se desmarca, se quita la marca.
+// Así funciona igual se marque desde el tablero, el calendario, la lista o una nota rápida.
+export const DIAS_HECHAS = 7;
+const HECHA = { tareas: t => t.estado === 'hecho', lista: x => !!x.hecho };
+function sellarHechas(clave, valor) {
+  const hecha = HECHA[clave];
+  if (!hecha || !Array.isArray(valor)) return valor;
+  const ahora = Date.now();
+  return valor.map(x => {
+    if (!x || typeof x !== 'object') return x;
+    if (hecha(x)) return x.hechaEn ? x : { ...x, hechaEn: ahora };
+    if (!x.hechaEn) return x;
+    const { hechaEn, ...resto } = x;
+    return resto;
+  });
+}
+// Días que le quedan a una tarea hecha antes de borrarse (null si no está hecha)
+export function diasParaBorrar(x) {
+  if (!x?.hechaEn) return null;
+  return Math.max(0, Math.ceil((x.hechaEn + DIAS_HECHAS * 86400000 - Date.now()) / 86400000));
+}
+// «Se borra mañana», «Se borra en 5 días»
+export const textoBorra = n => (n <= 0 ? 'Se borra hoy' : n === 1 ? 'Se borra mañana' : `Se borra en ${n} días`);
+// Borra las que llevan más de 7 días hechas (se llama al entrar y al abrir Tareas)
+export function borrarHechasAntiguas() {
+  let borradas = 0;
+  for (const clave of Object.keys(HECHA)) {
+    const lista = leer(clave, null);
+    if (!Array.isArray(lista)) continue;
+    const limite = Date.now() - DIAS_HECHAS * 86400000;
+    const quedan = sellarHechas(clave, lista).filter(x => !(HECHA[clave](x) && x.hechaEn <= limite));
+    borradas += lista.length - quedan.length;
+    // Solo se guarda si algo cambia (tareas hechas sin fecha de hecho, o tareas que ya tocaba borrar)
+    if (quedan.length !== lista.length || quedan.some((x, i) => x !== lista[i])) guardar(clave, quedan);
+  }
+  return borradas;
+}
+
 // Guarda un dato (al momento en el navegador; a la nube medio segundo después)
 export function guardar(clave, valor) {
+  valor = sellarHechas(clave, valor);
   try { localStorage.setItem(PREFIJO + clave, JSON.stringify(valor)); } catch (e) { console.warn(e); }
   if (usuario) programarSubida(clave, valor);
   oyentes.forEach(f => { try { f(clave); } catch (e) { console.warn(e); } });

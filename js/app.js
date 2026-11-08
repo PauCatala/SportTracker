@@ -17,7 +17,7 @@ import { avisoProgreso, fotosDe } from './fotos.js';
 import { state } from './db.js';
 import { semanaPlan } from './consultas.js';
 import { diaGym, flexDelDia, SEMANAS_RUN, faseDeSemana } from './plan.js';
-import { leer, guardar, sincronizar, olvidar, hoyISO, escapar } from './almacen.js';
+import { leer, guardar, sincronizar, olvidar, hoyISO, escapar, borrarHechasAntiguas } from './almacen.js';
 import { aviso, capitalizar, lunesDe, sumarDias } from './utils.js';
 import { icono } from './iconos.js';
 import { revelar, indicador, abrirModal, carruseles, transicion } from './interaccion.js';
@@ -686,6 +686,7 @@ async function entrar() {
   pintarCuenta();
   // Datos de las secciones nuevas (perfil, nutrición, tareas, hábitos, notas) + datos de entreno
   await Promise.all([sincronizar(session.user.id), cargarTodo()]);
+  borrarHechasAntiguas();   // tareas que llevan más de 7 días hechas
   await vaciarCola();
   datosCargados = true;
   // Lo primero al entrar por primera vez: tu avatar personalizado

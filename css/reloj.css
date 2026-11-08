@@ -278,3 +278,23 @@
   .nr-ip-hero { grid-template-columns: 104px 1fr; gap: 14px; }
 }
 .rj-fuente .rj-botones .btn { white-space: nowrap; }
+
+/* ---------- Tareas hechas: contador hasta que se borran ---------- */
+.se-borra { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--hueso-2); color: var(--tinta-3); font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+
+/* ---------- Calendario: copiar y pegar ---------- */
+.cal.pegando .cs-col, .cal.pegando .cs-td, .cal.pegando .cm-celda, .cal.pegando [data-dia] { cursor: copy; }
+.cal.pegando .cs-col:hover, .cal.pegando .cm-celda:hover, .cal.pegando .cs-td:hover { background: rgba(141, 178, 214, .12); }
+.cal-pegar { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 160; transform: translateX(-50%); width: min(520px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 20px; background: var(--marca); color: #fff;
+  box-shadow: 0 18px 40px -16px rgba(13, 39, 80, .6); animation: cal-pegar-entra .35s var(--curva); }
+@media (min-width: 900px) { .cal-pegar { bottom: 28px; } }
+@keyframes cal-pegar-entra { from { transform: translate(-50%, 16px); opacity: 0; } }
+.cal-pegar-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: rgba(255, 255, 255, .14); flex: none; }
+.cal-pegar-ico svg { width: 18px; height: 18px; }
+.cal-pegar-txt { display: grid; flex: 1; min-width: 0; }
+.cal-pegar-txt b { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-pegar-txt small { font-size: 12.5px; color: rgba(255, 255, 255, .78); }
+.cal-pegar .btn { background: #fff; color: var(--marca); border-color: #fff; }
+.ev-pegar .ev-guardar { margin-top: 6px; }
+.ev-pegar .ev-hasta small { font-weight: 400; color: var(--tinta-3); }

@@ -67,6 +67,7 @@ export function renderCalendario(cont) {
   pintarCuerpo(raiz);
   requestAnimationFrame(() => indicador(raiz.querySelector('#cal-vistas')));
   conectar(raiz);
+  if (copiado) pintarPegar(raiz);
 
   // En segundo plano: fotos de progreso hechas, calendarios importados y enlace para Google
   cargarFotos().then(() => raiz.isConnected && pintarCuerpo(raiz));
@@ -270,6 +271,88 @@ export const filaAgenda = e => `
       : `<span class="ag-check fijo" title="${e.hecho ? 'Hecho' : 'Se marca al registrarlo en Salud o Imagen'}">${icono('check')}</span>`}
   </li>`;
 
+/* ============================== COPIAR Y PEGAR ============================== */
+// Copias una actividad (también una clase de un calendario importado) y la pegas en otro día:
+// solo ese día o todas las semanas. Se puede pegar varias veces hasta pulsar «Terminar».
+let copiado = null;
+let raizPegar = null;
+const PLURAL_DIA = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+const diaDeSemana = f => fecha(f).getDay();
+
+function copiar(e) {
+  copiado = {
+    titulo: e.titulo, cat: CATEGORIAS[e.cat] ? e.cat : 'personal', todoElDia: !!e.todoElDia || !e.inicio,
+    inicio: e.inicio || null, fin: e.fin || (e.inicio ? sumarMin(e.inicio, 60) : null),
+    lugar: e.lugar || '', nota: e.nota || '',
+    color: e.colorPropio || (e.fuente === 'importado' ? e.color : '') || '',
+  };
+  const raiz = document.querySelector('.cal');
+  if (raiz) pintarPegar(raiz);
+}
+function pintarPegar(raiz, texto) {
+  raizPegar = raiz;
+  raiz.classList.toggle('pegando', !!copiado);
+  let barra = raiz.querySelector('.cal-pegar');
+  if (!copiado) { barra?.remove(); return; }
+  if (!barra) { barra = document.createElement('div'); barra.className = 'cal-pegar'; barra.setAttribute('role', 'status'); raiz.append(barra); }
+  barra.innerHTML = `<span class="cal-pegar-ico">${icono('copiar')}</span>
+    <span class="cal-pegar-txt"><b>${escapar(copiado.titulo)}</b><small>${texto || 'Toca un día (o una hora) para pegarlo'}</small></span>
+    <button type="button" class="btn suave chico" data-terminar-pegar>Terminar</button>`;
+}
+function terminarPegar(raiz) { copiado = null; pintarPegar(raiz); }
+addEventListener('keydown', e => { if (e.key === 'Escape' && copiado && raizPegar?.isConnected && !document.querySelector('.modal-fondo')) terminarPegar(raizPegar); });
+
+function abrirPegar(raiz, fechaDestino, horaDestino, origen, repintar) {
+  const c = copiado;
+  const dura = c.inicio && c.fin ? Math.max(15, minutos(c.fin) - minutos(c.inicio)) : 60;
+  const inicio = c.todoElDia ? null : (horaDestino || c.inicio);
+  const fin = c.todoElDia ? null : hhmm(Math.min(minutos(inicio) + dura, 23 * 60 + 59));
+  const etiquetaSemanal = f => `Todas las semanas · los ${PLURAL_DIA[diaDeSemana(f)]}`;
+  abrirModal({
+    origen,
+    titulo: 'Pegar',
+    subtitulo: `<span class="ev-tipo" style="--c:${c.color || CATEGORIAS[c.cat]?.color || '#6B7A88'}"><i></i>${escapar(c.titulo)}</span>`,
+    contenido: `
+      <form class="ev-form ev-rapido ev-pegar" autocomplete="off" novalidate>
+        <label class="campo">Día <input type="date" name="fecha" value="${fechaDestino}" required></label>
+        ${c.todoElDia ? '<p class="tenue">Todo el día</p>' : `<div class="campos-2"><label class="campo">De <input type="time" name="inicio" value="${inicio}" required></label><label class="campo">A <input type="time" name="fin" value="${fin}" required></label></div>`}
+        <div class="ev-guardar doble">
+          <button class="btn suave" type="submit" data-alcance="dia">Solo este día</button>
+          <button class="btn primario" type="submit" data-alcance="semanas" data-etiqueta-semanal>${etiquetaSemanal(fechaDestino)}</button>
+        </div>
+        <label class="campo ev-hasta">Repetir hasta <small>(opcional, solo para todas las semanas)</small><input type="date" name="hasta" min="${fechaDestino}"></label>
+        <p class="error" id="ev-error"></p>
+      </form>`,
+    alAbrir: (cuerpo, cerrar) => {
+      const form = cuerpo.querySelector('form');
+      form.fecha.onchange = () => { if (form.fecha.value) { cuerpo.querySelector('[data-etiqueta-semanal]').textContent = etiquetaSemanal(form.fecha.value); form.hasta.min = form.fecha.value; } };
+      form.onsubmit = async ev => {
+        ev.preventDefault();
+        const f = new FormData(form);
+        const dia = f.get('fecha');
+        const error = cuerpo.querySelector('#ev-error');
+        if (!dia) { error.textContent = 'Elige el día.'; return; }
+        let ini = f.get('inicio') || null, fi = f.get('fin') || null;
+        if (ini && (!fi || fi <= ini)) fi = hhmm(Math.min(minutos(ini) + dura, 23 * 60 + 59));
+        const semanas = ev.submitter?.dataset.alcance === 'semanas';
+        const hasta = semanas ? (f.get('hasta') || '') : '';
+        if (hasta && hasta < dia) { error.textContent = '«Hasta» no puede ser antes del día elegido.'; return; }
+        guardarDesdeFormulario({
+          titulo: c.titulo, cat: c.cat, fecha: dia, todoElDia: c.todoElDia, inicio: ini, fin: fi,
+          repetir: semanas ? 'semanal' : 'no', dias: semanas ? [diaDeSemana(dia)] : [], hasta,
+          lugar: c.lugar, nota: c.nota, color: c.color,
+        }, null);
+        actualizarExportacion();
+        await cerrar();
+        const cuando = capitalizar(fmt(dia, { weekday: 'short', day: 'numeric', month: 'short' }));
+        const hecho = semanas ? `Pegado todos los ${PLURAL_DIA[diaDeSemana(dia)]}${hasta ? ` hasta el ${fmt(hasta, { day: 'numeric', month: 'short' })}` : ''}` : `Pegado el ${cuando.toLowerCase()}`;
+        repintar();
+        pintarPegar(raiz, `✓ ${hecho}. Toca otro día para pegarlo otra vez`);
+      };
+    },
+  });
+}
+
 /* ============================== INTERACCIÓN ============================== */
 function conectar(raiz) {
   const repintar = (animar = 0) => pintarCuerpo(raiz, { animar });
@@ -278,6 +361,25 @@ function conectar(raiz) {
   raiz.addEventListener('click', ev => {
     if (suprimirClic) { suprimirClic = false; return; }
     const t = ev.target;
+    // Modo pegar: el siguiente toque en un día (o en una hora) pega lo copiado ahí
+    if (copiado) {
+      if (t.closest('[data-terminar-pegar]')) return terminarPegar(raiz);
+      if (t.closest('.cal-pegar, .cal-barra, .cal-lado')) { /* barra, navegación y filtros funcionan igual */ }
+      else {
+        const col = t.closest('.cs-col');
+        let fechaDestino = null, horaDestino = null;
+        if (col && !t.closest('[data-ev]')) {
+          const y = ev.clientY - col.getBoundingClientRect().top;
+          fechaDestino = col.dataset.fecha;
+          horaDestino = hhmm(Math.max(0, Math.min(23 * 60, Math.floor((y / H) * 2) * 30)));
+        } else {
+          const evb = t.closest('[data-ev]');
+          fechaDestino = t.closest('[data-dia]')?.dataset.dia || t.closest('.cs-td, .cm-celda')?.dataset.fecha
+            || (evb && actuales.get(evb.dataset.ev)?.fecha) || t.closest('[data-fecha]')?.dataset.fecha || null;
+        }
+        if (fechaDestino) return abrirPegar(raiz, fechaDestino, horaDestino, t.closest('[data-dia], .cs-col, .cs-td, .cm-celda, [data-ev]'), repintar);
+      }
+    }
     const paso = t.closest('[data-paso]');
     if (paso) return avanzar(Number(paso.dataset.paso), repintar);
     if (t.closest('[data-hoy]')) { ref = hoyISO(); scrollGuardado = null; return repintar(); }
@@ -528,6 +630,7 @@ export function abrirDetalle(e, origen, alCambiar) {
         </div>
         <div class="ev-acciones">
           ${e.hecho !== null && e.hecho !== undefined && ['tarea', 'lista', 'evento'].includes(e.fuente) ? `<button type="button" class="btn suave chico" data-a="hecho">${icono('check')}${e.hecho ? 'Pendiente' : 'Hecho'}</button>` : ''}
+          <button type="button" class="btn suave chico" data-a="copiar">${icono('copiar')}Copiar</button>
           ${e.ir ? `<button type="button" class="btn suave chico" data-a="ir">Abrir en SYNCO ${icono('der')}</button>` : ''}
           ${!e.deplan ? `<button type="button" class="btn suave chico" data-a="editar">Más opciones</button>` : ''}
           <a class="btn suave chico" href="${enlaceGoogle(e)}" target="_blank" rel="noopener">Google Calendar</a>
@@ -563,6 +666,7 @@ export function abrirDetalle(e, origen, alCambiar) {
         if (a === 'hecho') { alternarHecho(e); actualizarExportacion(); await cerrar(); return alCambiar?.(); }
         if (a === 'editar') { await cerrar(); return abrirFormulario({ ...datosDe(e), previo: e }, null, alCambiar); }
         if (a === 'ir') { await cerrar(); return dispatchEvent(new CustomEvent('ir-a', { detail: e.ir })); }
+        if (a === 'copiar') { await cerrar(); return copiar(e); }
         if (a === 'quitar') { quitarDelPlan(e); await cerrar(); aviso('Quitado solo este día'); return alCambiar?.(); }
         // Flexibilidad: deja de aparecer en el calendario (se vuelve a activar en Ajustes del calendario)
         if (a === 'quitar-todo') {
@@ -597,7 +701,11 @@ function abrirSoloLectura(e, origen) {
         ${e.lugar ? `<p class="ev-linea">${icono('lugar')}<span>${escapar(e.lugar)}</span></p>` : ''}
         ${e.nota ? `<p class="ev-nota">${escapar(e.nota).replace(/\n/g, '<br>')}</p>` : ''}
         <p class="tenue">${e.calendario ? `De tu calendario «${escapar(e.calendario)}». Para cambiarlo, hazlo en su aplicación.` : ''}</p>
+        <div class="ev-acciones"><button type="button" class="btn suave chico" data-copiar-ev>${icono('copiar')}Copiar a otro día</button></div>
       </div>`,
+    alAbrir: (cuerpo, cerrar) => {
+      cuerpo.querySelector('[data-copiar-ev]').onclick = async () => { await cerrar(); copiar(e); };
+    },
   });
 }
 
