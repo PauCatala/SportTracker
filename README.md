@@ -65,3 +65,28 @@ Un Atajo de iOS («Apuntar en SYNCO») puesto como widget, en el Centro de contr
 «dentista 26 abril a las 17» o «lista de la compra: leche, huevos y pan» y se manda a `/api/nota?t=<tu código>`.
 Queda en la bandeja (`notas_entrada`) y, al abrir SYNCO, se apunta donde toca con el mismo «cerebro»
 de la nota rápida (`js/captura/analizar.js`). Guía paso a paso en Nota rápida → En el iPhone.
+
+## Conectar a un toque (para administrar SYNCO, una sola vez)
+
+Los usuarios no ven instrucciones: pulsan **Añadir a mi iPhone** o **Conectar con Strava**, o escanean el QR.
+Para que eso funcione, el administrador hace esto una vez:
+
+1. **Strava**: app gratis en strava.com/settings/api (Authorization Callback Domain = el dominio de SYNCO) y
+   `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` en Vercel.
+2. **Atajo «SYNCO Salud»**: créalo siguiendo la guía de Salud → Reloj → Conectar (desplegable «Montarlo a mano»).
+   En el paso «Obtener contenido de URL», pon como URL tu propia dirección y después, en los ajustes del atajo
+   (ⓘ) → **Configurar al importar**, añade la pregunta sobre esa URL con el texto «Pega tu dirección de SYNCO».
+   Así cada persona pega la suya al instalarlo (SYNCO la copia sola antes de abrir el enlace).
+3. **Atajo «Apuntar en SYNCO»**: igual, con la guía de Nota rápida → En el iPhone, y la misma pregunta al importar.
+4. Comparte cada atajo (mantenerlo pulsado → Compartir → **Copiar enlace de iCloud**) y pega los dos enlaces
+   en `js/config.js` → `ATAJOS`. Desde ese momento, en el iPhone aparece el botón de un toque.
+
+Límites de Apple: una web no puede leer Apple Salud por sí sola ni crear automatizaciones; el envío diario
+automático son tres toques del usuario (se explican en la app). Leer Salud directamente requiere una app nativa
+(cuenta de desarrollador de Apple, 99 €/año).
+
+## Instalar como app
+
+SYNCO es una PWA: en el iPhone se instala desde Safari (Compartir → Añadir a pantalla de inicio) y en Android/ordenador
+con un toque. La hoja «Instalar la app» (menú de tu perfil, `#instalar` o el QR) guía en cada caso, y
+`icons/arranque/` tiene las pantallas de arranque del iPhone.

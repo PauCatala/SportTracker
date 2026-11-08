@@ -82,21 +82,33 @@ const PASOS = [
 const FRASES = ['Lista de la compra: leche, huevos y pan', 'Dentista 26 abril a las 17', 'Entregar la práctica el viernes, urgente', 'Mañana a las 9 reunión con David', 'He corrido 8 km en 42 min', 'Llamar al seguro'];
 
 export async function pintarGuiaIphone(cont) {
+  const { esIOS, esMovil, qrSVG, atajoListo, anadirAtajo } = await import('../conectar.js');
   cont.innerHTML = '<p class="nr-titulo">Cargando…</p>';
   let token = null;
   try { token = await codigoAtajo(); } catch (e) { console.warn(e); }
   const url = token ? `${location.origin}/api/nota?t=${token}` : null;
+  const listo = atajoListo('nota'), iphone = esIOS(), movil = esMovil();
+  const guia = `<ol class="nr-ip-pasos">${PASOS.map(([t, x]) => `<li><b>${t}</b><p>${x}</p></li>`).join('')}</ol>`;
   cont.innerHTML = `
     <div class="nr-ip">
-      <p class="nr-ip-intro">Escribe desde el <b>widget</b> de tu pantalla de inicio, sin abrir SYNCO: <i>«dentista 26 abril»</i> y se apunta en tu calendario; <i>«lista de la compra: leche, huevos»</i> y va a tu lista. Se coloca en cuanto abres SYNCO, en el móvil o en el ordenador.</p>
-      ${url ? `<div class="nr-ip-url"><span>Tu dirección (es secreta)</span><code>${escapar(url.replace(/t=(.{6}).+$/, 't=$1••••••••'))}</code><button class="btn primario chico" type="button" data-copiar-nota>Copiar dirección</button></div>`
-        : '<p class="nr-aviso">Entra en tu cuenta para crear tu dirección.</p>'}
-      <ol class="nr-ip-pasos">${PASOS.map(([t, x]) => `<li><b>${t}</b><p>${x}</p></li>`).join('')}</ol>
+      <div class="nr-ip-hero">
+        <div class="nr-ip-widget" aria-hidden="true"><span>Apuntar en SYNCO</span><i>¿Qué apunto?</i></div>
+        <p>Escribe desde un <b>widget</b> de tu pantalla de inicio, sin abrir SYNCO. <i>«Dentista 26 abril a las 17»</i> se apunta en el calendario y <i>«compra: leche, huevos»</i> va a tu lista.</p>
+      </div>
+      ${!url ? '<p class="nr-aviso">Entra en tu cuenta para activarlo.</p>'
+        : !movil ? `<div class="nr-ip-qr">${qrSVG(`${location.origin}/#nota-iphone`)}<p><b>Escanéalo con el iPhone</b> y pulsa «Añadir a mi iPhone».</p></div>`
+        : !iphone ? '<p class="nr-aviso">Los widgets con Atajos son del iPhone. En Android, mantén pulsado el icono de SYNCO y elige «Nota rápida».</p>'
+        : listo ? `<button class="btn primario nr-ip-boton" type="button" data-anadir-nota>Añadir a mi iPhone</button>
+          <p class="nr-ip-pie">Se abrirá Atajos: pulsa <b>Añadir atajo</b> y, cuando te pida la dirección, <b>pega</b> (ya está copiada). Después, mantén pulsada la pantalla de inicio → <b>Editar</b> → <b>Añadir widget</b> → <b>Atajos</b>.</p>`
+        : `<p class="nr-ip-pie">La versión de un toque llega muy pronto. Mientras, puedes montarlo tú:</p>
+          <div class="nr-ip-url"><span>Tu dirección (es secreta)</span><code>${escapar(url.replace(/t=(.{6}).+$/, 't=$1••••••••'))}</code><button class="btn primario chico" type="button" data-copiar-nota>Copiar dirección</button></div>
+          ${guia}`}
       <p class="nr-titulo">Prueba con frases como</p>
       <div class="nr-ejemplos nr-ip-frases">${FRASES.map(f => `<span>${escapar(f)}</span>`).join('')}</div>
-      <p class="nr-ip-pie">Es la misma dirección secreta que usa el Atajo de Apple Salud (Salud → Reloj). Si la cambias allí, cópiala de nuevo aquí.</p>
+      <p class="nr-ip-pie">También funciona con Siri: <b>«Oye Siri, apuntar en SYNCO»</b>.</p>
     </div>`;
   cont.onclick = async e => {
+    if (e.target.closest('[data-anadir-nota]') && url) return anadirAtajo('nota', url);
     if (!e.target.closest('[data-copiar-nota]') || !url) return;
     const ok = await navigator.clipboard.writeText(url).then(() => true, () => false);
     if (ok) aviso('Dirección copiada: pégala en el Atajo');

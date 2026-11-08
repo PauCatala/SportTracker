@@ -40,9 +40,11 @@ export function montarCaptura() {
   const revisar = () => {
     const h = location.hash;
     if (!h.startsWith('#nota')) return;
-    const t = new URLSearchParams(h.split('?')[1] || '').get('t') || '';
+    const iphone = h.startsWith('#nota-iphone');    // viene del QR del ordenador
+    const t = iphone ? '' : new URLSearchParams(h.split('?')[1] || '').get('t') || '';
     history.replaceState(null, '', location.pathname + location.search);
     abrirCaptura(t);
+    if (iphone) document.querySelector('.nr [data-pest="iphone"]')?.click();
   };
   addEventListener('hashchange', revisar);
   revisar();

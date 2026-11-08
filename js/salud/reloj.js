@@ -533,90 +533,107 @@ export async function renderRelojTendencias(cont) {
 }
 
 // ------------------------------ CONECTAR ------------------------------
+// Todo a un toque. Las instrucciones largas solo aparecen si el Atajo compartido aún no existe (README).
 const PASOS_ATAJO = [
-  ['Crea el Atajo', 'Abre la app <b>Atajos</b> → pestaña <b>Atajos</b> → <b>+</b>. Llámalo <b>SYNCO Salud</b>.'],
-  ['Pasos de hoy', 'Añade <b>Buscar muestras de salud</b>: tipo <b>Pasos</b>, <b>Fecha de inicio · es hoy</b>. Debajo, <b>Calcular estadísticas</b> → <b>Suma</b>.'],
-  ['Pulso de hoy', 'Otra <b>Buscar muestras de salud</b>: tipo <b>Frecuencia cardiaca</b>, fecha de inicio hoy. Debajo, tres <b>Calcular estadísticas</b>: <b>Media</b>, <b>Mínimo</b> y <b>Máximo</b>.'],
-  ['Reposo y VFC', '<b>Buscar muestras de salud</b> con tipo <b>Frecuencia cardiaca en reposo</b> (hoy, límite 1). Y otra con <b>Variabilidad de la frecuencia cardiaca</b> (hoy) → <b>Calcular estadísticas · Media</b>.'],
-  ['Sueño de anoche', '<b>Buscar muestras de salud</b>: tipo <b>Análisis del sueño</b>, <b>Fecha de fin · es hoy</b> y, si te deja, <b>Valor · no es · En la cama</b> y <b>no es · Despierto</b>. Luego <b>Obtener detalles de muestras de salud → Duración</b> y <b>Calcular estadísticas → Suma</b>.'],
-  ['Envíalo a SYNCO', 'Añade <b>Obtener contenido de URL</b>. Pega tu dirección (botón de arriba), <b>Método: POST</b>, <b>Cuerpo de la solicitud: JSON</b>, y añade estos campos (tipo <b>Número</b>) con el resultado de cada paso:'],
-  ['Pruébalo', 'Pulsa ▶︎. Debe responder <b>«Guardados N datos»</b>. Abajo verás aquí lo que ha llegado.'],
-  ['Que vaya solo', 'Pestaña <b>Automatización</b> → <b>+</b> → <b>Hora del día</b>: <b>22:30, cada día</b> → <b>Ejecutar inmediatamente</b> → atajo <b>SYNCO Salud</b>. Si quieres el sueño ya por la mañana, crea otra a las <b>10:00</b>.'],
+  ['Crea el Atajo', 'App <b>Atajos</b> → <b>+</b>. Llámalo <b>SYNCO Salud</b>.'],
+  ['Pasos y pulso de hoy', '<b>Buscar muestras de salud</b> (Pasos, fecha de inicio hoy) → <b>Calcular estadísticas · Suma</b>. Igual con <b>Frecuencia cardiaca</b>: Media, Mínimo y Máximo.'],
+  ['Reposo, VFC y sueño', '<b>Frecuencia cardiaca en reposo</b> (hoy) y <b>Variabilidad</b> (Media). <b>Análisis del sueño</b> con fecha de fin hoy → <b>Obtener detalles · Duración</b> → <b>Suma</b>.'],
+  ['Envíalo', '<b>Obtener contenido de URL</b> con tu dirección, método POST y cuerpo JSON con los campos <code>pasos</code>, <code>fc_media</code>, <code>fc_min</code>, <code>fc_max</code>, <code>fc_reposo</code>, <code>vfc</code> y <code>sueno</code>.'],
 ];
-const CAMPOS_ATAJO = [
-  ['pasos', 'Suma de pasos'], ['fc_media', 'Media del pulso'], ['fc_min', 'Mínimo del pulso'], ['fc_max', 'Máximo del pulso'],
-  ['fc_reposo', 'Frecuencia en reposo'], ['vfc', 'Media de la VFC'], ['sueno', 'Suma de la duración del sueño'],
-  ['kcal_activas', 'Opcional: suma de energía activa'], ['sueno_profundo', 'Opcional: sueño profundo'], ['sueno_rem', 'Opcional: sueño REM'],
+const PASOS_AUTO = [
+  'Abre <b>Atajos</b> → pestaña <b>Automatización</b> → <b>+</b>.',
+  'Elige <b>Hora del día</b>: <b>22:30</b>, cada día, y marca <b>Ejecutar inmediatamente</b>.',
+  'Elige el atajo <b>SYNCO Salud</b>. Listo: cada noche se envía solo.',
 ];
 const ETIQUETAS_DATO = { pasos: 'Pasos', distancia_km: 'Distancia', kcal_activas: 'Energía activa', minutos_ejercicio: 'Ejercicio', pisos: 'Pisos', sueno_min: 'Sueño', sueno_profundo_min: 'Profundo', sueno_rem_min: 'REM', sueno_ligero_min: 'Ligero', despierto_min: 'Despierto', fc_media: 'Pulso medio', fc_min: 'Pulso mínimo', fc_max: 'Pulso máximo', fc_reposo: 'Reposo', vfc: 'VFC', spo2: 'Oxígeno', peso: 'Peso' };
 const fmtDato = (k, v) => (k.endsWith('_min') ? fmtHoras(v) : k === 'distancia_km' ? `${n1(v)} km` : k.startsWith('fc_') ? `${n0(v)} lpm` : k === 'vfc' ? `${n0(v)} ms` : k === 'spo2' ? `${n1(v)} %` : k === 'peso' ? `${n1(v)} kg` : k === 'kcal_activas' ? `${n0(v)} kcal` : k === 'minutos_ejercicio' ? `${n0(v)} min` : n0(v));
+const LOGOS = {
+  salud: svg('<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>'),
+  strava: svg('<path d="M10 3.5l-5.5 11h3.3L10 10.1l2.2 4.4h3.3zM15.5 14.5l-1.7 3.3-1.6-3.3h-2.3l3.9 7.7 3.9-7.7z" fill="currentColor" stroke="none"/>'),
+  garmin: svg('<path d="M12 3.5l8 14.5H4z"/>'),
+};
+const OK = svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>');
 
 let stravaConfigurado = null;
 export async function renderRelojConectar(cont) {
   if (!(await preparar(cont))) return;
+  const { esIOS, esMovil, qrSVG, atajoListo, anadirAtajo, ejecutarAtajo } = await import('../conectar.js');
   if (stravaConfigurado === null) {
-    api('strava?accion=estado', { method: 'GET' }).then(r => { stravaConfigurado = !!r.configurado; if (cont.isConnected && cont.querySelector('.rj-strava')) renderRelojConectar(cont); }).catch(() => { stravaConfigurado = false; });
+    api('strava?accion=estado', { method: 'GET' }).then(r => { stravaConfigurado = !!r.configurado; if (cont.isConnected && cont.querySelector('.rj-hub')) renderRelojConectar(cont); }).catch(() => { stravaConfigurado = false; });
   }
+  const movil = esMovil(), iphone = esIOS();
+  const conSalud = !!reloj.salud?.ultimo_envio, conStrava = !!reloj.strava;
+  const atajoHecho = atajoListo('salud');
   const ultimoDia = [...reloj.dias].reverse().find(d => d.fuente !== 'Manual');
   const recibido = ultimoDia ? Object.entries(ETIQUETAS_DATO).filter(([k]) => ultimoDia[k] != null) : [];
-  const conectadoSalud = !!reloj.salud?.ultimo_envio;
+  const listos = [conSalud, conStrava].filter(Boolean).length;
+
+  const estado = (ok, texto) => `<span class="rj-estado ${ok ? 'ok' : ''}">${ok ? OK : ''}${texto}</span>`;
+  // Apple Salud: un toque si el Atajo compartido existe; si no, la guía (plegada) como plan B
+  const accionSalud = !movil
+    ? '<p class="rj-pie">Desde tu iPhone: escanea el código de arriba.</p>'
+    : !iphone ? '<p class="rj-pie">Apple Salud solo está en el iPhone. Con Android, conecta tu reloj a Strava.</p>'
+    : atajoHecho ? `
+      <div class="rj-botones">
+        <button class="btn primario" data-anadir-salud>${conSalud ? 'Volver a añadir' : 'Añadir a mi iPhone'}</button>
+        ${conSalud ? '<button class="btn" data-ejecutar-salud>Sincronizar ahora</button>' : ''}
+      </div>
+      <p class="rj-pie">${conSalud ? 'Se envía sola cada noche si activaste la automatización.' : 'Se abrirá Atajos: pulsa <b>Añadir atajo</b> y, cuando te pida la dirección, <b>pega</b> (ya está copiada).'}</p>`
+    : `<p class="rj-pie">La conexión de un toque con Apple Salud llega muy pronto. Mientras, puedes montarla tú:</p>`;
 
   cont.innerHTML = `
-    <section class="panel rj-conexion">
-      <div class="rj-con-cab">
-        <span class="rj-logo salud">${svg('<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>')}</span>
-        <div><h3>Apple Salud</h3><p class="tenue">Sueño, pulso, VFC, pasos y energía. Desde tu reloj, sea cual sea.</p></div>
-        <span class="rj-estado ${conectadoSalud ? 'ok' : ''}">${conectadoSalud ? `Conectado · ${haceCuanto(reloj.salud.ultimo_envio)}` : 'Sin conectar'}</span>
-      </div>
-      <p>El iPhone no deja que una web lea Apple Salud, pero sí que un <b>Atajo</b> te mande los datos cada día. Se configura una vez (unos 10 minutos) y después va solo.</p>
-      <div class="rj-codigo">
-        <span>Tu dirección personal</span>
-        <code data-url>${reloj.salud?.token ? escapar(urlAtajo(reloj.salud.token)).replace(/t=(.{6}).+$/, 't=$1••••••••') : 'Pulsa «Copiar dirección» para crearla'}</code>
-        <div class="rj-botones">
-          <button class="btn primario chico" data-copiar>Copiar dirección</button>
-          <button class="btn chico" data-probar ${reloj.salud?.token ? '' : 'disabled'}>Probar</button>
-          <button class="btn chico" data-renovar ${reloj.salud?.token ? '' : 'disabled'} title="Crea una dirección nueva y anula la anterior">Cambiar</button>
+    <section class="panel rj-hub">
+      <div class="rj-hub-cab">
+        <div>
+          <span class="rj-eti">${listos === 2 ? 'Todo conectado' : `${listos} de 2 conectados`}</span>
+          <h3>${listos === 2 ? 'Tu reloj ya habla con SYNCO' : 'Conecta tu reloj en un minuto'}</h3>
+          <p>Apple Salud trae tu sueño, pulso y pasos. Strava, tus entrenos. Con Garmin, Apple Watch, Coros o Polar funciona igual.</p>
         </div>
-        <p class="rj-pie">Es secreta: quien la tenga puede escribir datos de salud en tu cuenta (no leerlos). Si la compartes por error, pulsa «Cambiar».</p>
+        ${movil ? '' : `<div class="rj-hub-qr">${qrSVG(`${location.origin}/#conectar`)}<span>Escanéalo con el iPhone</span></div>`}
       </div>
-      <details class="rj-guia" ${conectadoSalud ? '' : 'open'}>
-        <summary>Cómo crear el Atajo, paso a paso</summary>
-        <ol>${PASOS_ATAJO.map(([t, txt], i) => `<li><b>${t}</b><p>${txt}</p>${i === 5 ? `<table class="rj-campos"><tr><th>Clave</th><th>Valor</th></tr>${CAMPOS_ATAJO.map(([k, v]) => `<tr><td><code>${k}</code></td><td>${v}</td></tr>`).join('')}</table>` : ''}</li>`).join('')}</ol>
-        <p class="rj-pie">Los nombres de las acciones pueden variar un poco según tu versión de iOS. SYNCO entiende números con coma o punto y el sueño en segundos, minutos u horas.</p>
-      </details>
-      ${ultimoDia ? `
-      <div class="rj-recibido">
-        <span>Lo último que ha llegado · ${fmtCorta(ultimoDia.fecha)}</span>
-        <ul>${recibido.map(([k, t]) => `<li><span>${t}</span><b>${fmtDato(k, ultimoDia[k])}</b></li>`).join('')}</ul>
-        ${recibido.length < 5 ? '<p class="rj-pie">¿Falta algo? Revisa que ese campo esté en el paso «Obtener contenido de URL» del Atajo.</p>' : ''}
-      </div>` : ''}
+
+      <div class="rj-fuentes">
+        <article class="rj-fuente ${conSalud ? 'hecho' : ''}">
+          <header><span class="rj-logo salud">${LOGOS.salud}</span><div><h4>Apple Salud</h4><small>Sueño · pulso · VFC · pasos</small></div>${estado(conSalud, conSalud ? haceCuanto(reloj.salud.ultimo_envio) : 'Sin conectar')}</header>
+          ${accionSalud}
+          ${iphone && conSalud ? `<details class="rj-plegable"><summary>Que se envíe sola cada noche</summary><ol>${PASOS_AUTO.map(x => `<li>${x}</li>`).join('')}</ol><p class="rj-pie">Apple no deja que una app cree esta automatización por ti: son tres toques, una sola vez.</p></details>` : ''}
+          ${iphone && !atajoHecho ? `<details class="rj-plegable" ${conSalud ? '' : 'open'}><summary>Montarlo a mano</summary>
+            <div class="rj-codigo"><code>${reloj.salud?.token ? escapar(urlAtajo(reloj.salud.token)).replace(/t=(.{6}).+$/, 't=$1••••••••') : 'Tu dirección se crea al copiarla'}</code><button class="btn primario chico" data-copiar>Copiar mi dirección</button></div>
+            <ol>${PASOS_ATAJO.map(([t, x]) => `<li><b>${t}</b><p>${x}</p></li>`).join('')}</ol></details>` : ''}
+        </article>
+
+        <article class="rj-fuente ${conStrava ? 'hecho' : ''}">
+          <header><span class="rj-logo strava">${LOGOS.strava}</span><div><h4>Strava</h4><small>Entrenos · ritmo · desnivel · pulso</small></div>${estado(conStrava, conStrava ? haceCuanto(reloj.strava.actualizado) : 'Sin conectar')}</header>
+          ${conStrava ? `
+            <p class="rj-pie">Conectado como <b>${escapar(reloj.strava.nombre || 'tu cuenta')}</b>. Los entrenos nuevos llegan al abrir SYNCO y las carreras pasan a tu plan de Running.</p>
+            <div class="rj-botones"><button class="btn" data-sincronizar>Sincronizar ahora</button><button class="btn rj-btn-suave" data-desconectar>Desconectar</button></div>`
+          : stravaConfigurado === false ? '<p class="rj-pie">La conexión con Strava llega muy pronto.</p>'
+          : stravaConfigurado === null ? cargador('')
+          : '<button class="btn rj-btn-strava" data-conectar-strava>Conectar con Strava</button>'}
+        </article>
+
+        <article class="rj-fuente rj-garmin ${conSalud && conStrava ? 'hecho' : ''}">
+          <header><span class="rj-logo garmin">${LOGOS.garmin}</span><div><h4>Garmin</h4><small>A través de Strava y Apple Salud</small></div>${estado(conSalud && conStrava, conSalud && conStrava ? 'Cubierto' : conSalud || conStrava ? 'A medias' : 'Sin conectar')}</header>
+          <p class="rj-pie">Garmin no deja que otras apps se conecten directamente, pero Garmin Connect ya envía tus datos a Strava y a Apple Salud. Actívalo una vez en Garmin Connect → <b>Más</b> → <b>Ajustes</b> → <b>Aplicaciones conectadas</b>.</p>
+          <ul class="rj-checks">
+            <li class="${conStrava ? 'ok' : ''}">${conStrava ? OK : '<i></i>'}Entrenos → Strava</li>
+            <li class="${conSalud ? 'ok' : ''}">${conSalud ? OK : '<i></i>'}Sueño y pulso → Apple Salud</li>
+          </ul>
+          ${movil ? '<a class="btn chico" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">Abrir Garmin Connect</a>' : ''}
+        </article>
+      </div>
     </section>
 
-    <section class="panel rj-conexion rj-strava">
-      <div class="rj-con-cab">
-        <span class="rj-logo strava">${svg('<path d="M10 3.5l-5.5 11h3.3L10 10.1l2.2 4.4h3.3zM15.5 14.5l-1.7 3.3-1.6-3.3h-2.3l3.9 7.7 3.9-7.7z" fill="currentColor" stroke="none"/>')}</span>
-        <div><h3>Strava</h3><p class="tenue">Tus entrenos: distancia, ritmo, desnivel, tiempo y pulso.</p></div>
-        <span class="rj-estado ${reloj.strava ? 'ok' : ''}">${reloj.strava ? `Conectado · ${haceCuanto(reloj.strava.actualizado)}` : 'Sin conectar'}</span>
-      </div>
-      ${reloj.strava ? `
-        <p>Conectado como <b>${escapar(reloj.strava.nombre || 'tu cuenta')}</b>. Cada vez que abres SYNCO se traen los entrenos nuevos; las carreras pasan también a tu plan de Running.</p>
-        <div class="rj-botones"><button class="btn primario chico" data-sincronizar>Sincronizar ahora</button><button class="btn chico" data-desconectar>Desconectar</button></div>`
-      : stravaConfigurado === false ? `
-        <p>Strava aún no está activado en el servidor de SYNCO. Es gratis y se hace una sola vez:</p>
-        <ol class="rj-pasos-admin">
-          <li>Entra en <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> y crea una aplicación. En <b>Authorization Callback Domain</b> pon <code>${escapar(location.host)}</code>.</li>
-          <li>En Vercel → tu proyecto → <b>Settings → Environment Variables</b>, añade <code>STRAVA_CLIENT_ID</code> y <code>STRAVA_CLIENT_SECRET</code> con los valores de esa página.</li>
-          <li>Vuelve a desplegar (Deployments → Redeploy) y recarga esta pantalla.</li>
-        </ol>`
-      : stravaConfigurado === null ? cargador('Comprobando…')
-      : `
-        <p>Tu reloj (Garmin, Apple Watch, Coros, Polar, Suunto…) sube cada entreno a Strava. Conéctalo una vez y llegarán solos a SYNCO.</p>
-        <button class="btn rj-btn-strava" data-conectar-strava>Conectar con Strava</button>
-        <p class="rj-pie">Si estás en la app instalada del iPhone y no vuelve sola a SYNCO, conéctalo una vez desde Safari o desde el ordenador: queda guardado en tu cuenta.</p>`}
-    </section>
+    ${ultimoDia ? `
+    <section class="panel">
+      <details class="rj-plegable">
+        <summary>Lo último que ha llegado · ${fmtCorta(ultimoDia.fecha)}</summary>
+        <div class="rj-recibido"><ul>${recibido.map(([k, t]) => `<li><span>${t}</span><b>${fmtDato(k, ultimoDia[k])}</b></li>`).join('')}</ul></div>
+      </details>
+    </section>` : ''}
 
     <section class="panel">
-      <details class="rj-guia">
+      <details class="rj-plegable">
         <summary>Apuntar un día a mano</summary>
         <form class="rj-manual" data-manual>
           <div class="campos-2">
@@ -628,32 +645,27 @@ export async function renderRelojConectar(cont) {
           <button class="btn primario chico">Guardar</button>
         </form>
       </details>
+      ${reloj.salud?.token ? '<button class="rj-enlace rj-renovar" data-renovar>Cambiar mi dirección secreta</button>' : ''}
     </section>`;
 
   cont.onclick = async ev => {
     const b = ev.target.closest('button');
     if (!b) return;
     try {
+      if (b.matches('[data-anadir-salud]')) return anadirAtajo('salud', urlAtajo(await codigoAtajo()));
+      if (b.matches('[data-ejecutar-salud]')) return ejecutarAtajo('salud');
       if (b.matches('[data-copiar]')) {
         const t = await codigoAtajo();
-        await navigator.clipboard.writeText(urlAtajo(t)).then(() => aviso('Dirección copiada: pégala en el Atajo'), () => prompt('Copia esta dirección:', urlAtajo(t)));
+        await navigator.clipboard.writeText(urlAtajo(t)).then(() => aviso('Dirección copiada'), () => prompt('Copia esta dirección:', urlAtajo(t)));
         return renderRelojConectar(cont);
-      }
-      if (b.matches('[data-probar]')) {
-        b.disabled = true;
-        const r = await fetch(urlAtajo(reloj.salud.token)).then(x => x.json()).catch(() => ({ ok: false, mensaje: 'Esta prueba solo funciona en la web publicada.' }));
-        aviso(r.ok ? 'La dirección funciona. Ahora ejecuta el Atajo.' : r.mensaje, r.ok ? 'ok' : 'error');
-        b.disabled = false;
-        return;
       }
       if (b.matches('[data-renovar]')) {
-        if (!confirm('Se creará una dirección nueva y la anterior dejará de funcionar. Tendrás que pegarla otra vez en el Atajo. ¿Seguir?')) return;
-        const t = await codigoAtajo(true);
-        const copiada = await navigator.clipboard.writeText(urlAtajo(t)).then(() => true, () => false);
-        aviso(copiada ? 'Dirección nueva copiada' : 'Dirección nueva creada: pulsa «Copiar dirección»');
+        if (!confirm('Se creará una dirección nueva y la anterior dejará de funcionar (también la de «Apuntar en SYNCO»). Tendrás que volver a añadir tus Atajos. ¿Seguir?')) return;
+        await codigoAtajo(true);
+        aviso('Dirección nueva creada');
         return renderRelojConectar(cont);
       }
-      if (b.matches('[data-conectar-strava]')) return conectarStrava();
+      if (b.matches('[data-conectar-strava]')) { b.disabled = true; b.textContent = 'Abriendo Strava…'; return conectarStrava(); }
       if (b.matches('[data-sincronizar]')) { b.disabled = true; b.textContent = 'Sincronizando…'; await sincronizarStrava({ forzar: true }); return renderRelojConectar(cont); }
       if (b.matches('[data-desconectar]')) {
         if (!confirm('¿Desconectar Strava? Los entrenos que ya han llegado se quedan.')) return;

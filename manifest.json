@@ -18,7 +18,13 @@
       "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -33,6 +39,24 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Conectar reloj",
+      "short_name": "Reloj",
+      "description": "Apple Salud, Strava y Garmin",
+      "url": "./#conectar",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
+  ],
+  "id": "/",
+  "categories": [
+    "health",
+    "productivity",
+    "lifestyle"
   ]
 }

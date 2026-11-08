@@ -641,6 +641,9 @@ function pintarCuenta() {
 const menuPerfil = $('menu-perfil');
 menuPerfil.querySelector('[data-menu="avatar"]').innerHTML = `${icono('perfil')}Tu avatar`;
 menuPerfil.querySelector('[data-menu="perfil"]').innerHTML = `${icono('salud')}Tus datos físicos`;
+menuPerfil.querySelector('[data-menu="instalar"]').innerHTML = `${icono('abajo')}Instalar la app`;
+menuPerfil.querySelector('[data-menu="reloj"]').innerHTML = `${icono('reloj')}Conectar reloj`;
+if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) menuPerfil.querySelector('[data-menu="instalar"]').hidden = true;
 $('btn-entrar').innerHTML = `${icono('der')}Entrar`;
 $('btn-salir').innerHTML = `${icono('salir')}Cerrar sesión`;
 function cerrarMenuPerfil() {
@@ -665,6 +668,8 @@ menuPerfil.addEventListener('click', ev => {
   if (!b) return;
   cerrarMenuPerfil();
   if (b.dataset.menu === 'perfil') return irA('salud|perfil|datos');
+  if (b.dataset.menu === 'reloj') return irA('salud|reloj|conectar');
+  if (b.dataset.menu === 'instalar') return import('./conectar.js').then(m => m.abrirInstalar());
   if (b.dataset.menu === 'avatar') {
     import('./avatar/elegir.js').then(m => m.abrirPersonalizacion()).catch(e => console.warn('Avatar', e));
   }
@@ -693,6 +698,7 @@ async function entrar() {
   montarCaptura();   // nota rápida: botón flotante y enlaces #nota
   iniciarReloj().catch(e => console.warn('Reloj', e));   // datos de Apple Salud y entrenos nuevos de Strava
   import('./captura/bandeja.js').then(m => m.vigilarBandeja()).catch(e => console.warn('Bandeja', e));   // notas escritas en el Atajo del iPhone
+  import('./conectar.js').then(m => m.invitarInstalar()).catch(() => {});   // en el móvil sin instalar: «Instala SYNCO»
 }
 // Lo apuntado desde una nota rápida se ve al momento en la pantalla abierta
 addEventListener('synco:datos', () => { if (sesionIniciada) pintar(); });
@@ -729,6 +735,9 @@ $('btn-salir').onclick = async () => {
 // ---------- Arranque ----------
 const enlace = location.hash.slice(1);
 if (SECCIONES[enlace]) seccion = enlace;
+// Enlaces directos (los abren los QR): conectar el reloj e instalar la app
+if (enlace === 'conectar') { seccion = 'salud'; bloque = 'reloj'; vistaDe.reloj = 'conectar'; }
+if (enlace === 'instalar') import('./conectar.js').then(m => m.abrirInstalar());
 const { data: { session } } = await supabase.auth.getSession();
 pintarCuenta();
 if (session) entrar();
