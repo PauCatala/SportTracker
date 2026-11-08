@@ -15,14 +15,16 @@ import { ritmoDe, resumen } from '../running.js';
 import { perfilRun, semanaConCambios, FASES, lunes as lunesRun } from '../running/motor.js';
 import { cumplimiento } from '../flex.js';
 import { estacion, hayWebGL } from './estacion.js';
+import { orbitaReloj } from './reloj.js';
 
-const NOMBRES = { perfil: 'Perfil', gym: 'Gimnasio', nutricion: 'Nutrición', running: 'Running', flex: 'Flexibilidad' };
+const NOMBRES = { perfil: 'Perfil', gym: 'Gimnasio', nutricion: 'Nutrición', running: 'Running', flex: 'Flexibilidad', reloj: 'Reloj' };
 const LEMAS = {
   perfil: 'Tu cuerpo, tus datos de partida.',
   gym: 'Fuerza que se acumula semana a semana.',
   nutricion: 'Lo que comes, a la medida de tu objetivo.',
   running: 'Kilómetros, ritmo y plan.',
   flex: 'Movilidad que se nota cada día.',
+  reloj: 'Sueño, pulso, pasos y entrenos, sin apuntar nada.',
 };
 let ultimo = null;          // apartado de la última vez (para animar solo al cambiar)
 
@@ -372,4 +374,5 @@ function orbitaFlex() {
   };
 }
 
-const ORBITAS = { perfil: orbitaPerfil, gym: orbitaGym, running: orbitaRunning, nutricion: orbitaNutricion, flex: orbitaFlex };
+const ORBITAS = { perfil: orbitaPerfil, gym: orbitaGym, running: orbitaRunning, nutricion: orbitaNutricion, flex: orbitaFlex,
+  reloj: () => orbitaReloj({ tarjeta, dato, anillo, accion, ir }) };

@@ -14,6 +14,7 @@ export const ESCENAS = {
   running:   { pose: 'run',     objeto: null,    giro: -1.05, vel: 0.72 },
   nutricion: { pose: 'comer',   objeto: 'vaso',  giro: -0.28, vel: 1 },
   flex:      { pose: 'estirar', objeto: null,    giro: 0,     vel: 1 },
+  reloj:     { pose: 'idle',    objeto: null,    giro: 0.32,  vel: 0.85 },
 };
 
 // Huesos de cada ancla (con un desplazamiento vertical en metros, en el espacio del avatar)

@@ -31,6 +31,7 @@ import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
 import { cargador, quitarArranque } from './marca-anim.js';
 import { montarCaptura } from './captura/nota.js';
+import { renderRelojHoy, renderRelojEntrenos, renderRelojTendencias, renderRelojConectar, iniciarReloj } from './salud/reloj.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -79,6 +80,16 @@ const BLOQUES = {
       ['progreso', 'Progreso', renderFlexProgreso],
     ],
   },
+  // Sueño, pulso y pasos desde Apple Salud, y entrenos desde Strava (js/salud/reloj.js)
+  reloj: {
+    titulo: 'Reloj', icono: 'reloj', cuenta: true,
+    vistas: [
+      ['hoy', 'Hoy', renderRelojHoy],
+      ['entrenos', 'Entrenos', renderRelojEntrenos],
+      ['tendencias', 'Tendencias', renderRelojTendencias],
+      ['conectar', 'Conectar', renderRelojConectar],
+    ],
+  },
 };
 
 // Secciones principales. "c" es su color (de css/tokens.css).
@@ -108,7 +119,7 @@ const colorSuave = c => c === 'marca' ? 'var(--azul-pastel)' : `var(--${c})`;
 let seccion = 'hoy';
 let bloque = 'nutricion';
 // Recuerda la pestaña abierta de cada grupo (apartados de Salud y secciones)
-const vistaDe = { gym: 'entrenar', running: 'semana', flex: 'hoy', nutricion: 'hoy' };
+const vistaDe = { gym: 'entrenar', running: 'semana', flex: 'hoy', nutricion: 'hoy', reloj: 'hoy' };
 let sesionIniciada = false;
 let datosCargados = false;
 const $ = id => (id === 'tabs' ? TABS : document.getElementById(id));
@@ -680,6 +691,7 @@ async function entrar() {
   pintarRed();
   pintar();
   montarCaptura();   // nota rápida: botón flotante y enlaces #nota
+  iniciarReloj().catch(e => console.warn('Reloj', e));   // datos de Apple Salud y entrenos nuevos de Strava
 }
 // Lo apuntado desde una nota rápida se ve al momento en la pantalla abierta
 addEventListener('synco:datos', () => { if (sesionIniciada) pintar(); });
