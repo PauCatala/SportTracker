@@ -297,6 +297,7 @@ const sinConexion = () => !reloj.salud?.ultimo_envio && !reloj.strava && !reloj.
 
 // ------------------------------ HOY ------------------------------
 export async function renderRelojHoy(cont) {
+  foco = null;     // al salir de Conectar, la próxima vez se ven todas
   if (!(await preparar(cont))) return;
   if (sinConexion()) {
     cont.innerHTML = `
@@ -445,6 +446,7 @@ function filaActividad(a) {
 // ------------------------------ ENTRENOS ------------------------------
 let filtroDep = 'todos';
 export async function renderRelojEntrenos(cont) {
+  foco = null;     // al salir de Conectar, la próxima vez se ven todas
   if (!(await preparar(cont))) return;
   const todas = reloj.actividades;
   const deportes = [...new Set(todas.map(a => a.deporte))];
@@ -498,6 +500,7 @@ export async function renderRelojEntrenos(cont) {
 // ------------------------------ TENDENCIAS ------------------------------
 let rango = 30;
 export async function renderRelojTendencias(cont) {
+  foco = null;     // al salir de Conectar, la próxima vez se ven todas
   if (!(await preparar(cont))) return;
   const hoy = hoyISO();
   const fechas = Array.from({ length: rango }, (_, i) => sumarDias(hoy, i - rango + 1));
@@ -554,12 +557,66 @@ const LOGOS = {
 };
 const OK = svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>');
 
+function pantallaFoco({ foco, movil, iphone, conSalud, conStrava, atajoHecho }) {
+  const volver = '<button class="rj-enlace rj-volver" data-ver-todas>Ver todas las conexiones</button>';
+  const hecho = (txt) => `<p class="rj-foco-ok">${OK}${txt}</p>`;
+  if (foco === 'salud') {
+    const pasos = atajoHecho
+      ? ['Pulsa <b>Añadir a mi iPhone</b>: se abre Atajos.', 'Pulsa <b>Añadir atajo</b> y, cuando te pida la dirección, <b>pega</b> (ya está copiada).', 'Para que vaya solo cada noche: Atajos → <b>Automatización</b> → <b>+</b> → <b>Hora del día 22:30</b> → <b>Ejecutar inmediatamente</b> → <b>SYNCO Salud</b>.']
+      : PASOS_ATAJO.map(([t, x]) => `<b>${t}</b><br>${x}`).concat(PASOS_AUTO.slice(0, 1).map(() => 'Para que vaya solo: Atajos → <b>Automatización</b> → <b>Hora del día 22:30</b> → <b>Ejecutar inmediatamente</b> → <b>SYNCO Salud</b>.'));
+    return `<section class="panel rj-foco">
+      <span class="rj-logo salud grande">${LOGOS.salud}</span>
+      <h3>${conSalud ? 'Apple Salud está conectada' : 'Activa Apple Salud'}</h3>
+      <p>Tu sueño, pulso, VFC y pasos llegarán a SYNCO cada día, desde tu iPhone y tu reloj.</p>
+      ${conSalud ? hecho(`Último envío ${haceCuanto(reloj.salud.ultimo_envio)}`) : ''}
+      ${!iphone ? '<p class="rj-aviso-foco">Apple Salud solo está en el iPhone: abre este enlace en tu iPhone.</p>'
+        : atajoHecho ? `<button class="btn primario rj-foco-boton" data-anadir-salud>${conSalud ? 'Volver a añadir' : 'Añadir a mi iPhone'}</button>${conSalud ? '<button class="btn rj-foco-boton" data-ejecutar-salud>Sincronizar ahora</button>' : ''}`
+        : '<button class="btn primario rj-foco-boton" data-copiar>Copiar mi dirección</button>'}
+      ${iphone ? `<ol class="rj-foco-pasos">${pasos.map(x => `<li>${x}</li>`).join('')}</ol>` : ''}
+      ${volver}
+    </section>`;
+  }
+  if (foco === 'strava') {
+    return `<section class="panel rj-foco">
+      <span class="rj-logo strava grande">${LOGOS.strava}</span>
+      <h3>${conStrava ? 'Strava está conectado' : 'Conecta Strava'}</h3>
+      <p>Cada entreno que tu reloj suba a Strava llegará solo a SYNCO: distancia, ritmo, desnivel, tiempo y pulso.</p>
+      ${conStrava ? `${hecho(`Conectado como ${escapar(reloj.strava.nombre || 'tu cuenta')}`)}<button class="btn rj-foco-boton" data-sincronizar>Sincronizar ahora</button>`
+        : stravaConfigurado === false ? '<p class="rj-aviso-foco">La conexión con Strava aún no está activada en SYNCO. En cuanto lo esté, este código te llevará directo.</p>'
+        : stravaConfigurado === null ? cargador('Preparando…')
+        : '<button class="btn rj-btn-strava rj-foco-boton" data-conectar-strava>Conectar con Strava</button><p class="rj-pie">Abriendo Strava… si no se abre solo, pulsa el botón.</p>'}
+      ${volver}
+    </section>`;
+  }
+  // Garmin
+  return `<section class="panel rj-foco">
+    <span class="rj-logo garmin grande">${LOGOS.garmin}</span>
+    <h3>Conecta tu Garmin</h3>
+    <p>Garmin no deja que otras apps se conecten directamente, pero Garmin Connect envía tus datos a Strava y a Apple Salud. Actívalo una vez:</p>
+    <ol class="rj-foco-pasos">
+      <li>Abre <b>Garmin Connect</b> → <b>Más</b> (abajo a la derecha) → <b>Ajustes</b> → <b>Aplicaciones conectadas</b>.</li>
+      <li>Toca <b>Strava</b> → <b>Conectar</b> (tus entrenos).</li>
+      ${iphone || !movil ? '<li>Toca <b>Apple Salud</b> → activa todo (tu sueño, pulso y pasos).</li>' : ''}
+    </ol>
+    ${movil ? '<a class="btn primario rj-foco-boton" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">Abrir Garmin Connect</a>' : ''}
+    <ul class="rj-checks rj-foco-checks">
+      <li class="${conStrava ? 'ok' : ''}">${conStrava ? OK : '<i></i>'}Strava en SYNCO ${conStrava ? '' : '<button class="rj-enlace" data-ir-foco="strava">Conectar</button>'}</li>
+      ${iphone || !movil ? `<li class="${conSalud ? 'ok' : ''}">${conSalud ? OK : '<i></i>'}Apple Salud en SYNCO ${conSalud ? '' : '<button class="rj-enlace" data-ir-foco="salud">Activar</button>'}</li>` : ''}
+    </ul>
+    ${volver}
+  </section>`;
+}
+
 let stravaConfigurado = null;
+// Pantalla dedicada a UN servicio (la abren los QR: #conectar-salud, #conectar-strava, #conectar-garmin)
+let foco = null;
+let stravaLanzado = false;
+export const enfocarConexion = servicio => { foco = ['salud', 'strava', 'garmin'].includes(servicio) ? servicio : null; stravaLanzado = false; };
 export async function renderRelojConectar(cont) {
   if (!(await preparar(cont))) return;
   const { esIOS, esMovil, qrSVG, atajoListo, anadirAtajo, ejecutarAtajo } = await import('../conectar.js');
   if (stravaConfigurado === null) {
-    api('strava?accion=estado', { method: 'GET' }).then(r => { stravaConfigurado = !!r.configurado; if (cont.isConnected && cont.querySelector('.rj-hub')) renderRelojConectar(cont); }).catch(() => { stravaConfigurado = false; });
+    api('strava?accion=estado', { method: 'GET' }).then(r => { stravaConfigurado = !!r.configurado; if (cont.isConnected && cont.querySelector('.rj-hub, .rj-foco')) renderRelojConectar(cont); }).catch(() => { stravaConfigurado = false; });
   }
   const movil = esMovil(), iphone = esIOS();
   const conSalud = !!reloj.salud?.ultimo_envio, conStrava = !!reloj.strava;
@@ -570,8 +627,9 @@ export async function renderRelojConectar(cont) {
 
   const estado = (ok, texto) => `<span class="rj-estado ${ok ? 'ok' : ''}">${ok ? OK : ''}${texto}</span>`;
   // Apple Salud: un toque si el Atajo compartido existe; si no, la guía (plegada) como plan B
+  const qrDe = servicio => `<div class="rj-fuente-qr">${qrSVG(`${location.origin}/#conectar-${servicio}`)}<span>Escanéalo con el móvil</span></div>`;
   const accionSalud = !movil
-    ? '<p class="rj-pie">Desde tu iPhone: escanea el código de arriba.</p>'
+    ? qrDe('salud')
     : !iphone ? '<p class="rj-pie">Apple Salud solo está en el iPhone. Con Android, conecta tu reloj a Strava.</p>'
     : atajoHecho ? `
       <div class="rj-botones">
@@ -581,15 +639,17 @@ export async function renderRelojConectar(cont) {
       <p class="rj-pie">${conSalud ? 'Se envía sola cada noche si activaste la automatización.' : 'Se abrirá Atajos: pulsa <b>Añadir atajo</b> y, cuando te pida la dirección, <b>pega</b> (ya está copiada).'}</p>`
     : `<p class="rj-pie">La conexión de un toque con Apple Salud llega muy pronto. Mientras, puedes montarla tú:</p>`;
 
-  cont.innerHTML = `
+  if (foco) {
+    cont.innerHTML = pantallaFoco({ foco, movil, iphone, conSalud, conStrava, atajoHecho });
+  } else cont.innerHTML = `
     <section class="panel rj-hub">
       <div class="rj-hub-cab">
         <div>
           <span class="rj-eti">${listos === 2 ? 'Todo conectado' : `${listos} de 2 conectados`}</span>
           <h3>${listos === 2 ? 'Tu reloj ya habla con SYNCO' : 'Conecta tu reloj en un minuto'}</h3>
-          <p>Apple Salud trae tu sueño, pulso y pasos. Strava, tus entrenos. Con Garmin, Apple Watch, Coros o Polar funciona igual.</p>
+          <p>Apple Salud trae tu sueño, pulso y pasos. Strava, tus entrenos. Con Garmin, Apple Watch, Coros o Polar funciona igual.${movil ? '' : ' Escanea con el móvil el código del servicio que quieras activar.'}</p>
         </div>
-        ${movil ? '' : `<div class="rj-hub-qr">${qrSVG(`${location.origin}/#conectar`)}<span>Escanéalo con el iPhone</span></div>`}
+
       </div>
 
       <div class="rj-fuentes">
@@ -609,7 +669,7 @@ export async function renderRelojConectar(cont) {
             <div class="rj-botones"><button class="btn" data-sincronizar>Sincronizar ahora</button><button class="btn rj-btn-suave" data-desconectar>Desconectar</button></div>`
           : stravaConfigurado === false ? '<p class="rj-pie">La conexión con Strava llega muy pronto.</p>'
           : stravaConfigurado === null ? cargador('')
-          : '<button class="btn rj-btn-strava" data-conectar-strava>Conectar con Strava</button>'}
+          : `<button class="btn rj-btn-strava" data-conectar-strava>Conectar con Strava</button>${movil ? '' : qrDe('strava')}`}
         </article>
 
         <article class="rj-fuente rj-garmin ${conSalud && conStrava ? 'hecho' : ''}">
@@ -619,7 +679,7 @@ export async function renderRelojConectar(cont) {
             <li class="${conStrava ? 'ok' : ''}">${conStrava ? OK : '<i></i>'}Entrenos → Strava</li>
             <li class="${conSalud ? 'ok' : ''}">${conSalud ? OK : '<i></i>'}Sueño y pulso → Apple Salud</li>
           </ul>
-          ${movil ? '<a class="btn chico" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">Abrir Garmin Connect</a>' : ''}
+          ${movil ? '<a class="btn chico" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">Abrir Garmin Connect</a>' : qrDe('garmin')}
         </article>
       </div>
     </section>
@@ -648,10 +708,17 @@ export async function renderRelojConectar(cont) {
       ${reloj.salud?.token ? '<button class="rj-enlace rj-renovar" data-renovar>Cambiar mi dirección secreta</button>' : ''}
     </section>`;
 
+  // Desde el QR de Strava: si falta conectar, se abre Strava directamente
+  if (foco === 'strava' && !conStrava && stravaConfigurado && !stravaLanzado) {
+    stravaLanzado = true;
+    setTimeout(() => { if (cont.isConnected && foco === 'strava') conectarStrava(); }, 900);
+  }
   cont.onclick = async ev => {
     const b = ev.target.closest('button');
     if (!b) return;
     try {
+      if (b.matches('[data-ver-todas]')) { foco = null; return renderRelojConectar(cont); }
+      if (b.matches('[data-ir-foco]')) { enfocarConexion(b.dataset.irFoco); return renderRelojConectar(cont); }
       if (b.matches('[data-anadir-salud]')) return anadirAtajo('salud', urlAtajo(await codigoAtajo()));
       if (b.matches('[data-ejecutar-salud]')) return ejecutarAtajo('salud');
       if (b.matches('[data-copiar]')) {

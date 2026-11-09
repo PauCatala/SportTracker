@@ -31,7 +31,7 @@ import { renderSocial } from './social.js';
 import { montarCentro } from './salud/centro.js';
 import { cargador, quitarArranque } from './marca-anim.js';
 import { montarCaptura } from './captura/nota.js';
-import { renderRelojHoy, renderRelojEntrenos, renderRelojTendencias, renderRelojConectar, iniciarReloj } from './salud/reloj.js';
+import { renderRelojHoy, renderRelojEntrenos, renderRelojTendencias, renderRelojConectar, iniciarReloj, enfocarConexion } from './salud/reloj.js';
 
 // =====================================================================
 // LUMEN: Hoy + cuatro secciones.
@@ -737,7 +737,8 @@ $('btn-salir').onclick = async () => {
 const enlace = location.hash.slice(1);
 if (SECCIONES[enlace]) seccion = enlace;
 // Enlaces directos (los abren los QR): conectar el reloj e instalar la app
-if (enlace === 'conectar') { seccion = 'salud'; bloque = 'reloj'; vistaDe.reloj = 'conectar'; }
+const conexion = enlace.match(/^conectar(?:-(salud|strava|garmin))?$/);
+if (conexion) { seccion = 'salud'; bloque = 'reloj'; vistaDe.reloj = 'conectar'; enfocarConexion(conexion[1]); }
 if (enlace === 'instalar') import('./conectar.js').then(m => m.abrirInstalar());
 const { data: { session } } = await supabase.auth.getSession();
 pintarCuenta();
